@@ -1,0 +1,327 @@
+# [ Arkanoid Master Edition ]
+# ----------------------------------------------------------------------------
+# Developed using Djazair Language & Raylib
+# ----------------------------------------------------------------------------
+
+use raylib as rl
+use random
+use math
+
+# Game Constants
+let PLAYER_MAX_LIFE = 5
+let LINES_OF_BRICKS = 5
+let BRICKS_PER_LINE = 20
+
+# Helper absolute function
+fn abs(val)
+    if val < 0
+        return 0 - val
+    end
+    return val
+end
+
+# Procedural Circle-Rectangle Collision
+fn checkCollisionCircleRec(cx, cy, radius, rx, ry, rw, rh)
+    let closestX = cx
+    if cx < rx
+        closestX = rx
+    elif cx > rx + rw
+        closestX = rx + rw
+    end
+
+    let closestY = cy
+    if cy < ry
+        closestY = ry
+    elif cy > ry + rh
+        closestY = ry + rh
+    end
+
+    let dx = cx - closestX
+    let dy = cy - closestY
+    let distanceSquared = dx * dx + dy * dy
+
+    return distanceSquared < radius * radius
+end
+
+class Brick
+    init(x, y)
+    self.x = x
+    self.y = y
+    self.active = True
+end
+end
+
+class ArkanoidGame
+    init()
+    self.screenWidth = 800
+    self.screenHeight = 450
+
+    self.win = rl.Window(self.screenWidth, self.screenHeight, "Arkanoid Master - Djazair Raylib")
+    self.win.setFPS(60)
+
+    self.gameOver = False
+    self.pause = False
+
+    self.initGame()
+end
+
+initGame()
+self.brickWidth = self.screenWidth / BRICKS_PER_LINE
+self.brickHeight = 24
+
+self.playerX = self.screenWidth / 2
+self.playerY = self.screenHeight * 7 / 8
+self.playerW = self.screenWidth / 10
+self.playerH = 16
+self.playerLife = PLAYER_MAX_LIFE
+
+self.ballRadius = 7
+self.ballX = self.playerX
+self.ballY = self.playerY - self.playerH / 2 - self.ballRadius
+self.ballSpeedX = 0
+self.ballSpeedY = 0
+self.ballActive = False
+
+self.bricks = []
+let initialDownPosition = 50
+for i in 0..LINES_OF_BRICKS-1
+    let row = []
+    for j in 0..BRICKS_PER_LINE-1
+        let bx = j * self.brickWidth + self.brickWidth / 2
+        let by = i * self.brickHeight + initialDownPosition
+        row.append(Brick(bx, by))
+    end
+    self.bricks.append(row)
+end
+end
+
+reset()
+self.initGame()
+self.gameOver = False
+self.pause = False
+end
+
+update()
+if !self.gameOver
+    if rl.isKeyPressed(rl.KEY_P)
+        self.pause = !self.pause
+    end
+
+    if !self.pause
+        # Player Paddle movement
+        if rl.isKeyDown(rl.KEY_LEFT)
+            self.playerX = self.playerX - 5
+        end
+        if self.playerX - self.playerW / 2 <= 0
+            self.playerX = self.playerW / 2
+        end
+
+        if rl.isKeyDown(rl.KEY_RIGHT)
+            self.playerX = self.playerX + 5
+        end
+        if self.playerX + self.playerW / 2 >= self.screenWidth
+            self.playerX = self.screenWidth - self.playerW / 2
+        end
+
+        # Ball launch logic
+        if !self.ballActive
+            if rl.isKeyPressed(rl.KEY_SPACE)
+                self.ballActive = True
+                self.ballSpeedX = 0
+                self.ballSpeedY = -5
+            end
+        end
+
+        # Ball movement
+        if self.ballActive
+            self.ballX = self.ballX + self.ballSpeedX
+            self.ballY = self.ballY + self.ballSpeedY
+        else
+            self.ballX = self.playerX
+            self.ballY = self.playerY - self.playerH / 2 - self.ballRadius
+        end
+
+        # Ball vs wall collisions
+        if self.ballX + self.ballRadius >= self.screenWidth or self.ballX - self.ballRadius <= 0
+            self.ballSpeedX = 0 - self.ballSpeedX
+        end
+
+        if self.ballY - self.ballRadius <= 0
+            self.ballSpeedY = 0 - self.ballSpeedY
+        end
+
+        if self.ballY + self.ballRadius >= self.screenHeight
+            self.ballSpeedX = 0
+            self.ballSpeedY = 0
+            self.ballActive = False
+            self.playerLife = self.playerLife - 1
+        end
+
+        # Ball vs player paddle collision
+        let paddleRecX = self.playerX - self.playerW / 2
+        let paddleRecY = self.playerY - self.playerH / 2
+        if checkCollisionCircleRec(self.ballX, self.ballY, self.ballRadius, paddleRecX, paddleRecY, self.playerW, self.playerH)
+            if self.ballSpeedY > 0
+                self.ballSpeedY = 0 - self.ballSpeedY
+                self.ballSpeedX = (self.ballX - self.playerX) / (self.playerW / 2) * 5
+            end
+        end
+
+        # Ball vs bricks collisions
+        for row in self.bricks
+            for b in row
+                if b.active
+                    let halfW = self.brickWidth / 2
+                    let halfH = self.brickHeight / 2
+
+                    # Hit below
+                    if self.ballY - self.ballRadius <= b.y + halfH and self.ballY - self.ballRadius > b.y + halfH + self.ballSpeedY and abs(self.ballX - b.x) < halfW + self.ballRadius * 2 / 3 and self.ballSpeedY < 0
+                        b.active = False
+                        self.ballSpeedY = 0 - self.ballSpeedY
+
+                        # Hit above
+                    elif self.ballY + self.ballRadius >= b.y - halfH and self.ballY + self.ballRadius < b.y - halfH + self.ballSpeedY and abs(self.ballX - b.x) < halfW + self.ballRadius * 2 / 3 and self.ballSpeedY > 0
+                        b.active = False
+                        self.ballSpeedY = 0 - self.ballSpeedY
+
+                        # Hit left
+                    elif self.ballX + self.ballRadius >= b.x - halfW and self.ballX + self.ballRadius < b.x - halfW + self.ballSpeedX and abs(self.ballY - b.y) < halfH + self.ballRadius * 2 / 3 and self.ballSpeedX > 0
+                        b.active = False
+                        self.ballSpeedX = 0 - self.ballSpeedX
+
+                        # Hit right
+                    elif self.ballX - self.ballRadius <= b.x + halfW and self.ballX - self.ballRadius > b.x + halfW + self.ballSpeedX and abs(self.ballY - b.y) < halfH + self.ballRadius * 2 / 3 and self.ballSpeedX < 0
+                        b.active = False
+                        self.ballSpeedX = 0 - self.ballSpeedX
+                    end
+                end
+            end
+        end
+
+        # Win or Game over check
+        if self.playerLife <= 0
+            self.gameOver = True
+        else
+            self.gameOver = True
+            for row in self.bricks
+                for b in row
+                    if b.active
+                        self.gameOver = False
+                    end
+                end
+            end
+        end
+    end
+else
+    if rl.isKeyPressed(rl.KEY_ENTER)
+        self.reset()
+    end
+end
+end
+
+draw()
+self.win.begin()
+self.win.clear([10, 10, 20, 255])
+
+if !self.gameOver
+    # Starfield background
+    for i in 0..20
+        let starX = (i * 47) % self.screenWidth
+        let starY = (i * 31) % self.screenHeight
+        rl.drawCircle(num(starX), num(starY), 1.5, [255, 255, 255, 60])
+    end
+
+    # Draw Player Paddle: Glowing Cyan Capsule
+    let paddleX = self.playerX - self.playerW / 2
+    let paddleY = self.playerY - self.playerH / 2
+    rl.drawRectangle(num(paddleX), num(paddleY), num(self.playerW), num(self.playerH), [0, 190, 255, 255])
+    rl.drawRectangleLines(num(paddleX), num(paddleY), num(self.playerW), num(self.playerH), [255, 255, 255, 200])
+
+    # Draw Lives
+    rl.drawText("LIVES:", 20, num(self.screenHeight - 32), 11, [255, 255, 255, 140])
+    for i in 0..self.playerLife-1
+        rl.drawRectangle(num(70 + 35 * i), num(self.screenHeight - 30), 25, 8, [0, 255, 180, 255])
+    end
+
+    # Draw Ball: Radiant Magenta
+    rl.drawCircle(num(self.ballX), num(self.ballY), num(self.ballRadius), [255, 0, 127, 255])
+    rl.drawCircleLines(num(self.ballX), num(self.ballY), num(self.ballRadius), [255, 255, 255, 220])
+
+    # Draw Bricks with a vibrant row-based color palette
+    for i, row in self.bricks
+
+        let brickColor = [120, 120, 120, 255]
+        let borderColor = [180, 180, 180, 255]
+        match i
+        case 0
+            brickColor = [255, 60, 100, 255]
+            borderColor = [255, 130, 150, 255]
+        case 1
+            brickColor = [255, 130, 40, 255]
+            borderColor = [255, 180, 100, 255]
+        case 2
+            brickColor = [255, 200, 0, 255]
+            borderColor = [255, 240, 130, 255]
+        case 3
+            brickColor = [0, 228, 48, 255]
+            borderColor = [120, 255, 160, 255]
+        case 4
+            brickColor = [0, 190, 255, 255]
+            borderColor = [150, 230, 255, 255]
+        end
+
+        for b in row
+            if b.active
+                let bx = b.x - self.brickWidth / 2
+                let by = b.y - self.brickHeight / 2
+                rl.drawRectangle(num(bx), num(by), num(self.brickWidth - 2), num(self.brickHeight - 2), brickColor)
+                rl.drawRectangleLines(num(bx), num(by), num(self.brickWidth - 2), num(self.brickHeight - 2), borderColor)
+            end
+        end
+    end
+
+    if !self.ballActive
+        rl.drawText("PRESS [ SPACE ] TO LAUNCH BALL", self.screenWidth / 2 - 140, self.screenHeight / 2 + 30, 14, [255, 255, 255, 120])
+    end
+
+    if self.pause
+        rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [0, 0, 0, 180])
+        rl.drawText("GAME PAUSED", self.screenWidth / 2 - 120, self.screenHeight / 2 - 20, 35, [255, 255, 255, 255])
+    end
+else
+    rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [5, 5, 12, 255])
+
+    let win = True
+    for row in self.bricks
+        for b in row
+            if b.active
+                win = False
+            end
+        end
+    end
+
+    if win
+        rl.drawText("ARKANOID MASTER", self.screenWidth / 2 - 200, self.screenHeight / 2 - 70, 45, [0, 255, 180, 255])
+        rl.drawText("VICTORY!", self.screenWidth / 2 - 80, self.screenHeight / 2 + 10, 35, [0, 255, 200, 255])
+    else
+        rl.drawText("ARKANOID MASTER", self.screenWidth / 2 - 200, self.screenHeight / 2 - 70, 45, [255, 200, 0, 255])
+        rl.drawText("GAME OVER", self.screenWidth / 2 - 100, self.screenHeight / 2 + 10, 35, [255, 60, 100, 255])
+    end
+
+    rl.drawText("Press [ ENTER ] to Play Again", self.screenWidth / 2 - 160, self.screenHeight / 2 + 100, 20, [0, 255, 200, 255])
+end
+
+self.win.finish()
+end
+
+run()
+while self.win.isOpen()
+    self.update()
+    self.draw()
+end
+self.win.close()
+end
+end
+
+let game = ArkanoidGame()
+game.run()

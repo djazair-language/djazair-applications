@@ -1,0 +1,441 @@
+# [ Djazair Minesweeper - Raylib Edition ]
+# ----------------------------------------------------------------------------
+# A futuristic, premium Minesweeper application built with Djazair & Raylib
+# ----------------------------------------------------------------------------
+
+use raylib as rl
+use math
+
+# Grid Settings
+let COLS = 16
+let ROWS = 16
+let CELL_SIZE = 30
+
+# Screen Settings
+let SCREEN_WIDTH = COLS * CELL_SIZE       # 480 pixels
+let TOP_BAR_HEIGHT = 80
+let SCREEN_HEIGHT = ROWS * CELL_SIZE + TOP_BAR_HEIGHT # 560 pixels
+
+# Game States
+let STATE_PLAYING = 0
+let STATE_LOST = 1
+let STATE_WON = 2
+
+class FireParticle
+    init(x, y)
+        self.x = x
+        self.y = y
+        self.vx = num(rl.getRandomValue(-80, 80)) / 10.0
+        self.vy = num(rl.getRandomValue(-80, 80)) / 10.0
+        self.life = 1.0
+        # Color transitioning from Yellow to Red
+        let colChoice = rl.getRandomValue(0, 2)
+        match colChoice
+        case 0
+            self.color = [255, 220, 0] # Yellow
+        case 1
+            self.color = [255, 100, 0] # Orange
+        default
+            self.color = [255, 30, 30] # Red
+        end
+    end
+
+    update()
+        self.x = self.x + self.vx
+        self.y = self.y + self.vy
+        self.vx = self.vx * 0.95
+        self.vy = self.vy * 0.95
+        self.life = self.life - 0.05
+    end
+
+    draw()
+        let alpha = num(self.life * 255.0)
+        rl.drawCircle(num(self.x), num(self.y), num(self.life * 5.0), [self.color[0], self.color[1], self.color[2], num(alpha)])
+    end
+end
+
+class Minesweeper
+    init()
+        self.win = rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Djazair Minesweeper - Cyberpunk Edition")
+        self.win.setFPS(60)
+
+        self.state = STATE_PLAYING
+        self.firstClick = True
+        self.timer = 0
+        self.frameCount = 0
+        self.minesLeft = 40
+        self.explodedCol = -1
+        self.explodedRow = -1
+
+        self.particles = []
+
+        # Initialize grids
+        self.mines = []
+        self.revealed = []
+        self.flagged = []
+        self.neighborMines = []
+
+        for i in 0..COLS-1
+            let colM = []
+            let colR = []
+            let colF = []
+            let colN = []
+            for j in 0..ROWS-1
+                colM.append(0)
+                colR.append(0)
+                colF.append(0)
+                colN.append(0)
+            end
+            self.mines.append(colM)
+            self.revealed.append(colR)
+            self.flagged.append(colF)
+            self.neighborMines.append(colN)
+        end
+    end
+
+    reset()
+        self.state = STATE_PLAYING
+        self.firstClick = True
+        self.timer = 0
+        self.frameCount = 0
+        self.minesLeft = 40
+        self.explodedCol = -1
+        self.explodedRow = -1
+        self.particles = []
+
+        for i in 0..COLS-1
+            for j in 0..ROWS-1
+                self.mines[i][j] = 0
+                self.revealed[i][j] = 0
+                self.flagged[i][j] = 0
+                self.neighborMines[i][j] = 0
+            end
+        end
+    end
+
+    countAdjacentMines(col, row)
+        let count = 0
+        for i in -1..1
+            for j in -1..1
+                if i != 0 or j != 0
+                    let nc = col + i
+                    let nr = row + j
+                    if nc >= 0 and nc < COLS and nr >= 0 and nr < ROWS
+                        if self.mines[nc][nr] == 1
+                            count += 1
+                        end
+                    end
+                end
+            end
+        end
+        return count
+    end
+
+    placeMines(startCol, startRow)
+        let minesPlaced = 0
+        while minesPlaced < 40
+            let rCol = rl.getRandomValue(0, COLS - 1)
+            let rRow = rl.getRandomValue(0, ROWS - 1)
+
+            # Avoid first clicked cell
+            let isStartCell = (rCol == startCol and rRow == startRow)
+            if not isStartCell and self.mines[rCol][rRow] == 0
+                self.mines[rCol][rRow] = 1
+                minesPlaced += 1
+            end
+        end
+
+        # Calculate numbers
+        for c in 0..COLS-1
+            for r in 0..ROWS-1
+                self.neighborMines[c][r] = self.countAdjacentMines(c, r)
+            end
+        end
+    end
+
+    revealCell(col, row)
+        if col < 0 or col >= COLS or row < 0 or row >= ROWS
+            return Null
+        end
+        if self.revealed[col][row] == 1 or self.flagged[col][row] == 1
+            return Null
+        end
+
+        self.revealed[col][row] = 1
+
+        # Check if it was a mine
+        if self.mines[col][row] == 1
+            self.state = STATE_LOST
+            self.explodedCol = col
+            self.explodedRow = row
+            # Spawn massive explosion particles
+            let px = col * CELL_SIZE + CELL_SIZE / 2
+            let py = row * CELL_SIZE + TOP_BAR_HEIGHT + CELL_SIZE / 2
+            for i in 0..40
+                self.particles.append(FireParticle(px, py))
+            end
+            self.revealAllMines()
+            return Null
+        end
+
+        # If zero neighbor mines, flood fill reveal
+        if self.neighborMines[col][row] == 0
+            for i in -1..1
+                for j in -1..1
+                    if i != 0 or j != 0
+                        self.revealCell(col + i, row + j)
+                    end
+                end
+            end
+        end
+    end
+
+    revealAllMines()
+        for c in 0..COLS-1
+            for r in 0..ROWS-1
+                if self.mines[c][r] == 1
+                    self.revealed[c][r] = 1
+                end
+            end
+        end
+    end
+
+    toggleFlag(col, row)
+        if col < 0 or col >= COLS or row < 0 or row >= ROWS
+            return Null
+        end
+        if self.revealed[col][row] == 1
+            return Null
+        end
+
+        if self.flagged[col][row] == 1
+            self.flagged[col][row] = 0
+            self.minesLeft += 1
+        else
+            self.flagged[col][row] = 1
+            self.minesLeft -= 1
+        end
+    end
+
+    checkWin()
+        for c in 0..COLS-1
+            for r in 0..ROWS-1
+                # If there's a non-mine cell that is not revealed, we haven't won yet
+                if self.mines[c][r] == 0 and self.revealed[c][r] == 0
+                    return False
+                end
+            end
+        end
+        return True
+    end
+
+    handleInput()
+        # Restart game with R key
+        if rl.isKeyPressed(rl.KEY_R)
+            self.reset()
+            return Null
+        end
+
+        let mouseX = rl.getMouseX()
+        let mouseY = rl.getMouseY()
+
+        # Handle smiley button click (centered at top bar)
+        let faceX = SCREEN_WIDTH / 2 - 20
+        let faceY = TOP_BAR_HEIGHT / 2 - 20
+        if rl.isMouseButtonPressed(rl.MOUSE_LEFT_BUTTON)
+            if mouseX >= faceX and mouseX <= faceX + 40 and mouseY >= faceY and mouseY <= faceY + 40
+                self.reset()
+                return Null
+            end
+        end
+
+        if self.state != STATE_PLAYING
+            return Null
+        end
+
+        # Grid bounds check
+        if mouseX >= 0 and mouseX < SCREEN_WIDTH and mouseY >= TOP_BAR_HEIGHT and mouseY < SCREEN_HEIGHT
+            let col = math.floor(num(mouseX) / num(CELL_SIZE))
+            let row = math.floor(num(mouseY - TOP_BAR_HEIGHT) / num(CELL_SIZE))
+
+            if col >= 0 and col < COLS and row >= 0 and row < ROWS
+                if rl.isMouseButtonPressed(rl.MOUSE_LEFT_BUTTON)
+                    if self.firstClick
+                        self.firstClick = False
+                        self.placeMines(col, row)
+                    end
+                    self.revealCell(col, row)
+
+                    # Check for win condition after reveal
+                    if self.state == STATE_PLAYING
+                        if self.checkWin()
+                            self.state = STATE_WON
+                        end
+                    end
+                elif rl.isMouseButtonPressed(rl.MOUSE_RIGHT_BUTTON)
+                    self.toggleFlag(col, row)
+                end
+            end
+        end
+    end
+
+    update()
+        # Update timer
+        if self.state == STATE_PLAYING and not self.firstClick
+            self.frameCount += 1
+            if self.frameCount >= 60
+                self.frameCount = 0
+                self.timer += 1
+            end
+        end
+
+        # Update particles
+        let i = 0
+        while i < self.particles.length()
+            self.particles[i].update()
+            if self.particles[i].life <= 0
+                self.particles.pop(i)
+            else
+                i += 1
+            end
+        end
+    end
+
+    draw()
+        self.win.begin()
+        self.win.clear([15, 15, 20, 255])
+
+        # Draw Top Status Bar
+        rl.drawRectangle(0, 0, SCREEN_WIDTH, TOP_BAR_HEIGHT, [22, 22, 28, 255])
+        rl.drawLineEx(0, TOP_BAR_HEIGHT - 2, SCREEN_WIDTH, TOP_BAR_HEIGHT - 2, 2.0, [0, 180, 240, 255])
+
+        # Flag Count (Mines Left)
+        rl.drawText("MINES", 20, 15, 12, rl.GRAY)
+        rl.drawText(str(self.minesLeft), 20, 32, 22, [255, 60, 80, 255])
+
+        # Timer
+        rl.drawText("TIME", SCREEN_WIDTH - 80, 15, 12, rl.GRAY)
+        rl.drawText(str(self.timer), SCREEN_WIDTH - 80, 32, 22, [255, 200, 0, 255])
+
+        # Smiley Face / Reset Button
+        let faceX = SCREEN_WIDTH / 2 - 20
+        let faceY = TOP_BAR_HEIGHT / 2 - 20
+        # Button border/box
+        rl.drawRectangle(faceX, faceY, 40, 40, [32, 32, 40, 255])
+        rl.drawRectangleLines(faceX, faceY, 40, 40, [0, 180, 240, 255])
+
+        # Draw Face Symbol based on game state
+        if self.state == STATE_PLAYING
+            rl.drawText(":)", faceX + 13, faceY + 11, 20, rl.GOLD)
+        elif self.state == STATE_LOST
+            rl.drawText("X(", faceX + 11, faceY + 11, 20, [255, 50, 50, 255])
+        else
+            rl.drawText("B)", faceX + 11, faceY + 11, 20, rl.LIME)
+        end
+
+        # Draw Grid Cells
+        for col in 0..COLS-1
+            for row in 0..ROWS-1
+                let cx = col * CELL_SIZE
+                let cy = row * CELL_SIZE + TOP_BAR_HEIGHT
+
+                let isRevealed = (self.revealed[col][row] == 1)
+                let isFlagged = (self.flagged[col][row] == 1)
+
+                if isRevealed
+                    if self.mines[col][row] == 1
+                        # Draw Mine
+                        if col == self.explodedCol and row == self.explodedRow
+                            rl.drawRectangle(cx + 1, cy + 1, CELL_SIZE - 2, CELL_SIZE - 2, [255, 50, 50, 255])
+                        else
+                            rl.drawRectangle(cx + 1, cy + 1, CELL_SIZE - 2, CELL_SIZE - 2, [35, 35, 45, 255])
+                        end
+                        rl.drawCircle(cx + CELL_SIZE / 2, cy + CELL_SIZE / 2, 7, [10, 10, 15, 255])
+                        rl.drawCircle(cx + CELL_SIZE / 2, cy + CELL_SIZE / 2, 4, [255, 60, 80, 255])
+                    else
+                        # Draw Revealed Empty / Numbered Cell
+                        rl.drawRectangle(cx + 1, cy + 1, CELL_SIZE - 2, CELL_SIZE - 2, [22, 22, 28, 255])
+                        rl.drawRectangleLines(cx, cy, CELL_SIZE, CELL_SIZE, [30, 30, 36, 255])
+
+                        let numMines = self.neighborMines[col][row]
+                        if numMines > 0
+                            let numColor = rl.SKYBLUE
+                            match numMines
+                            case 1
+                                numColor = [0, 160, 255, 255]
+                            case 2
+                                numColor = [0, 220, 120, 255]
+                            case 3
+                                numColor = [255, 60, 80, 255]
+                            case 4
+                                numColor = [180, 80, 255, 255]
+                            case 5
+                                numColor = [255, 200, 0, 255]
+                            case 6
+                                numColor = [0, 230, 230, 255]
+                            case 7
+                                numColor = [255, 100, 180, 255]
+                            default
+                                numColor = rl.GRAY
+                            end
+                            rl.drawText(str(numMines), cx + 11, cy + 7, 18, numColor)
+                        end
+                    end
+                else
+                    # Draw Unrevealed Cell
+                    rl.drawRectangleGradientV(cx + 1, cy + 1, CELL_SIZE - 2, CELL_SIZE - 2, [45, 50, 65, 255], [30, 35, 48, 255])
+                    rl.drawRectangleLines(cx, cy, CELL_SIZE, CELL_SIZE, [55, 60, 80, 255])
+
+                    # Draw Hover preview
+                    let mx = rl.getMouseX()
+                    let my = rl.getMouseY()
+                    if mx >= cx and mx < cx + CELL_SIZE and my >= cy and my < cy + CELL_SIZE
+                        rl.drawRectangle(cx + 1, cy + 1, CELL_SIZE - 2, CELL_SIZE - 2, [0, 180, 240, 40])
+                    end
+
+                    # Draw Flag
+                    if isFlagged
+                        # Draw stylized triangle flag
+                        let fx = cx + CELL_SIZE / 2
+                        let fy = cy + CELL_SIZE / 2
+                        rl.drawLine(fx - 4, fy + 7, fx + 5, fy + 7, rl.RAYWHITE) # Base
+                        rl.drawLine(fx, fy - 7, fx, fy + 7, rl.RAYWHITE)        # Pole
+                        rl.drawTriangle([fx, fy - 6], [fx, fy + 1], [fx - 6, fy - 2], [255, 60, 80, 255]) # Red flag
+                    end
+                end
+            end
+        end
+
+        # Draw particles
+        for p in self.particles
+            p.draw()
+        end
+
+        # Game Over Overlay Banner
+        if self.state == STATE_LOST
+            rl.drawRectangle(0, SCREEN_HEIGHT / 2 - 30, SCREEN_WIDTH, 60, [15, 15, 20, 220])
+            rl.drawRectangleLines(0, SCREEN_HEIGHT / 2 - 30, SCREEN_WIDTH, 60, [255, 50, 50, 255])
+            rl.drawText("MISSION FAILED", SCREEN_WIDTH / 2 - 85, SCREEN_HEIGHT / 2 - 18, 20, [255, 50, 50, 255])
+            rl.drawText("Press R to reboot", SCREEN_WIDTH / 2 - 50, SCREEN_HEIGHT / 2 + 8, 11, rl.GRAY)
+        elif self.state == STATE_WON
+            rl.drawRectangle(0, SCREEN_HEIGHT / 2 - 30, SCREEN_WIDTH, 60, [15, 15, 20, 220])
+            rl.drawRectangleLines(0, SCREEN_HEIGHT / 2 - 30, SCREEN_WIDTH, 60, rl.LIME)
+            rl.drawText("SYSTEM SECURED", SCREEN_WIDTH / 2 - 90, SCREEN_HEIGHT / 2 - 18, 20, rl.LIME)
+            rl.drawText("Press R to loop", SCREEN_WIDTH / 2 - 40, SCREEN_HEIGHT / 2 + 8, 11, rl.GRAY)
+        end
+
+        self.win.finish()
+    end
+
+    run()
+        while self.win.isOpen()
+            self.handleInput()
+            self.update()
+            self.draw()
+        end
+        self.win.close()
+    end
+end
+
+let game = Minesweeper()
+game.run()

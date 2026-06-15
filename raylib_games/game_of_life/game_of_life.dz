@@ -1,0 +1,362 @@
+# [ Conway's Game of Life - Djazair Raylib Edition ]
+# ----------------------------------------------------------------------------
+# Developed using Djazair Language & Raylib
+# ----------------------------------------------------------------------------
+
+use raylib as rl
+use random
+use math
+
+# Screen Settings
+let SCREEN_WIDTH = 800
+let SCREEN_HEIGHT = 580
+
+# Key Constants
+let KEY_C = 67
+
+# Grid Settings
+let GRID_SIZE = 16
+let GRID_W = SCREEN_WIDTH / GRID_SIZE    # 50 columns
+let GRID_H = 480 / GRID_SIZE             # 30 rows
+let GRID_AREA_HEIGHT = GRID_H * GRID_SIZE  # 480 pixels
+
+class CellParticle
+    init(x, y, color)
+        self.x = x
+        self.y = y
+        self.vx = num(rl.getRandomValue(-50, 50)) / 10.0
+        self.vy = num(rl.getRandomValue(-50, 50)) / 10.0
+        self.life = 1.0
+        self.color = color
+    end
+
+    update()
+        self.x = self.x + self.vx
+        self.y = self.y + self.vy
+        self.life = self.life - 0.08
+    end
+
+    draw()
+        let alpha = num(self.life * 255.0)
+        rl.drawRectangle(num(self.x), num(self.y), 3, 3, [self.color[0], self.color[1], self.color[2], num(alpha)])
+    end
+end
+
+class GameOfLife
+    init()
+        self.win = rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Conway's Game of Life - Djazair Engine")
+        self.win.setFPS(60)
+
+        self.running = False
+        self.generation = 0
+        self.aliveCount = 0
+        self.speed = 3 # 1 to 6
+        self.updateInterval = 10 # frames between updates
+        self.frameCount = 0
+
+        self.particles = []
+
+        # Initialize grid and nextGrid
+        self.grid = []
+        self.nextGrid = []
+        for i in 0..GRID_W-1
+            let col = []
+            let nextCol = []
+            for j in 0..GRID_H-1
+                col.append(0)
+                nextCol.append(0)
+            end
+            self.grid.append(col)
+            self.nextGrid.append(nextCol)
+        end
+
+        # Randomize initially
+        self.randomize()
+    end
+
+    clear()
+        for i in 0..GRID_W-1
+            for j in 0..GRID_H-1
+                self.grid[i][j] = 0
+                self.nextGrid[i][j] = 0
+            end
+        end
+        self.generation = 0
+        self.aliveCount = 0
+        self.particles = []
+    end
+
+    randomize()
+        self.clear()
+        let count = 0
+        for i in 0..GRID_W-1
+            for j in 0..GRID_H-1
+                if random.float() < 0.22
+                    self.grid[i][j] = 1
+                    count += 1
+                else
+                    self.grid[i][j] = 0
+                end
+            end
+        end
+        self.aliveCount = count
+    end
+
+    spawnParticles(col, row)
+        if self.particles.length() > 150
+            return Null
+        end
+        let px = col * GRID_SIZE + GRID_SIZE / 2
+        let py = row * GRID_SIZE + GRID_SIZE / 2
+        for i in 0..3
+            self.particles.append(CellParticle(px, py, [0, 240, 180, 255]))
+        end
+    end
+
+    countNeighbors(col, row)
+        let count = 0
+        for i in -1..1
+            for j in -1..1
+                if i == 0 and j == 0
+                    # Skip self
+                else
+                    let nCol = (col + i + GRID_W) % GRID_W
+                    let nRow = (row + j + GRID_H) % GRID_H
+                    if self.grid[nCol][nRow] == 1
+                        count += 1
+                    end
+                end
+            end
+        end
+        return count
+    end
+
+    step()
+        self.generation += 1
+        let currentAlive = 0
+
+        # Calculate next state
+        for x in 0..GRID_W-1
+            for y in 0..GRID_H-1
+                let neighbors = self.countNeighbors(x, y)
+                let cell = self.grid[x][y]
+
+                if cell == 1
+                    if neighbors < 2 or neighbors > 3
+                        self.nextGrid[x][y] = 0
+                    else
+                        self.nextGrid[x][y] = 1
+                        currentAlive += 1
+                    end
+                else
+                    if neighbors == 3
+                        self.nextGrid[x][y] = 1
+                        currentAlive += 1
+                        self.spawnParticles(x, y)
+                    else
+                        self.nextGrid[x][y] = 0
+                    end
+                end
+            end
+        end
+
+        # Reference swap
+        let temp = self.grid
+        self.grid = self.nextGrid
+        self.nextGrid = temp
+
+        self.aliveCount = currentAlive
+    end
+
+    handleInput()
+        # Space to toggle run/pause
+        if rl.isKeyPressed(rl.KEY_SPACE)
+            self.running = !self.running
+        end
+
+        # Key C to clear
+        if rl.isKeyPressed(KEY_C)
+            self.clear()
+        end
+
+
+        # Key R to randomize
+        if rl.isKeyPressed(rl.KEY_R)
+            self.randomize()
+        end
+
+        # Key S to step when paused
+        if rl.isKeyPressed(rl.KEY_S)
+            if not self.running
+                self.step()
+            end
+        end
+
+        # UP/DOWN arrow keys to change speed
+        if rl.isKeyPressed(rl.KEY_UP)
+            if self.speed < 6
+                self.speed += 1
+                self.updateSpeedInterval()
+            end
+        end
+        if rl.isKeyPressed(rl.KEY_DOWN)
+            if self.speed > 1
+                self.speed -= 1
+                self.updateSpeedInterval()
+            end
+        end
+
+        # Mouse click interaction to draw/erase cells
+        let mPressedL = rl.isMouseButtonDown(rl.MOUSE_LEFT_BUTTON)
+        let mPressedR = rl.isMouseButtonDown(rl.MOUSE_RIGHT_BUTTON)
+        if mPressedL or mPressedR
+            let mx = rl.getMouseX()
+            let my = rl.getMouseY()
+            if mx >= 0 and mx < SCREEN_WIDTH and my >= 0 and my < GRID_AREA_HEIGHT
+                let col = math.floor(num(mx) / num(GRID_SIZE))
+                let row = math.floor(num(my) / num(GRID_SIZE))
+                # Bounds check
+                if col >= 0 and col < GRID_W and row >= 0 and row < GRID_H
+                    if mPressedL
+                        if self.grid[col][row] == 0
+                            self.grid[col][row] = 1
+                            self.aliveCount += 1
+                            self.spawnParticles(col, row)
+                        end
+                    else
+                        if self.grid[col][row] == 1
+                            self.grid[col][row] = 0
+                            self.aliveCount -= 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    updateSpeedInterval()
+        match self.speed
+        case 1
+            self.updateInterval = 30
+        case 2
+            self.updateInterval = 20
+        case 3
+            self.updateInterval = 10
+        case 4
+            self.updateInterval = 5
+        case 5
+            self.updateInterval = 2
+        case 6
+            self.updateInterval = 1
+        end
+    end
+
+    update()
+        # Update particles
+        let i = 0
+        while i < self.particles.length()
+            self.particles[i].update()
+            if self.particles[i].life <= 0
+                self.particles.pop(i)
+            else
+                i += 1
+            end
+        end
+
+        if not self.running
+            return Null
+        end
+
+        self.frameCount += 1
+        if self.frameCount >= self.updateInterval
+            self.frameCount = 0
+            self.step()
+        end
+    end
+
+    draw()
+        self.win.begin()
+        self.win.clear([10, 10, 12, 255])
+
+        # Draw grid lines (subtle dark gray)
+        for i in 0..GRID_W
+            rl.drawLine(i * GRID_SIZE, 0, i * GRID_SIZE, GRID_AREA_HEIGHT, [25, 25, 30, 255])
+        end
+        for j in 0..GRID_H
+            rl.drawLine(0, j * GRID_SIZE, SCREEN_WIDTH, j * GRID_SIZE, [25, 25, 30, 255])
+        end
+
+        # Draw cells
+        for col in 0..GRID_W-1
+            for row in 0..GRID_H-1
+                if self.grid[col][row] == 1
+                    let cx = col * GRID_SIZE
+                    let cy = row * GRID_SIZE
+                    # Draw a nice glowing cell with top/bottom gradient
+                    rl.drawRectangleGradientV(cx + 1, cy + 1, GRID_SIZE - 2, GRID_SIZE - 2, [0, 240, 180, 255], [0, 120, 240, 255])
+                end
+            end
+        end
+
+        # Draw hover state preview
+        let mx = rl.getMouseX()
+        let my = rl.getMouseY()
+        if mx >= 0 and mx < SCREEN_WIDTH and my >= 0 and my < GRID_AREA_HEIGHT
+            let hCol = math.floor(num(mx) / num(GRID_SIZE))
+            let hRow = math.floor(num(my) / num(GRID_SIZE))
+            if hCol >= 0 and hCol < GRID_W and hRow >= 0 and hRow < GRID_H
+                if self.grid[hCol][hRow] == 0
+                    rl.drawRectangle(hCol * GRID_SIZE + 1, hRow * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2, [0, 240, 180, 80])
+                end
+            end
+        end
+
+        # Draw particles
+        for p in self.particles
+            p.draw()
+        end
+
+        # Draw Dashboard at the bottom
+        let barY = GRID_AREA_HEIGHT
+        let barH = SCREEN_HEIGHT - barY
+
+        # Dark panel background
+        rl.drawRectangle(0, barY, SCREEN_WIDTH, barH, [18, 18, 22, 255])
+        # Separator line
+        rl.drawLineEx(0, barY, SCREEN_WIDTH, barY, 2.0, [0, 240, 180, 255])
+
+        # Title
+        rl.drawText("CONWAY'S GAME OF LIFE", 20, barY + 15, 18, rl.GOLD)
+        rl.drawText("Djazair Engine + Raylib", 20, barY + 38, 11, rl.GRAY)
+
+        # Status indicators
+        let stateText = if self.running ? "RUNNING" else "PAUSED"
+        let stateColor = if self.running ? rl.LIME else rl.ORANGE
+        rl.drawText("State: " + stateText, 250, barY + 18, 14, stateColor)
+        rl.drawText("Generation: " + str(self.generation), 250, barY + 38, 13, rl.RAYWHITE)
+        rl.drawText("Alive: " + str(self.aliveCount), 250, barY + 58, 13, rl.RAYWHITE)
+
+        # Speed indicator
+        rl.drawText("Speed Level: " + str(self.speed) + "/6", 420, barY + 18, 13, rl.SKYBLUE)
+        rl.drawText("Interval: " + str(self.updateInterval) + " frames", 420, barY + 38, 12, rl.GRAY)
+
+        # Instructions / Shortcuts
+        rl.drawText("[SPACE] Run/Pause  [C] Clear  [R] Random", 570, barY + 15, 11, rl.RAYWHITE)
+        rl.drawText("[S] Step Forward   [UP/DOWN] Speed", 570, barY + 33, 11, rl.RAYWHITE)
+        rl.drawText("[LEFT CLICK] Draw  [RIGHT CLICK] Erase", 570, barY + 51, 11, rl.RAYWHITE)
+
+        self.win.finish()
+    end
+
+    run()
+        while self.win.isOpen()
+            self.handleInput()
+            self.update()
+            self.draw()
+        end
+        self.win.close()
+    end
+end
+
+let game = GameOfLife()
+game.run()

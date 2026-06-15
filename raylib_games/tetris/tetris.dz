@@ -1,0 +1,623 @@
+# [ Tetris Master Edition ]
+# ----------------------------------------------------------------------------
+# Developed using Djazair Language & Raylib
+# ----------------------------------------------------------------------------
+
+use raylib as rl
+use random
+use math
+
+# Game Constants
+let SQUARE_SIZE = 20
+let GRID_HORIZONTAL_SIZE = 12
+let GRID_VERTICAL_SIZE = 20
+
+let LATERAL_SPEED = 10
+let TURNING_SPEED = 12
+let FAST_FALL_AWAIT_COUNTER = 30
+let FADING_TIME = 33
+
+# Square States
+let EMPTY = 0
+let MOVING = 1
+let FULL = 2
+let BLOCK = 3
+let FADING = 4
+
+class TetrisGame
+    init()
+    self.screenWidth = 800
+    self.screenHeight = 450
+
+    self.win = rl.Window(self.screenWidth, self.screenHeight, "Classic Tetris - Djazair Raylib")
+    self.win.setFPS(60)
+
+    self.gameOver = False
+    self.pause = False
+
+    self.grid = []
+    self.piece = []
+    self.incomingPiece = []
+
+    self.initMatrices()
+
+    self.piecePositionX = 0
+    self.piecePositionY = 0
+
+    self.fadingColor = [130, 130, 130, 255] # GRAY
+    self.beginPlay = True
+    self.pieceActive = False
+    self.detection = False
+    self.lineToDelete = False
+
+    self.level = 1
+    self.lines = 0
+
+    self.gravityMovementCounter = 0
+    self.lateralMovementCounter = 0
+    self.turnMovementCounter = 0
+    self.fastFallMovementCounter = 0
+    self.fadeLineCounter = 0
+
+    self.gravitySpeed = 30
+end
+
+initMatrices()
+self.grid = []
+for i in 0..GRID_HORIZONTAL_SIZE-1
+    let row = []
+    for j in 0..GRID_VERTICAL_SIZE-1
+        if j == GRID_VERTICAL_SIZE - 1 or i == 0 or i == GRID_HORIZONTAL_SIZE - 1
+            row.append(BLOCK)
+        else
+            row.append(EMPTY)
+        end
+    end
+    self.grid.append(row)
+end
+
+self.piece = []
+for i in 0..3
+    let row = []
+    for j in 0..3
+        row.append(EMPTY)
+    end
+    self.piece.append(row)
+end
+
+self.incomingPiece = []
+for i in 0..3
+    let row = []
+    for j in 0..3
+        row.append(EMPTY)
+    end
+    self.incomingPiece.append(row)
+end
+end
+
+reset()
+self.level = 1
+self.lines = 0
+self.fadingColor = [130, 130, 130, 255]
+
+self.piecePositionX = 0
+self.piecePositionY = 0
+
+self.pause = False
+self.beginPlay = True
+self.pieceActive = False
+self.detection = False
+self.lineToDelete = False
+
+self.gravityMovementCounter = 0
+self.lateralMovementCounter = 0
+self.turnMovementCounter = 0
+self.fastFallMovementCounter = 0
+self.fadeLineCounter = 0
+self.gravitySpeed = 30
+
+self.initMatrices()
+end
+
+getRandomPiece()
+let random = rl.getRandomValue(0, 6)
+
+for i in 0..3
+    for j in 0..3
+        self.incomingPiece[i][j] = EMPTY
+    end
+end
+
+if random == 0
+    self.incomingPiece[1][1] = MOVING
+    self.incomingPiece[2][1] = MOVING
+    self.incomingPiece[1][2] = MOVING
+    self.incomingPiece[2][2] = MOVING
+elif random == 1
+    self.incomingPiece[1][0] = MOVING
+    self.incomingPiece[1][1] = MOVING
+    self.incomingPiece[1][2] = MOVING
+    self.incomingPiece[2][2] = MOVING
+elif random == 2
+    self.incomingPiece[1][2] = MOVING
+    self.incomingPiece[2][0] = MOVING
+    self.incomingPiece[2][1] = MOVING
+    self.incomingPiece[2][2] = MOVING
+elif random == 3
+    self.incomingPiece[0][1] = MOVING
+    self.incomingPiece[1][1] = MOVING
+    self.incomingPiece[2][1] = MOVING
+    self.incomingPiece[3][1] = MOVING
+elif random == 4
+    self.incomingPiece[1][0] = MOVING
+    self.incomingPiece[1][1] = MOVING
+    self.incomingPiece[1][2] = MOVING
+    self.incomingPiece[2][1] = MOVING
+elif random == 5
+    self.incomingPiece[1][1] = MOVING
+    self.incomingPiece[2][1] = MOVING
+    self.incomingPiece[2][2] = MOVING
+    self.incomingPiece[3][2] = MOVING
+elif random == 6
+    self.incomingPiece[1][2] = MOVING
+    self.incomingPiece[2][2] = MOVING
+    self.incomingPiece[2][1] = MOVING
+    self.incomingPiece[3][1] = MOVING
+end
+end
+
+createPiece()
+self.piecePositionX = 4
+self.piecePositionY = 0
+
+if self.beginPlay
+    self.getRandomPiece()
+    self.beginPlay = False
+end
+
+for i in 0..3
+    for j in 0..3
+        self.piece[i][j] = self.incomingPiece[i][j]
+    end
+end
+
+self.getRandomPiece()
+
+for i in 0..3
+    for j in 0..3
+        let gridX = self.piecePositionX + i
+        if self.piece[i][j] == MOVING
+            self.grid[gridX][j] = MOVING
+        end
+    end
+end
+
+return True
+end
+
+checkDetection()
+for j in 0..GRID_VERTICAL_SIZE-2
+    let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+    for i in 1..GRID_HORIZONTAL_SIZE-2
+        if self.grid[i][reversedJ] == MOVING
+            let nextJ = reversedJ + 1
+            if self.grid[i][nextJ] == FULL or self.grid[i][nextJ] == BLOCK
+                self.detection = True
+            end
+        end
+    end
+end
+end
+
+resolveFallingMovement()
+if self.detection
+    for j in 0..GRID_VERTICAL_SIZE-2
+        let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+        for i in 1..GRID_HORIZONTAL_SIZE-2
+            if self.grid[i][reversedJ] == MOVING
+                self.grid[i][reversedJ] = FULL
+                self.detection = False
+                self.pieceActive = False
+            end
+        end
+    end
+else
+    for j in 0..GRID_VERTICAL_SIZE-2
+        let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+        for i in 1..GRID_HORIZONTAL_SIZE-2
+            if self.grid[i][reversedJ] == MOVING
+                self.grid[i][reversedJ + 1] = MOVING
+                self.grid[i][reversedJ] = EMPTY
+            end
+        end
+    end
+    self.piecePositionY = self.piecePositionY + 1
+end
+end
+
+resolveLateralMovement()
+let collision = False
+
+if rl.isKeyDown(rl.KEY_LEFT)
+    for j in 0..GRID_VERTICAL_SIZE-2
+        let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+        for i in 1..GRID_HORIZONTAL_SIZE-2
+            if self.grid[i][reversedJ] == MOVING
+                if i - 1 == 0 or self.grid[i - 1][reversedJ] == FULL
+                    collision = True
+                end
+            end
+        end
+    end
+
+    if !collision
+        for j in 0..GRID_VERTICAL_SIZE-2
+            let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+            for i in 1..GRID_HORIZONTAL_SIZE-2
+                if self.grid[i][reversedJ] == MOVING
+                    self.grid[i - 1][reversedJ] = MOVING
+                    self.grid[i][reversedJ] = EMPTY
+                end
+            end
+        end
+        self.piecePositionX = self.piecePositionX - 1
+    end
+
+elif rl.isKeyDown(rl.KEY_RIGHT)
+    for j in 0..GRID_VERTICAL_SIZE-2
+        let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+        for i in 1..GRID_HORIZONTAL_SIZE-2
+            if self.grid[i][reversedJ] == MOVING
+                if i + 1 == GRID_HORIZONTAL_SIZE - 1 or self.grid[i + 1][reversedJ] == FULL
+                    collision = True
+                end
+            end
+        end
+    end
+
+    if !collision
+        for j in 0..GRID_VERTICAL_SIZE-2
+            let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+            for i in 0..GRID_HORIZONTAL_SIZE-2
+                let reversedI = GRID_HORIZONTAL_SIZE - 2 - i
+                if self.grid[reversedI][reversedJ] == MOVING
+                    self.grid[reversedI + 1][reversedJ] = MOVING
+                    self.grid[reversedI][reversedJ] = EMPTY
+                end
+            end
+        end
+        self.piecePositionX = self.piecePositionX + 1
+    end
+end
+
+return collision
+end
+
+resolveTurnMovement()
+if rl.isKeyDown(rl.KEY_UP)
+    let checker = False
+
+    if self.piecePositionX + 3 < GRID_HORIZONTAL_SIZE and self.piecePositionY + 3 < GRID_VERTICAL_SIZE
+        if self.grid[self.piecePositionX + 3][self.piecePositionY] == MOVING and self.grid[self.piecePositionX][self.piecePositionY] != EMPTY and self.grid[self.piecePositionX][self.piecePositionY] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 3][self.piecePositionY + 3] == MOVING and self.grid[self.piecePositionX + 3][self.piecePositionY] != EMPTY and self.grid[self.piecePositionX + 3][self.piecePositionY] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX][self.piecePositionY + 3] == MOVING and self.grid[self.piecePositionX + 3][self.piecePositionY + 3] != EMPTY and self.grid[self.piecePositionX + 3][self.piecePositionY + 3] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX][self.piecePositionY] == MOVING and self.grid[self.piecePositionX][self.piecePositionY + 3] != EMPTY and self.grid[self.piecePositionX][self.piecePositionY + 3] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 1][self.piecePositionY] == MOVING and self.grid[self.piecePositionX][self.piecePositionY + 2] != EMPTY and self.grid[self.piecePositionX][self.piecePositionY + 2] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 3][self.piecePositionY + 1] == MOVING and self.grid[self.piecePositionX + 1][self.piecePositionY] != EMPTY and self.grid[self.piecePositionX + 1][self.piecePositionY] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 2][self.piecePositionY + 3] == MOVING and self.grid[self.piecePositionX + 3][self.piecePositionY + 1] != EMPTY and self.grid[self.piecePositionX + 3][self.piecePositionY + 1] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX][self.piecePositionY + 2] == MOVING and self.grid[self.piecePositionX + 2][self.piecePositionY + 3] != EMPTY and self.grid[self.piecePositionX + 2][self.piecePositionY + 3] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 2][self.piecePositionY] == MOVING and self.grid[self.piecePositionX][self.piecePositionY + 1] != EMPTY and self.grid[self.piecePositionX][self.piecePositionY + 1] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 3][self.piecePositionY + 2] == MOVING and self.grid[self.piecePositionX + 2][self.piecePositionY] != EMPTY and self.grid[self.piecePositionX + 2][self.piecePositionY] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 1][self.piecePositionY + 3] == MOVING and self.grid[self.piecePositionX + 3][self.piecePositionY + 2] != EMPTY and self.grid[self.piecePositionX + 3][self.piecePositionY + 2] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX][self.piecePositionY + 1] == MOVING and self.grid[self.piecePositionX + 1][self.piecePositionY + 3] != EMPTY and self.grid[self.piecePositionX + 1][self.piecePositionY + 3] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 1][self.piecePositionY + 1] == MOVING and self.grid[self.piecePositionX + 1][self.piecePositionY + 2] != EMPTY and self.grid[self.piecePositionX + 1][self.piecePositionY + 2] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 2][self.piecePositionY + 1] == MOVING and self.grid[self.piecePositionX + 1][self.piecePositionY + 1] != EMPTY and self.grid[self.piecePositionX + 1][self.piecePositionY + 1] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 2][self.piecePositionY + 2] == MOVING and self.grid[self.piecePositionX + 2][self.piecePositionY + 1] != EMPTY and self.grid[self.piecePositionX + 2][self.piecePositionY + 1] != MOVING
+            checker = True
+        end
+        if self.grid[self.piecePositionX + 1][self.piecePositionY + 2] == MOVING and self.grid[self.piecePositionX + 2][self.piecePositionY + 2] != EMPTY and self.grid[self.piecePositionX + 2][self.piecePositionY + 2] != MOVING
+            checker = True
+        end
+    else
+        checker = True
+    end
+
+    if !checker
+        let aux = self.piece[0][0]
+        self.piece[0][0] = self.piece[3][0]
+        self.piece[3][0] = self.piece[3][3]
+        self.piece[3][3] = self.piece[0][3]
+        self.piece[0][3] = aux
+
+        aux = self.piece[1][0]
+        self.piece[1][0] = self.piece[3][1]
+        self.piece[3][1] = self.piece[2][3]
+        self.piece[2][3] = self.piece[0][2]
+        self.piece[0][2] = aux
+
+        aux = self.piece[2][0]
+        self.piece[2][0] = self.piece[3][2]
+        self.piece[3][2] = self.piece[1][3]
+        self.piece[1][3] = self.piece[0][1]
+        self.piece[0][1] = aux
+
+        aux = self.piece[1][1]
+        self.piece[1][1] = self.piece[2][1]
+        self.piece[2][1] = self.piece[2][2]
+        self.piece[2][2] = self.piece[1][2]
+        self.piece[1][2] = aux
+    end
+
+    for j in 0..GRID_VERTICAL_SIZE-2
+        let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+        for i in 1..GRID_HORIZONTAL_SIZE-2
+            if self.grid[i][reversedJ] == MOVING
+                self.grid[i][reversedJ] = EMPTY
+            end
+        end
+    end
+
+    for i in 0..3
+        for j in 0..3
+            if self.piece[i][j] == MOVING
+                let gridX = self.piecePositionX + i
+                let gridY = self.piecePositionY + j
+                self.grid[gridX][gridY] = MOVING
+            end
+        end
+    end
+
+    return True
+end
+return False
+end
+
+checkCompletion()
+for j in 0..GRID_VERTICAL_SIZE-2
+    let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+    let calculator = 0
+    for i in 1..GRID_HORIZONTAL_SIZE-2
+        if self.grid[i][reversedJ] == FULL
+            calculator = calculator + 1
+        end
+    end
+
+    if calculator == GRID_HORIZONTAL_SIZE - 2
+        self.lineToDelete = True
+        for z in 1..GRID_HORIZONTAL_SIZE-2
+            self.grid[z][reversedJ] = FADING
+        end
+    end
+end
+end
+
+deleteCompleteLines()
+let deletedLines = 0
+
+for j in 0..GRID_VERTICAL_SIZE-2
+    let reversedJ = GRID_VERTICAL_SIZE - 2 - j
+
+    while self.grid[1][reversedJ] == FADING
+        for i in 1..GRID_HORIZONTAL_SIZE-2
+            self.grid[i][reversedJ] = EMPTY
+        end
+
+        let j2 = 0
+        while j2 < reversedJ
+            let reversedJ2 = reversedJ - 1 - j2
+            for i2 in 1..GRID_HORIZONTAL_SIZE-2
+                if self.grid[i2][reversedJ2] == FULL
+                    self.grid[i2][reversedJ2 + 1] = FULL
+                    self.grid[i2][reversedJ2] = EMPTY
+                elif self.grid[i2][reversedJ2] == FADING
+                    self.grid[i2][reversedJ2 + 1] = FADING
+                    self.grid[i2][reversedJ2] = EMPTY
+                end
+            end
+            j2 = j2 + 1
+        end
+
+        deletedLines = deletedLines + 1
+    end
+end
+
+return deletedLines
+end
+
+update()
+if !self.gameOver
+    if rl.isKeyPressed(rl.KEY_P)
+        self.pause = !self.pause
+    end
+
+    if !self.pause
+        if !self.lineToDelete
+            if !self.pieceActive
+                self.pieceActive = self.createPiece()
+                self.fastFallMovementCounter = 0
+            else
+                self.fastFallMovementCounter = self.fastFallMovementCounter + 1
+                self.gravityMovementCounter = self.gravityMovementCounter + 1
+                self.lateralMovementCounter = self.lateralMovementCounter + 1
+                self.turnMovementCounter = self.turnMovementCounter + 1
+
+                if rl.isKeyPressed(rl.KEY_LEFT) or rl.isKeyPressed(rl.KEY_RIGHT)
+                    self.lateralMovementCounter = LATERAL_SPEED
+                end
+                if rl.isKeyPressed(rl.KEY_UP)
+                    self.turnMovementCounter = TURNING_SPEED
+                end
+
+                if rl.isKeyDown(rl.KEY_DOWN) and self.fastFallMovementCounter >= FAST_FALL_AWAIT_COUNTER
+                    self.gravityMovementCounter = self.gravityMovementCounter + self.gravitySpeed
+                end
+
+                if self.gravityMovementCounter >= self.gravitySpeed
+                    self.checkDetection()
+                    self.resolveFallingMovement()
+                    self.checkCompletion()
+                    self.gravityMovementCounter = 0
+                end
+
+                if self.lateralMovementCounter >= LATERAL_SPEED
+                    if !self.resolveLateralMovement()
+                        self.lateralMovementCounter = 0
+                    end
+                end
+
+                if self.turnMovementCounter >= TURNING_SPEED
+                    if self.resolveTurnMovement()
+                        self.turnMovementCounter = 0
+                    end
+                end
+            end
+
+            for j in 0..1
+                for i in 1..GRID_HORIZONTAL_SIZE-2
+                    if self.grid[i][j] == FULL
+                        self.gameOver = True
+                    end
+                end
+            end
+        else
+            self.fadeLineCounter = self.fadeLineCounter + 1
+
+            if self.fadeLineCounter % 8 < 4
+                self.fadingColor = [190, 33, 55, 255] # MAROON
+            else
+                self.fadingColor = [130, 130, 130, 255] # GRAY
+            end
+
+            if self.fadeLineCounter >= FADING_TIME
+                let deleted = self.deleteCompleteLines()
+                self.fadeLineCounter = 0
+                self.lineToDelete = False
+                self.lines = self.lines + deleted
+            end
+        end
+    end
+else
+    if rl.isKeyPressed(rl.KEY_ENTER)
+        self.reset()
+        self.gameOver = False
+    end
+end
+end
+
+draw()
+self.win.begin()
+self.win.clear([10, 10, 18, 255]) # Elegant Dark Blue/Violet background
+
+if !self.gameOver
+    let offsetX = self.screenWidth / 2 - (GRID_HORIZONTAL_SIZE * SQUARE_SIZE / 2) - 50
+    let offsetY = self.screenHeight / 2 - ((GRID_VERTICAL_SIZE - 1) * SQUARE_SIZE / 2) + SQUARE_SIZE * 2 - 50
+    let controllerX = offsetX
+
+    for j in 0..GRID_VERTICAL_SIZE-1
+        for i in 0..GRID_HORIZONTAL_SIZE-1
+            match self.grid[i][j]
+            case EMPTY
+                rl.drawRectangleLines(num(offsetX), num(offsetY), num(SQUARE_SIZE), num(SQUARE_SIZE), [22, 22, 38, 255])
+            case FULL
+                rl.drawRectangle(num(offsetX), num(offsetY), num(SQUARE_SIZE), num(SQUARE_SIZE), [0, 121, 241, 255]) # Radiant BLUE
+                rl.drawRectangleLines(num(offsetX), num(offsetY), num(SQUARE_SIZE), num(SQUARE_SIZE), [0, 80, 180, 255])
+            case MOVING
+                rl.drawRectangle(num(offsetX), num(offsetY), num(SQUARE_SIZE), num(SQUARE_SIZE), [0, 228, 48, 255]) # Radiant GREEN
+                rl.drawRectangleLines(num(offsetX), num(offsetY), num(SQUARE_SIZE), num(SQUARE_SIZE), [0, 180, 30, 255])
+            case BLOCK
+                rl.drawRectangle(num(offsetX), num(offsetY), num(SQUARE_SIZE), num(SQUARE_SIZE), [35, 35, 50, 255]) # Sleek grey block borders
+            case FADING
+                rl.drawRectangle(num(offsetX), num(offsetY), num(SQUARE_SIZE), num(SQUARE_SIZE), self.fadingColor)
+            end
+            offsetX = offsetX + SQUARE_SIZE
+        end
+        offsetX = controllerX
+        offsetY = offsetY + SQUARE_SIZE
+    end
+
+    # Incoming Piece Card
+    let previewX = 520
+    let previewY = 120
+    let controllerPreviewX = previewX
+
+    rl.drawRectangle(num(500), num(80), num(150), num(150), [16, 16, 28, 255])
+    rl.drawRectangleLines(num(500), num(80), num(150), num(150), [38, 38, 58, 255])
+
+    rl.drawText("NEXT PIECE:", 512, 95, 14, [255, 255, 255, 180])
+
+    for j in 0..3
+        for i in 0..3
+            if self.incomingPiece[i][j] == EMPTY
+                rl.drawRectangleLines(num(previewX), num(previewY), num(SQUARE_SIZE), num(SQUARE_SIZE), [22, 22, 40, 255])
+            elif self.incomingPiece[i][j] == MOVING
+                rl.drawRectangle(num(previewX), num(previewY), num(SQUARE_SIZE), num(SQUARE_SIZE), [255, 170, 0, 255]) # Orange glow
+                rl.drawRectangleLines(num(previewX), num(previewY), num(SQUARE_SIZE), num(SQUARE_SIZE), [180, 100, 0, 255])
+            end
+            previewX = previewX + SQUARE_SIZE
+        end
+        previewX = controllerPreviewX
+        previewY = previewY + SQUARE_SIZE
+    end
+
+    # Statistics Card
+    rl.drawRectangle(num(500), num(250), num(150), num(100), [16, 16, 28, 255])
+    rl.drawRectangleLines(num(500), num(250), num(150), num(100), [38, 38, 58, 255])
+
+    rl.drawText("STATISTICS", 512, 260, 14, [255, 255, 255, 180])
+    rl.drawText("LINES: " + str(self.lines), 512, 288, 18, [0, 228, 48, 255])
+    rl.drawText("SCORE: " + str(self.lines * 100), 512, 316, 13, [0, 228, 240, 255])
+
+    if self.pause
+        rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [0, 0, 0, 180])
+        rl.drawText("GAME PAUSED", self.screenWidth / 2 - 120, self.screenHeight / 2 - 20, 35, [255, 255, 255, 255])
+    end
+else
+    rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [5, 5, 12, 255])
+    rl.drawText("TETRIS MASTER", self.screenWidth / 2 - 170, self.screenHeight / 2 - 70, 45, [255, 170, 0, 255])
+    rl.drawText("GAME OVER", self.screenWidth / 2 - 100, self.screenHeight / 2 + 10, 35, [190, 33, 55, 255])
+    rl.drawText("Total Score: " + str(self.lines * 100), self.screenWidth / 2 - 70, self.screenHeight / 2 + 65, 20, [255, 255, 255, 200])
+    rl.drawText("Press [ ENTER ] to Play Again", self.screenWidth / 2 - 160, self.screenHeight / 2 + 120, 20, [0, 228, 48, 255])
+end
+
+self.win.finish()
+end
+
+run()
+while self.win.isOpen()
+    self.update()
+    self.draw()
+end
+self.win.close()
+end
+end
+
+let game = TetrisGame()
+game.run()
