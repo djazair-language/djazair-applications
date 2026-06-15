@@ -33,34 +33,46 @@ All games in this folder are powered by the native **`raylib`** extension for Dj
 
 ---
 
+## 🌐 WebView Desktop Applications (`webview_apps/`)
+
+These desktop applications are built using the native **`webview`** extension for Djazair, which enables modern HTML/CSS/JS user interfaces powered by a C++ native backend.
+
+| Application | Description | Key Features Demonstrated |
+| :--- | :--- | :--- |
+| **🍅 Pomodoro App** | A productivity Pomodoro timer application. | HTML/CSS timer UI, SQLite database integration, local statistics tracking. |
+| **📊 System Dashboard** | A real-time system resource monitor. | CPU/RAM/OS metrics reporting, local IPC bridge communication. |
+
+---
+
 ## ⚡ How to Run
 
-To run these games on your machine, you must have the **Djazair Interpreter** and the **`raylib`** extension installed.
+To run these applications and games on your machine, you must have the **Djazair Interpreter** and the required native extensions (`raylib` or `webview`) installed.
 
 ### 1. Prerequisites
 First, make sure the `djazair` command is available in your system path.
 
-Next, install and compile the `raylib` extension using **DPM (Djazair Package Manager)**:
+Next, install and compile the required extensions using **DPM (Djazair Package Manager)**:
 ```bash
-# Install the extension
+# Install the extensions
 dpm install raylib
+dpm install webview
 
-# Compile the native raylib binaries (requires GCC/MinGW)
+# Compile the native binaries (requires GCC/MinGW)
 dpm build raylib
+dpm build webview
 ```
 
-### 2. Launching a Game
-To start any game, simply pass the main script file path to the `djazair` runner.
+### 2. Launching an Application or Game
+To start any application or game, pass the main script file path to the `djazair` runner.
 
-**Example (Snake):**
+**Example (Snake Game):**
 ```bash
-# On Windows / Linux / macOS
 djazair raylib_games/snake/snake.dz
 ```
 
-**Example (Tetris):**
+**Example (Pomodoro App):**
 ```bash
-djazair raylib_games/tetris/tetris.dz
+djazair webview_apps/pomodoro_app/main.dz
 ```
 
 ---

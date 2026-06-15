@@ -1,0 +1,8 @@
+import "D:/Programing/Computer programming/My Projects/My Programing language/Djazair Programming Language/djazair-language/src/libs/std/http/httpParser.dz" as parser
+
+let p = parser.HttpParser()
+let raw = "GET /ui.html HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+let req = p.parseRequest(raw)
+print("method: " + req.method)
+print("path: " + req.path)
+print("version: " + req.httpVersion)

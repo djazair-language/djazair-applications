@@ -1,0 +1,113 @@
+# main.dz — Pomodoro & Productivity Desktop Companion
+# Built using Webview, SQLite and Datetime in Djazair.
+
+use webview
+use sqlite
+use json
+use file
+use path
+use datetime as dt
+
+class PomodoroDatabase
+    init(dbPath)
+        self.db = sqlite.connect(dbPath)
+        if not self.db.isConnected()
+            print("[Database] Failed to connect to Pomodoro database.")
+            return
+        end
+        print("[Database] Connected successfully to: ${dbPath}")
+        self.initSchema()
+    end
+
+    initSchema()
+        let sql = "
+            CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_name TEXT,
+                session_type TEXT,
+                duration INTEGER,
+                completed INTEGER,
+                created_at TEXT
+            )
+        "
+        self.db.execute(sql)
+    end
+
+    saveSession(taskName, sessionType, duration, completed)
+        let now = dt.now()
+        let dateStr = now.format("%Y-%m-%d %H:%M:%S")
+        
+        let sql = "
+            INSERT INTO pomodoro_sessions (task_name, session_type, duration, completed, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        "
+        let success = self.db.safeExecute(sql, [taskName, sessionType, duration, completed, dateStr])
+        return success
+    end
+
+    getSessions()
+        let sql = "SELECT * FROM pomodoro_sessions ORDER BY id DESC LIMIT 50"
+        let res = self.db.query(sql)
+        if res == Null
+            return []
+        end
+        let rows = res.fetchAllAssoc()
+        res.close()
+        return rows
+    end
+
+    close()
+        self.db.close()
+    end
+end
+
+fn main()
+    # 1. Setup Database
+    let dbFile = "pomodoro.db"
+    let db = PomodoroDatabase(dbFile)
+    
+    # 2. Setup Webview App Window
+    let app = webview.createWindow({
+        "title": "Djazair Pomodoro - رفيق الإنتاجية",
+        "width": 750,
+        "height": 650,
+        "resizable": False,
+        "debug": False
+    })
+    
+    # 3. Expose backend functions to the IPC bridge
+    app.bridge.expose("saveSession", fn(args)
+        let taskName = args[0]
+        let sessionType = args[1]
+        let duration = int(args[2])
+        let completed = int(args[3])
+        
+        print("[App] Saving session: ${taskName} (${sessionType}) - Completed: ${completed}")
+        return db.saveSession(taskName, sessionType, duration, completed)
+    end)
+    
+    app.bridge.expose("getHistory", fn(args)
+        let list = db.getSessions()
+        return list
+    end)
+    
+    app.bridge.expose("notify", fn(args)
+        let title = args[0]
+        let msg = args[1]
+        print("[App] Notification: ${title} - ${msg}")
+        webview.notificationShow(title, msg, "", True, "", 5)
+        return True
+    end)
+    
+    # 4. Load Frontend and Start Event Loop
+    app.window.navigate("ui.html")
+    
+    app.onQuit(fn()
+        db.close()
+        print("[App] Database closed. Goodbye!")
+    end)
+    
+    app.run()
+end
+
+main()

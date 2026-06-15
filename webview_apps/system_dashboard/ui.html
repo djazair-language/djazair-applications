@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117; color: #c9d1d9; height: 100vh;
+            padding: 20px; overflow-y: auto;
+        }
+        .header { margin-bottom: 24px; }
+        .header h1 { font-size: 22px; color: #58a6ff; }
+        .header p { font-size: 13px; color: #8b949e; margin-top: 4px; }
+        .header .hostname { color: #58a6ff; font-weight: 600; }
+        .grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px; margin-bottom: 20px;
+        }
+        .card {
+            background: #161b22; border: 1px solid #30363d;
+            border-radius: 10px; padding: 18px; transition: border-color 0.2s;
+        }
+        .card:hover { border-color: #58a6ff; }
+        .card-title {
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+            color: #8b949e; margin-bottom: 12px; display: flex;
+            align-items: center; gap: 6px;
+        }
+        .card-value {
+            font-size: 28px; font-weight: 700; color: #f0f6fc;
+            margin-bottom: 4px;
+        }
+        .card-sub {
+            font-size: 12px; color: #8b949e;
+        }
+        .bar-container {
+            background: #21262d; border-radius: 4px; height: 8px;
+            margin: 8px 0; overflow: hidden;
+        }
+        .bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+        .bar.memory { background: linear-gradient(90deg, #58a6ff, #1f6feb); }
+        .bar.cpu { background: linear-gradient(90deg, #3fb950, #238636); }
+        .bar.load { background: linear-gradient(90deg, #d29922, #9e6a03); }
+
+        .info-row {
+            display: flex; justify-content: space-between; padding: 4px 0;
+            font-size: 13px; border-bottom: 1px solid #21262d;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #8b949e; }
+        .info-value { color: #f0f6fc; font-weight: 500; direction: ltr; text-align: left; }
+
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 600; margin-right: 6px;
+        }
+        .badge.windows { background: #1f3a5f; color: #58a6ff; }
+        .badge.linux { background: #1f3a2e; color: #3fb950; }
+        .badge.mac { background: #3a1f2e; color: #f78166; }
+        .badge.unknown { background: #21262d; color: #8b949e; }
+
+        .footer {
+            text-align: center; font-size: 12px; color: #484f58;
+            padding: 20px 0 10px; border-top: 1px solid #21262d; margin-top: 10px;
+        }
+        .refresh-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px;
+        }
+        .refresh-bar button {
+            background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+            padding: 6px 16px; border-radius: 6px; cursor: pointer;
+            font-size: 13px; transition: background 0.2s;
+        }
+        .refresh-bar button:hover { background: #30363d; }
+        .refresh-bar .status { color: #8b949e; font-size: 12px; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .live { color: #3fb950; font-size: 10px; animation: pulse 2s infinite; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 System Dashboard</h1>
+        <p id="subtitle">Loading system information...</p>
+    </div>
+
+    <div class="refresh-bar">
+        <div><span class="live">●</span> <span id="liveLabel">Live</span></div>
+        <div>
+            <span class="status" id="lastUpdate"></span>
+            <button onclick="refresh()">⟳ Refresh</button>
+        </div>
+    </div>
+
+    <div class="grid" id="cards"></div>
+
+    <div class="grid" style="grid-template-columns:1fr 1fr;">
+        <div class="card" id="osCard">
+            <div class="card-title">💻 Operating System</div>
+            <div id="osInfo">Loading...</div>
+        </div>
+        <div class="card" id="userCard">
+            <div class="card-title">👤 User</div>
+            <div id="userInfo">Loading...</div>
+        </div>
+    </div>
+
+    <div class="footer" id="footer"></div>
+
+    <script>
+        let refreshTimer = null;
+
+        function formatBytes(bytes) {
+            if (!bytes && bytes !== 0) return '0 B';
+            const units = ['B','KB','MB','GB','TB'];
+            let i = 0; let sz = bytes;
+            while (sz >= 1024 && i < 4) { sz /= 1024; i++; }
+            return sz.toFixed(i > 1 ? 1 : 0) + ' ' + units[i];
+        }
+
+        function formatUptime(hours, minutes) {
+            const h = Math.floor(hours);
+            const m = Math.floor(minutes);
+            let parts = [];
+            if (h > 0) parts.push(h + 'h');
+            if (m > 0 || h === 0) parts.push(m + 'm');
+            return parts.join(' ');
+        }
+
+        function getOsBadge(info) {
+            if (info.isWindows) return '<span class="badge windows">Windows</span>';
+            if (info.isLinux) return '<span class="badge linux">Linux</span>';
+            if (info.isMac) return '<span class="badge mac">macOS</span>';
+            return '<span class="badge unknown">' + info.name + '</span>';
+        }
+
+        function render(info) {
+            const mem = info.memory;
+            const cpu = info.cpu;
+            const osInfo = info.os;
+            const uptime = info.uptime;
+            const time = info.time;
+            const user = info.user;
+            const now = new Date();
+
+            document.getElementById('subtitle').innerHTML = osInfo.hostname + ' &middot; ' + osInfo.arch;
+
+            let cardsHtml = '';
+            cardsHtml += '<div class="card"><div class="card-title">🧠 Memory</div><div class="card-value">' + formatBytes(mem.used) + '</div><div class="card-sub">of ' + formatBytes(mem.total) + ' used</div><div class="bar-container"><div class="bar memory" style="width:' + Math.min(mem.percent,100) + '%"></div></div><div class="card-sub">' + formatBytes(mem.free) + ' free (' + mem.percent.toFixed(1) + '%)</div></div>';
+
+            cardsHtml += '<div class="card"><div class="card-title">⚡ CPU</div><div class="card-value">' + cpu.count + ' cores</div><div class="card-sub">' + cpu.endianness + ' endian</div><div class="card-title" style="margin-top:8px">Load Average</div><div class="bar-container"><div class="bar load" style="width:' + Math.min(cpu.load1m * 20,100) + '%"></div></div><div class="card-sub">1m: ' + cpu.load1m + ' &nbsp; 5m: ' + cpu.load5m + ' &nbsp; 15m: ' + cpu.load15m + '</div></div>';
+
+            cardsHtml += '<div class="card"><div class="card-title">⏱ Uptime</div><div class="card-value">' + formatUptime(uptime.hours, uptime.minutes) + '</div><div class="card-sub">' + uptime.seconds + ' seconds</div><div class="card-title" style="margin-top:8px">Clock</div><div class="card-value" style="font-size:20px">' + time.timestamp + '</div><div class="card-sub">' + time.date + ' &nbsp; UTC' + (time.timezone >= 0 ? '+' : '') + time.timezone + '</div></div>';
+
+            cardsHtml += '<div class="card"><div class="card-title">📦 System</div><div class="card-value" style="font-size:18px">' + getOsBadge(osInfo) + ' ' + osInfo.version + '</div><div class="card-sub">' + osInfo.type + '</div><div style="margin-top:8px"><div class="info-row"><span class="info-label">Endianness</span><span class="info-value">' + cpu.endianness + '</span></div><div class="info-row"><span class="info-label">Timezone</span><span class="info-value">UTC' + (time.timezone >= 0 ? '+' : '') + time.timezone + '</span></div></div></div>';
+
+            document.getElementById('cards').innerHTML = cardsHtml;
+
+            let osHtml = '';
+            osHtml += '<div class="info-row"><span class="info-label">Name</span><span class="info-value">' + osInfo.name + '</span></div>';
+            osHtml += '<div class="info-row"><span class="info-label">Type</span><span class="info-value">' + osInfo.type + '</span></div>';
+            osHtml += '<div class="info-row"><span class="info-label">Version</span><span class="info-value">' + osInfo.version + '</span></div>';
+            osHtml += '<div class="info-row"><span class="info-label">Architecture</span><span class="info-value">' + osInfo.arch + '</span></div>';
+            osHtml += '<div class="info-row"><span class="info-label">Hostname</span><span class="info-value">' + osInfo.hostname + '</span></div>';
+            osHtml += '<div class="info-row"><span class="info-label">Platform</span><span class="info-value">' + getOsBadge(osInfo) + '</span></div>';
+            document.getElementById('osInfo').innerHTML = osHtml;
+
+            let userHtml = '';
+            userHtml += '<div class="info-row"><span class="info-label">Username</span><span class="info-value">' + user.name + '</span></div>';
+            userHtml += '<div class="info-row"><span class="info-label">UID / GID</span><span class="info-value">' + user.uid + ' / ' + user.gid + '</span></div>';
+            userHtml += '<div class="info-row"><span class="info-label">Home</span><span class="info-value" style="font-size:12px">' + user.home + '</span></div>';
+            userHtml += '<div class="info-row"><span class="info-label">Temp</span><span class="info-value" style="font-size:12px">' + user.tmpdir + '</span></div>';
+            document.getElementById('userInfo').innerHTML = userHtml;
+
+            document.getElementById('footer').innerHTML = 'Djazair System Dashboard &middot; Updated ' + now.toLocaleTimeString();
+            document.getElementById('lastUpdate').innerText = 'Last update: ' + now.toLocaleTimeString();
+        }
+
+        function refresh() {
+            window.djazair.invoke('getSysInfo').then(function(info) {
+                render(info);
+            });
+        }
+
+        function startAutoRefresh() {
+            refresh();
+            refreshTimer = setInterval(refresh, 3000);
+        }
+
+        startAutoRefresh();
+    </script>
+</body>
+</html>

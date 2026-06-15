@@ -1,0 +1,83 @@
+use webview
+use json as *
+use file
+use os
+use datetime as dt
+
+fn main()
+    let app = webview.createWindow({
+        "title": "System Dashboard - لوحة النظام",
+        "width": 920,
+        "height": 680,
+        "minWidth": 700,
+        "minHeight": 500
+    })
+
+    fn collectSysInfo()
+        let memTotal = os.totalMemory()
+        let memFree = os.freeMemory()
+        let memUsed = memTotal - memFree
+        let memPercent = (memUsed / memTotal) * 100
+
+        let now = dt.now()
+        let local = dt.local(Null)
+        let uptimeSec = os.uptime()
+        let uptimeHours = (uptimeSec / 3600)
+        let uptimeMin = (uptimeSec % 3600) / 60
+
+        let loadAvg = os.loadavg()
+
+        return {
+            "os": {
+                "name": os.name(),
+                "type": os.type(),
+                "version": os.version(),
+                "arch": os.arch(),
+                "hostname": os.hostname(),
+                "isWindows": os.isWindows(),
+                "isLinux": os.isLinux(),
+                "isMac": os.isMac()
+            },
+            "memory": {
+                "total": memTotal,
+                "free": memFree,
+                "used": memUsed,
+                "percent": memPercent
+            },
+            "cpu": {
+                "count": os.cpuCount(),
+                "load1m": loadAvg[0],
+                "load5m": loadAvg[1],
+                "load15m": loadAvg[2],
+                "endianness": os.endianness()
+            },
+            "time": {
+                "now": now,
+                "timestamp": local["hour"] + ":" + local["minute"] + ":" + local["second"],
+                "date": local["year"] + "-" + local["month"] + "-" + local["day"],
+                "timezone": dt.timezoneOffset() / 3600
+            },
+            "uptime": {
+                "seconds": uptimeSec,
+                "hours": uptimeHours,
+                "minutes": uptimeMin
+            },
+            "user": {
+                "name": os.user(),
+                "uid": os.uid(),
+                "gid": os.gid(),
+                "home": os.homeDir(),
+                "tmpdir": os.tmpDir()
+            }
+        }
+    end
+
+    app.bridge.expose("getSysInfo", fn(args)
+        return collectSysInfo()
+    end)
+
+    app.window.navigate("ui.html")
+    app.run()
+end
+
+main()

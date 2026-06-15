@@ -1,0 +1,4 @@
+use process
+fn printDir()
+    print("lib dir: " + process.scriptDir())
+end
