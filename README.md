@@ -6,41 +6,31 @@
 [![Organization](https://img.shields.io/badge/organization-djazair--language-blue.svg)](https://github.com/djazair-language)
 [![Language: Djazair](https://img.shields.io/badge/language-Djazair-orange.svg)](https://github.com/djazair-language/djazair)
 
-**A curated showcase of interactive applications, utilities, and classic arcade games written in the Djazair Programming Language.**
+**A curated collection of games and applications built using the Djazair Programming Language.**
 
-[Available Games](#-available-games) · [How to Run](#-how-to-run) · [Contributing](#-contributing)
+[Raylib Games](#-raylib-games-raylib_games) · [WebView Apps](#-webview-desktop-applications-webview_apps) · [How to Run](#-how-to-run) · [Contributing](#-contributing)
 
 </div>
 
 ---
 
-This repository serves as a showcase for practical applications and graphical games built with **Djazair**. These examples demonstrate how the language's high-level syntax blends with low-level native extensions (like `raylib`) to create fast, interactive, and media-rich software.
+This repository showcases practical applications and graphical projects built with **Djazair**. These examples demonstrate how the language's high-level syntax blends with low-level native extensions to create fast, interactive software.
 
 ---
 
-## 🎮 Available Games (`raylib_games/`)
+## 🎮 Raylib Games (`raylib_games/`)
 
-All games in this folder are powered by the native **`raylib`** extension for Djazair.
+This directory contains graphical games built using the native **`raylib`** extension for Djazair. Raylib is a lightweight and easy-to-use library for game programming, supporting 2D/3D graphics, input handling (keyboard, mouse, gamepad), and audio playback.
 
-| Game | Description | Key Features Demonstrated |
-| :--- | :--- | :--- |
-| **🕹️ Arkanoid** | The classic block-breaking arcade game. | Collision detection, paddle physics, grid level generation. |
-| **🐦 Floppy** | A bird-flapping obstacle avoidance game. | Gravity physics, procedurally scrolling pipes, high-score tracking. |
-| **🦠 Game of Life** | Conway's famous cellular automaton simulation. | Grid manipulation, neighborhood calculations, state updates. |
-| **💣 Minesweeper** | The classic grid puzzle of finding hidden mines. | Grid reveal algorithms, cell flagging, win/loss state management. |
-| **🐍 Snake** | The retro arcade snake game with audio. | Snake movement queue, collision bounds, dynamic food spawning, native audio integration (`.wav`). |
-| **🧱 Tetris** | The classic block-falling puzzle. | Rotation matrices, line-clearing checks, grid locking, score multipliers. |
+See the [raylib_games/README.md](raylib_games/README.md) for more details.
 
 ---
 
 ## 🌐 WebView Desktop Applications (`webview_apps/`)
 
-These desktop applications are built using the native **`webview`** extension for Djazair, which enables modern HTML/CSS/JS user interfaces powered by a C++ native backend.
+This directory contains desktop applications built using the native **`webview`** extension for Djazair. The WebView extension allows developers to build modern desktop graphical user interfaces (GUIs) using standard web technologies (HTML, CSS, and JavaScript) powered by a fast Djazair C++ backend.
 
-| Application | Description | Key Features Demonstrated |
-| :--- | :--- | :--- |
-| **🍅 Pomodoro App** | A productivity Pomodoro timer application. | HTML/CSS timer UI, SQLite database integration, local statistics tracking. |
-| **📊 System Dashboard** | A real-time system resource monitor. | CPU/RAM/OS metrics reporting, local IPC bridge communication. |
+See the [webview_apps/README.md](webview_apps/README.md) for more details.
 
 ---
 
@@ -65,13 +55,17 @@ dpm build webview
 ### 2. Launching an Application or Game
 To start any application or game, pass the main script file path to the `djazair` runner.
 
-**Example (Snake Game):**
+**Usage:**
 ```bash
-djazair raylib_games/snake/snake.dz
+djazair <category_folder>/<project_folder>/<main_file>.dz
 ```
 
-**Example (Pomodoro App):**
+**Example:**
 ```bash
+# To run a game:
+djazair raylib_games/snake/snake.dz
+
+# To run a webview app:
 djazair webview_apps/pomodoro_app/main.dz
 ```
 
@@ -82,9 +76,9 @@ djazair webview_apps/pomodoro_app/main.dz
 Have you built a cool game or application in Djazair? We would love to feature it here!
 
 1. **Fork** this repository.
-2. Create your app folder (e.g. `raylib_games/space_invaders/`).
+2. Create your project folder under the appropriate directory (`raylib_games/` or `webview_apps/`).
 3. Commit your changes and push them to your fork.
-4. Open a **Pull Request** with a brief description and gameplay explanation.
+4. Open a **Pull Request** with a brief description of what your app does.
 
 ---
 

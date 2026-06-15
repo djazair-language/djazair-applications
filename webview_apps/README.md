@@ -1,42 +1,40 @@
 # Djazair WebView Desktop Applications
 
-This directory contains desktop applications built using the **Djazair WebView extension**. These applications utilize a modern frontend (HTML, CSS, and JavaScript) rendered inside a native OS web view component, combined with a native **Djazair** backend in C++.
+This directory contains desktop applications built using the **Djazair WebView extension**.
 
-## 📂 Included Applications
+## 🌐 About the WebView Extension
 
-### 1. 🍅 Pomodoro App (`pomodoro_app/`)
-A clean, desktop Pomodoro timer app designed to boost productivity.
-* **Frontend**: HTML5, CSS3, and JavaScript timer interface.
-* **Backend**: Djazair script (`main.dz`) handling IPC events, timer state, and database persistence.
-* **Database**: Uses `sqlite` to save work session statistics locally.
+The WebView extension allows you to build modern desktop graphical user interfaces (GUIs) using web technologies (HTML, CSS, and JavaScript) rendered inside a native OS web view component, powered by a Djazair C++ backend.
 
-### 2. 📊 System Dashboard (`system_dashboard/`)
-A real-time hardware resource and system dashboard.
-* **Frontend**: Beautiful dark-themed HTML layout displaying dials, graphs, and performance charts.
-* **Backend**: Djazair script (`main.dz`) querying system metrics (CPU usage, RAM allocation, OS details) and bridging them to the frontend via WebView's IPC messaging.
+By using this extension in Djazair, you can:
+* Design rich, responsive UIs with HTML/CSS.
+* Interoperate between frontend JS and backend Djazair via a native IPC bridge.
+* Build desktop shell applications with native OS features.
+* Create lightweight, multi-window desktop tools.
 
 ---
 
 ## ⚡ How to Run
 
-### Prerequisites
-Make sure you have installed the native `webview` and `sqlite` extensions:
+### 1. Prerequisites
+Make sure you have the Djazair interpreter and the `webview` extension installed:
 ```bash
+# Install the webview package
 dpm install webview
-dpm install sqlite
 
+# Compile the native webview binaries (requires GCC/MinGW)
 dpm build webview
-dpm build sqlite
 ```
 
-### Launching the Apps
+### 2. Launching an Application
+To run any application in this folder, execute its main script with the `djazair` runner.
 
-#### To run the Pomodoro App:
+**Usage:**
+```bash
+djazair webview_apps/<app_folder>/<main_file>.dz
+```
+
+**Example:**
 ```bash
 djazair webview_apps/pomodoro_app/main.dz
-```
-
-#### To run the System Dashboard:
-```bash
-djazair webview_apps/system_dashboard/main.dz
 ```
