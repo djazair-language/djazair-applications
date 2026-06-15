@@ -36,5 +36,5 @@ djazair raylib_games/<game_folder>/<main_file>.dz
 
 **Example:**
 ```bash
-djazair raylib_games/snake/snake.dz
+djazair raylib_games/<game_folder>/<main_file>.dz
 ```

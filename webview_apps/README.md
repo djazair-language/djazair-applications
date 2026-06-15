@@ -36,5 +36,5 @@ djazair webview_apps/<app_folder>/<main_file>.dz
 
 **Example:**
 ```bash
-djazair webview_apps/pomodoro_app/main.dz
+djazair webview_apps/<app_folder>/<main_file>.dz
 ```

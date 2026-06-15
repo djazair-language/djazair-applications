@@ -60,13 +60,13 @@ To start any application or game, pass the main script file path to the `djazair
 djazair <category_folder>/<project_folder>/<main_file>.dz
 ```
 
-**Example:**
+**Examples:**
 ```bash
-# To run a game:
-djazair raylib_games/snake/snake.dz
+# To run a Raylib game:
+djazair raylib_games/<game_folder>/<main_file>.dz
 
-# To run a webview app:
-djazair webview_apps/pomodoro_app/main.dz
+# To run a WebView app:
+djazair webview_apps/<app_folder>/<main_file>.dz
 ```
 
 ---
