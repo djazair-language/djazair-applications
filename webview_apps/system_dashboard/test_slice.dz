@@ -1,3 +1,0 @@
-print("/ui.html".slice(1))
-print("/ui.html".slice(1, -1))
-print("/ui.html".slice(0, -1))

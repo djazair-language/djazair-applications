@@ -1,2 +1,0 @@
-import "lib.dz" as lib
-lib.printDir()
