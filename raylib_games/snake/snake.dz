@@ -15,292 +15,292 @@ let GRID_W = SCREEN_WIDTH / GRID_SIZE
 let GRID_H = SCREEN_HEIGHT / GRID_SIZE
 
 # Game States
-let STATE_MENU     = 0
-let STATE_PLAYING  = 1
-let STATE_PAUSED   = 2
+let STATE_MENU = 0
+let STATE_PLAYING = 1
+let STATE_PAUSED = 2
 let STATE_GAMEOVER = 3
 
 class Particle
     init(x, y, color)
-    self.x = x
-    self.y = y
-    self.vx = num(rl.getRandomValue(-100, 100)) / 20.0
-    self.vy = num(rl.getRandomValue(-100, 100)) / 20.0
-    self.life = 1.0
-    self.color = color
-end
+        self.x = x
+        self.y = y
+        self.vx = num(rl.getRandomValue(-100, 100)) / 20.0
+        self.vy = num(rl.getRandomValue(-100, 100)) / 20.0
+        self.life = 1.0
+        self.color = color
+    end
 
-update()
-self.x = self.x + self.vx
-self.y = self.y + self.vy
-self.life = self.life - 0.05
-end
+    update()
+        self.x = self.x + self.vx
+        self.y = self.y + self.vy
+        self.life = self.life - 0.05
+    end
 
-draw()
-let alpha = num(self.life * 255.0)
-rl.drawRectangle(num(self.x), num(self.y), 4, 4, [self.color[0], self.color[1], self.color[2], num(alpha)])
-end
+    draw()
+        let alpha = num(self.life * 255.0)
+        rl.drawRectangle(num(self.x), num(self.y), 4, 4, [self.color[0], self.color[1], self.color[2], num(alpha)])
+    end
 end
 
 class Snake
     init()
-    self.body = [[10, 10], [9, 10], [8, 10]]
-    self.direction = [1, 0]
-    self.growing = False
-end
-
-update()
-let head = self.body[0]
-let newHead = [head[0] + self.direction[0], head[1] + self.direction[1]]
-self.body.insert(0, newHead)
-if !self.growing
-    self.body.pop()
-else
-    self.growing = False
-end
-end
-
-draw(time)
-let bodyLength = self.body.length()
-for i, segment in self.body
-    let factor = 1.0 - (num(i) / num(bodyLength)) * 0.4
-    let size = num(GRID_SIZE - 1) * factor
-    let offset = (num(GRID_SIZE - 1) - size) / 2.0
-
-    let color = rl.GREEN
-    if i == 0
-        color = rl.LIME
-        let glow = math.sin(time * 10.0) * 2.0 + 4.0
-        rl.drawCircleLines(num(segment[0] * GRID_SIZE + GRID_SIZE/2), num(segment[1] * GRID_SIZE + GRID_SIZE/2), num(num(GRID_SIZE/2) + glow), [0, 255, 0, 150])
+        self.body = [[10, 10], [9, 10], [8, 10]]
+        self.direction = [1, 0]
+        self.growing = False
     end
 
-    rl.drawRectangle(
-    num(num(segment[0] * GRID_SIZE) + offset),
-    num(num(segment[1] * GRID_SIZE) + offset),
-    num(size), num(size), color
-    )
-end
-end
-
-changeDirection(x, y)
-if x != 0 and self.direction[0] == 0
-    self.direction = [x, y]
-end
-if y != 0 and self.direction[1] == 0
-    self.direction = [x, y]
-end
-end
-
-checkCollision()
-let head = self.body[0]
-if head[0] < 0 or head[0] >= GRID_W or head[1] < 0 or head[1] >= GRID_H
-    return True
-end
-let i = 1
-let bodyLength = self.body.length()
-while i < bodyLength
-    let segment = self.body[i]
-    if head[0] == segment[0] and head[1] == segment[1]
-        return True
+    update()
+        let head = self.body[0]
+        let newHead = [head[0] + self.direction[0], head[1] + self.direction[1]]
+        self.body.insert(0, newHead)
+        if !self.growing
+            self.body.pop()
+        else
+            self.growing = False
+        end
     end
-    i = i + 1
-end
-return False
-end
+
+    draw(time)
+        let bodyLength = self.body.length()
+        for i, segment in self.body
+            let factor = 1.0 - (num(i) / num(bodyLength)) * 0.4
+            let size = num(GRID_SIZE - 1) * factor
+            let offset = (num(GRID_SIZE - 1) - size) / 2.0
+
+            let color = rl.GREEN
+            if i == 0
+                color = rl.LIME
+                let glow = math.sin(time * 10.0) * 2.0 + 4.0
+                rl.drawCircleLines(num(segment[0] * GRID_SIZE + GRID_SIZE / 2), num(segment[1] * GRID_SIZE + GRID_SIZE / 2), num(num(GRID_SIZE / 2) + glow), [0, 255, 0, 150])
+            end
+
+            rl.drawRectangle(
+            num(num(segment[0] * GRID_SIZE) + offset), 
+            num(num(segment[1] * GRID_SIZE) + offset), 
+            num(size), num(size), color
+            )
+        end
+    end
+
+    changeDirection(x, y)
+        if x != 0 and self.direction[0] == 0
+            self.direction = [x, y]
+        end
+        if y != 0 and self.direction[1] == 0
+            self.direction = [x, y]
+        end
+    end
+
+    checkCollision()
+        let head = self.body[0]
+        if head[0] < 0 or head[0] >= GRID_W or head[1] < 0 or head[1] >= GRID_H
+            return True
+        end
+        let i = 1
+        let bodyLength = self.body.length()
+        while i < bodyLength
+            let segment = self.body[i]
+            if head[0] == segment[0] and head[1] == segment[1]
+                return True
+            end
+            i = i + 1
+        end
+        return False
+    end
 end
 
 class Game
     init()
-    self.win = rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Snake Master + Sound - Djazair Engine")
-    self.win.setFPS(60)
+        self.win = new rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Snake Master + Sound - Djazair Engine")
+        self.win.setFPS(60)
 
-    # Audio System
-    self.audio = rl.Audio()
-    self.eatSound = rl.Sound("eat.wav")
-    self.deathSound = rl.Sound("death.wav")
+        # Audio System
+        self.audio = new rl.Audio()
+        self.eatSound = new rl.Sound("eat.wav")
+        self.deathSound = new rl.Sound("death.wav")
 
-    self.highScore = 0
-    self.totalTime = 0.0
-    self.state = STATE_MENU
-    self.particles = []
-    self.reset()
-end
-
-reset()
-self.snake = Snake()
-self.spawnFood()
-self.score = 0
-self.frameCounter = 0
-self.speed = 10
-self.scorePopTime = 0
-self.shakeTime = 0
-self.particles = []
-end
-
-spawnFood()
-self.food = [
-rl.getRandomValue(0, GRID_W - 1),
-rl.getRandomValue(0, GRID_H - 1)
-]
-for segment in self.snake.body
-    if segment[0] == self.food[0] and segment[1] == self.food[1]
-        self.spawnFood()
-        return Null
-    end
-end
-end
-
-createExplosion(x, y, color)
-for i in 0..14
-    self.particles.append(Particle(num(x * GRID_SIZE + GRID_SIZE/2), num(y * GRID_SIZE + GRID_SIZE/2), color))
-end
-end
-
-handleInput()
-if self.state == STATE_MENU
-    if rl.isKeyPressed(rl.KEY_ENTER)
-        self.state = STATE_PLAYING
-        self.reset()
-    end
-elif self.state == STATE_PLAYING
-    if rl.isKeyPressed(rl.KEY_UP)    self.snake.changeDirection(0, -1) end
-    if rl.isKeyPressed(rl.KEY_DOWN)  self.snake.changeDirection(0, 1)  end
-    if rl.isKeyPressed(rl.KEY_LEFT)  self.snake.changeDirection(-1, 0) end
-    if rl.isKeyPressed(rl.KEY_RIGHT) self.snake.changeDirection(1, 0)  end
-    if rl.isKeyPressed(rl.KEY_P)     self.state = STATE_PAUSED      end
-elif self.state == STATE_PAUSED
-    if rl.isKeyPressed(rl.KEY_P) or rl.isKeyPressed(rl.KEY_ENTER)
-        self.state = STATE_PLAYING
-    end
-elif self.state == STATE_GAMEOVER
-    if rl.isKeyPressed(rl.KEY_R) or rl.isKeyPressed(rl.KEY_ENTER)
-        self.state = STATE_PLAYING
-        self.reset()
-    end
-    if rl.isKeyPressed(rl.KEY_ESCAPE)
+        self.highScore = 0
+        self.totalTime = 0.0
         self.state = STATE_MENU
+        self.particles = []
+        self.reset()
     end
-end
-end
 
-update()
-self.totalTime = self.totalTime + rl.getFrameTime()
-
-let i = 0
-while i < self.particles.length()
-    self.particles[i].update()
-    if self.particles[i].life <= 0
-        self.particles.pop(i)
-    else
-        i = i + 1
-    end
-end
-
-if self.state != STATE_PLAYING return end
-
-self.frameCounter = self.frameCounter + 1
-if self.scorePopTime > 0 self.scorePopTime = self.scorePopTime - 1 end
-
-if self.frameCounter >= self.speed
-    self.frameCounter = 0
-    self.snake.update()
-
-    let head = self.snake.body[0]
-    if head[0] == self.food[0] and head[1] == self.food[1]
-        self.snake.growing = True
-        self.score = self.score + 10
-        self.scorePopTime = 30
-        self.eatSound.play() # PLAY SOUND!
-        self.createExplosion(self.food[0], self.food[1], [255, 100, 100, 255])
-
-        if self.score > self.highScore self.highScore = self.score end
-        if self.score % 50 == 0 and self.speed > 3
-            self.speed = self.speed - 1
-        end
+    reset()
+        self.snake = new Snake()
         self.spawnFood()
+        self.score = 0
+        self.frameCounter = 0
+        self.speed = 10
+        self.scorePopTime = 0
+        self.shakeTime = 0
+        self.particles = []
     end
 
-    if self.snake.checkCollision()
-        self.state = STATE_GAMEOVER
-        self.shakeTime = 15
-        self.deathSound.play() # PLAY SOUND!
-        self.createExplosion(head[0], head[1], [255, 0, 0, 255])
-    end
-end
-end
-
-drawGrid()
-for i in 0..GRID_W
-    rl.drawLine(i * GRID_SIZE, 0, i * GRID_SIZE, SCREEN_HEIGHT, [20, 20, 20, 255])
-end
-for j in 0..GRID_H
-    rl.drawLine(0, j * GRID_SIZE, SCREEN_WIDTH, j * GRID_SIZE, [20, 20, 20, 255])
-end
-end
-
-draw()
-self.win.begin()
-self.win.clear([5, 5, 5, 255])
-self.drawGrid()
-
-for p in self.particles
-    p.draw()
-end
-
-if self.state == STATE_MENU
-    rl.drawText("SNAKE MASTER", SCREEN_WIDTH/2 - 160, SCREEN_HEIGHT/2 - 80, 45, rl.GOLD)
-    let pulse = math.sin(self.totalTime * 4.0) * 6.0
-    rl.drawText("Press [ ENTER ]..Start", SCREEN_WIDTH/2 - 130, SCREEN_HEIGHT/2 + 30 + num(pulse), 20, rl.RAYWHITE)
-    rl.drawText("AUDIO ENABLED", SCREEN_WIDTH/2 - 55, SCREEN_HEIGHT/2 + 120, 15, rl.LIME)
-
-elif self.state == STATE_PLAYING or self.state == STATE_PAUSED
-    let pulse = math.sin(self.totalTime * 8.0) * 4.0
-    rl.drawRectangle(
-    num(num(self.food[0] * GRID_SIZE) - num(pulse/2.0)),
-    num(num(self.food[1] * GRID_SIZE) - num(pulse/2.0)),
-    num(num(GRID_SIZE - 1) + num(pulse)),
-    num(num(GRID_SIZE - 1) + num(pulse)),
-    rl.RED
-    )
-
-    self.snake.draw(self.totalTime)
-
-    if self.scorePopTime > 0
-        let head = self.snake.body[0]
-        rl.drawText("+10", head[0] * GRID_SIZE, head[1] * GRID_SIZE - 20, 20, [255, 255, 0, 200])
+    spawnFood()
+        self.food = [
+            rl.getRandomValue(0, GRID_W - 1), 
+            rl.getRandomValue(0, GRID_H - 1)
+        ]
+        for segment in self.snake.body
+            if segment[0] == self.food[0] and segment[1] == self.food[1]
+                self.spawnFood()
+                return Null
+            end
+        end
     end
 
-    rl.drawText("Score: " + str(self.score), 20, 20, 20, rl.YELLOW)
-    rl.drawText("Best: " + str(self.highScore), 20, 45, 15, rl.GOLD)
-
-    if self.state == STATE_PAUSED
-        rl.drawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, [0, 0, 0, 150])
-        rl.drawText("PAUSED", SCREEN_WIDTH/2 - 80, SCREEN_HEIGHT/2 - 20, 40, rl.RAYWHITE)
+    createExplosion(x, y, color)
+        for i in 0 .. 14
+            self.particles.append(new Particle(num(x * GRID_SIZE + GRID_SIZE / 2), num(y * GRID_SIZE + GRID_SIZE / 2), color))
+        end
     end
 
-elif self.state == STATE_GAMEOVER
-    rl.drawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, [0, 0, 0, 220])
-    rl.drawText("GAME OVER", SCREEN_WIDTH/2 - 120, SCREEN_HEIGHT/2 - 60, 40, rl.RED)
-    rl.drawText("Score: " + str(self.score), SCREEN_WIDTH/2 - 50, SCREEN_HEIGHT/2 + 10, 25, rl.YELLOW)
-    rl.drawText("Press [ R ]..Restart", SCREEN_WIDTH/2 - 100, SCREEN_HEIGHT/2 + 100, 20, rl.GREEN)
-end
+    handleInput()
+        if self.state == STATE_MENU
+            if rl.isKeyPressed(rl.KEY_ENTER)
+                self.state = STATE_PLAYING
+                self.reset()
+            end
+        elif self.state == STATE_PLAYING
+            if rl.isKeyPressed(rl.KEY_UP)    self.snake.changeDirection(0, -1) end
+                if rl.isKeyPressed(rl.KEY_DOWN)  self.snake.changeDirection(0, 1)  end
+                    if rl.isKeyPressed(rl.KEY_LEFT)  self.snake.changeDirection(-1, 0) end
+                        if rl.isKeyPressed(rl.KEY_RIGHT) self.snake.changeDirection(1, 0)  end
+                            if rl.isKeyPressed(rl.KEY_P)     self.state = STATE_PAUSED      end
+                            elif self.state == STATE_PAUSED
+                                if rl.isKeyPressed(rl.KEY_P) or rl.isKeyPressed(rl.KEY_ENTER)
+                                    self.state = STATE_PLAYING
+                                end
+                            elif self.state == STATE_GAMEOVER
+                                if rl.isKeyPressed(rl.KEY_R) or rl.isKeyPressed(rl.KEY_ENTER)
+                                    self.state = STATE_PLAYING
+                                    self.reset()
+                                end
+                                if rl.isKeyPressed(rl.KEY_ESCAPE)
+                                    self.state = STATE_MENU
+                                end
+                            end
+                        end
 
-self.win.finish()
-end
+                        update()
+                        self.totalTime = self.totalTime + rl.getFrameTime()
 
-run()
-while self.win.isOpen()
-    self.handleInput()
-    self.update()
-    self.draw()
-end
-# Cleanup
-self.eatSound.unload()
-self.deathSound.unload()
-self.audio.close()
-self.win.close()
-end
-end
+                        let i = 0
+                        while i < self.particles.length()
+                            self.particles[i].update()
+                            if self.particles[i].life <= 0
+                                self.particles.pop(i)
+                            else
+                                i = i + 1
+                            end
+                        end
 
-let game = Game()
-game.run()
+                        if self.state != STATE_PLAYING return end
+
+                            self.frameCounter = self.frameCounter + 1
+                            if self.scorePopTime > 0 self.scorePopTime = self.scorePopTime - 1 end
+
+                                if self.frameCounter >= self.speed
+                                    self.frameCounter = 0
+                                    self.snake.update()
+
+                                    let head = self.snake.body[0]
+                                    if head[0] == self.food[0] and head[1] == self.food[1]
+                                        self.snake.growing = True
+                                        self.score = self.score + 10
+                                        self.scorePopTime = 30
+                                        self.eatSound.play() # PLAY SOUND!
+                                        self.createExplosion(self.food[0], self.food[1], [255, 100, 100, 255])
+
+                                        if self.score > self.highScore self.highScore = self.score end
+                                            if self.score % 50 == 0 and self.speed > 3
+                                                self.speed = self.speed - 1
+                                            end
+                                            self.spawnFood()
+                                        end
+
+                                        if self.snake.checkCollision()
+                                            self.state = STATE_GAMEOVER
+                                            self.shakeTime = 15
+                                            self.deathSound.play() # PLAY SOUND!
+                                            self.createExplosion(head[0], head[1], [255, 0, 0, 255])
+                                        end
+                                    end
+                                end
+
+                                drawGrid()
+                                for i in 0 .. GRID_W
+                                    rl.drawLine(i * GRID_SIZE, 0, i * GRID_SIZE, SCREEN_HEIGHT, [20, 20, 20, 255])
+                                end
+                                for j in 0 .. GRID_H
+                                    rl.drawLine(0, j * GRID_SIZE, SCREEN_WIDTH, j * GRID_SIZE, [20, 20, 20, 255])
+                                end
+                            end
+
+                            draw()
+                            self.win.begin()
+                            self.win.clear([5, 5, 5, 255])
+                            self.drawGrid()
+
+                            for p in self.particles
+                                p.draw()
+                            end
+
+                            if self.state == STATE_MENU
+                                rl.drawText("SNAKE MASTER", SCREEN_WIDTH / 2 - 160, SCREEN_HEIGHT / 2 - 80, 45, rl.GOLD)
+                                let pulse = math.sin(self.totalTime * 4.0) * 6.0
+                                rl.drawText("Press [ ENTER ]..Start", SCREEN_WIDTH / 2 - 130, SCREEN_HEIGHT / 2 + 30 + num(pulse), 20, rl.RAYWHITE)
+                                rl.drawText("AUDIO ENABLED", SCREEN_WIDTH / 2 - 55, SCREEN_HEIGHT / 2 + 120, 15, rl.LIME)
+
+                            elif self.state == STATE_PLAYING or self.state == STATE_PAUSED
+                                let pulse = math.sin(self.totalTime * 8.0) * 4.0
+                                rl.drawRectangle(
+                                num(num(self.food[0] * GRID_SIZE) - num(pulse / 2.0)), 
+                                num(num(self.food[1] * GRID_SIZE) - num(pulse / 2.0)), 
+                                num(num(GRID_SIZE - 1) + num(pulse)), 
+                                num(num(GRID_SIZE - 1) + num(pulse)), 
+                                rl.RED
+                                )
+
+                                self.snake.draw(self.totalTime)
+
+                                if self.scorePopTime > 0
+                                    let head = self.snake.body[0]
+                                    rl.drawText("+10", head[0] * GRID_SIZE, head[1] * GRID_SIZE - 20, 20, [255, 255, 0, 200])
+                                end
+
+                                rl.drawText("Score: " + str(self.score), 20, 20, 20, rl.YELLOW)
+                                rl.drawText("Best: " + str(self.highScore), 20, 45, 15, rl.GOLD)
+
+                                if self.state == STATE_PAUSED
+                                    rl.drawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, [0, 0, 0, 150])
+                                    rl.drawText("PAUSED", SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 - 20, 40, rl.RAYWHITE)
+                                end
+
+                            elif self.state == STATE_GAMEOVER
+                                rl.drawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, [0, 0, 0, 220])
+                                rl.drawText("GAME OVER", SCREEN_WIDTH / 2 - 120, SCREEN_HEIGHT / 2 - 60, 40, rl.RED)
+                                rl.drawText("Score: " + str(self.score), SCREEN_WIDTH / 2 - 50, SCREEN_HEIGHT / 2 + 10, 25, rl.YELLOW)
+                                rl.drawText("Press [ R ]..Restart", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 + 100, 20, rl.GREEN)
+                            end
+
+                            self.win.finish()
+                        end
+
+                        run()
+                        while self.win.isOpen()
+                            self.handleInput()
+                            self.update()
+                            self.draw()
+                        end
+                        # Cleanup
+                        self.eatSound.unload()
+                        self.deathSound.unload()
+                        self.audio.close()
+                        self.win.close()
+                    end
+                end
+
+                let game = new Game()
+                game.run()

@@ -44,7 +44,7 @@ end
 
 class GameOfLife
     init()
-        self.win = rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Conway's Game of Life - Djazair Engine")
+        self.win = new rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Conway's Game of Life - Djazair Engine")
         self.win.setFPS(60)
 
         self.running = False
@@ -59,10 +59,10 @@ class GameOfLife
         # Initialize grid and nextGrid
         self.grid = []
         self.nextGrid = []
-        for i in 0..GRID_W-1
+        for i in 0 .. GRID_W - 1
             let col = []
             let nextCol = []
-            for j in 0..GRID_H-1
+            for j in 0 .. GRID_H - 1
                 col.append(0)
                 nextCol.append(0)
             end
@@ -75,8 +75,8 @@ class GameOfLife
     end
 
     clear()
-        for i in 0..GRID_W-1
-            for j in 0..GRID_H-1
+        for i in 0 .. GRID_W - 1
+            for j in 0 .. GRID_H - 1
                 self.grid[i][j] = 0
                 self.nextGrid[i][j] = 0
             end
@@ -89,8 +89,8 @@ class GameOfLife
     randomize()
         self.clear()
         let count = 0
-        for i in 0..GRID_W-1
-            for j in 0..GRID_H-1
+        for i in 0 .. GRID_W - 1
+            for j in 0 .. GRID_H - 1
                 if random.float() < 0.22
                     self.grid[i][j] = 1
                     count += 1
@@ -108,15 +108,15 @@ class GameOfLife
         end
         let px = col * GRID_SIZE + GRID_SIZE / 2
         let py = row * GRID_SIZE + GRID_SIZE / 2
-        for i in 0..3
-            self.particles.append(CellParticle(px, py, [0, 240, 180, 255]))
+        for i in 0 .. 3
+            self.particles.append(new CellParticle(px, py, [0, 240, 180, 255]))
         end
     end
 
     countNeighbors(col, row)
         let count = 0
-        for i in -1..1
-            for j in -1..1
+        for i in - 1 .. 1
+            for j in - 1 .. 1
                 if i == 0 and j == 0
                     # Skip self
                 else
@@ -136,8 +136,8 @@ class GameOfLife
         let currentAlive = 0
 
         # Calculate next state
-        for x in 0..GRID_W-1
-            for y in 0..GRID_H-1
+        for x in 0 .. GRID_W - 1
+            for y in 0 .. GRID_H - 1
                 let neighbors = self.countNeighbors(x, y)
                 let cell = self.grid[x][y]
 
@@ -236,18 +236,18 @@ class GameOfLife
 
     updateSpeedInterval()
         match self.speed
-        case 1
-            self.updateInterval = 30
-        case 2
-            self.updateInterval = 20
-        case 3
-            self.updateInterval = 10
-        case 4
-            self.updateInterval = 5
-        case 5
-            self.updateInterval = 2
-        case 6
-            self.updateInterval = 1
+            case 1
+                self.updateInterval = 30
+            case 2
+                self.updateInterval = 20
+            case 3
+                self.updateInterval = 10
+            case 4
+                self.updateInterval = 5
+            case 5
+                self.updateInterval = 2
+            case 6
+                self.updateInterval = 1
         end
     end
 
@@ -279,16 +279,16 @@ class GameOfLife
         self.win.clear([10, 10, 12, 255])
 
         # Draw grid lines (subtle dark gray)
-        for i in 0..GRID_W
+        for i in 0 .. GRID_W
             rl.drawLine(i * GRID_SIZE, 0, i * GRID_SIZE, GRID_AREA_HEIGHT, [25, 25, 30, 255])
         end
-        for j in 0..GRID_H
+        for j in 0 .. GRID_H
             rl.drawLine(0, j * GRID_SIZE, SCREEN_WIDTH, j * GRID_SIZE, [25, 25, 30, 255])
         end
 
         # Draw cells
-        for col in 0..GRID_W-1
-            for row in 0..GRID_H-1
+        for col in 0 .. GRID_W - 1
+            for row in 0 .. GRID_H - 1
                 if self.grid[col][row] == 1
                     let cx = col * GRID_SIZE
                     let cy = row * GRID_SIZE
@@ -358,5 +358,5 @@ class GameOfLife
     end
 end
 
-let game = GameOfLife()
+let game = new GameOfLife()
 game.run()

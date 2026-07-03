@@ -64,7 +64,7 @@ end
 fn main()
     # 1. Setup Database
     let dbFile = "pomodoro.db"
-    let db = PomodoroDatabase(dbFile)
+    let db = new PomodoroDatabase(dbFile)
     
     # 2. Setup Webview App Window
     let app = webview.createWindow({

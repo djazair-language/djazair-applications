@@ -31,12 +31,12 @@ class FireParticle
         # Color transitioning from Yellow to Red
         let colChoice = rl.getRandomValue(0, 2)
         match colChoice
-        case 0
-            self.color = [255, 220, 0] # Yellow
-        case 1
-            self.color = [255, 100, 0] # Orange
-        default
-            self.color = [255, 30, 30] # Red
+            case 0
+                self.color = [255, 220, 0] # Yellow
+            case 1
+                self.color = [255, 100, 0] # Orange
+            default
+                self.color = [255, 30, 30] # Red
         end
     end
 
@@ -56,7 +56,7 @@ end
 
 class Minesweeper
     init()
-        self.win = rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Djazair Minesweeper - Cyberpunk Edition")
+        self.win = new rl.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Djazair Minesweeper - Cyberpunk Edition")
         self.win.setFPS(60)
 
         self.state = STATE_PLAYING
@@ -75,12 +75,12 @@ class Minesweeper
         self.flagged = []
         self.neighborMines = []
 
-        for i in 0..COLS-1
+        for i in 0 .. COLS - 1
             let colM = []
             let colR = []
             let colF = []
             let colN = []
-            for j in 0..ROWS-1
+            for j in 0 .. ROWS - 1
                 colM.append(0)
                 colR.append(0)
                 colF.append(0)
@@ -103,8 +103,8 @@ class Minesweeper
         self.explodedRow = -1
         self.particles = []
 
-        for i in 0..COLS-1
-            for j in 0..ROWS-1
+        for i in 0 .. COLS - 1
+            for j in 0 .. ROWS - 1
                 self.mines[i][j] = 0
                 self.revealed[i][j] = 0
                 self.flagged[i][j] = 0
@@ -115,8 +115,8 @@ class Minesweeper
 
     countAdjacentMines(col, row)
         let count = 0
-        for i in -1..1
-            for j in -1..1
+        for i in - 1 .. 1
+            for j in - 1 .. 1
                 if i != 0 or j != 0
                     let nc = col + i
                     let nr = row + j
@@ -146,8 +146,8 @@ class Minesweeper
         end
 
         # Calculate numbers
-        for c in 0..COLS-1
-            for r in 0..ROWS-1
+        for c in 0 .. COLS - 1
+            for r in 0 .. ROWS - 1
                 self.neighborMines[c][r] = self.countAdjacentMines(c, r)
             end
         end
@@ -171,8 +171,8 @@ class Minesweeper
             # Spawn massive explosion particles
             let px = col * CELL_SIZE + CELL_SIZE / 2
             let py = row * CELL_SIZE + TOP_BAR_HEIGHT + CELL_SIZE / 2
-            for i in 0..40
-                self.particles.append(FireParticle(px, py))
+            for i in 0 .. 40
+                self.particles.append(new FireParticle(px, py))
             end
             self.revealAllMines()
             return Null
@@ -180,8 +180,8 @@ class Minesweeper
 
         # If zero neighbor mines, flood fill reveal
         if self.neighborMines[col][row] == 0
-            for i in -1..1
-                for j in -1..1
+            for i in - 1 .. 1
+                for j in - 1 .. 1
                     if i != 0 or j != 0
                         self.revealCell(col + i, row + j)
                     end
@@ -191,8 +191,8 @@ class Minesweeper
     end
 
     revealAllMines()
-        for c in 0..COLS-1
-            for r in 0..ROWS-1
+        for c in 0 .. COLS - 1
+            for r in 0 .. ROWS - 1
                 if self.mines[c][r] == 1
                     self.revealed[c][r] = 1
                 end
@@ -218,8 +218,8 @@ class Minesweeper
     end
 
     checkWin()
-        for c in 0..COLS-1
-            for r in 0..ROWS-1
+        for c in 0 .. COLS - 1
+            for r in 0 .. ROWS - 1
                 # If there's a non-mine cell that is not revealed, we haven't won yet
                 if self.mines[c][r] == 0 and self.revealed[c][r] == 0
                     return False
@@ -334,8 +334,8 @@ class Minesweeper
         end
 
         # Draw Grid Cells
-        for col in 0..COLS-1
-            for row in 0..ROWS-1
+        for col in 0 .. COLS - 1
+            for row in 0 .. ROWS - 1
                 let cx = col * CELL_SIZE
                 let cy = row * CELL_SIZE + TOP_BAR_HEIGHT
 
@@ -361,22 +361,22 @@ class Minesweeper
                         if numMines > 0
                             let numColor = rl.SKYBLUE
                             match numMines
-                            case 1
-                                numColor = [0, 160, 255, 255]
-                            case 2
-                                numColor = [0, 220, 120, 255]
-                            case 3
-                                numColor = [255, 60, 80, 255]
-                            case 4
-                                numColor = [180, 80, 255, 255]
-                            case 5
-                                numColor = [255, 200, 0, 255]
-                            case 6
-                                numColor = [0, 230, 230, 255]
-                            case 7
-                                numColor = [255, 100, 180, 255]
-                            default
-                                numColor = rl.GRAY
+                                case 1
+                                    numColor = [0, 160, 255, 255]
+                                case 2
+                                    numColor = [0, 220, 120, 255]
+                                case 3
+                                    numColor = [255, 60, 80, 255]
+                                case 4
+                                    numColor = [180, 80, 255, 255]
+                                case 5
+                                    numColor = [255, 200, 0, 255]
+                                case 6
+                                    numColor = [0, 230, 230, 255]
+                                case 7
+                                    numColor = [255, 100, 180, 255]
+                                default
+                                    numColor = rl.GRAY
                             end
                             rl.drawText(str(numMines), cx + 11, cy + 7, 18, numColor)
                         end
@@ -437,5 +437,5 @@ class Minesweeper
     end
 end
 
-let game = Minesweeper()
+let game = new Minesweeper()
 game.run()

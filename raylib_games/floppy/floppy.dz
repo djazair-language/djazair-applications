@@ -37,172 +37,172 @@ end
 
 class Tube
     init(x, y)
-    self.x = x
-    self.y = y
-    self.active = True
-end
+        self.x = x
+        self.y = y
+        self.active = True
+    end
 end
 
 class FloppyGame
     init()
-    self.screenWidth = 800
-    self.screenHeight = 450
+        self.screenWidth = 800
+        self.screenHeight = 450
 
-    self.win = rl.Window(self.screenWidth, self.screenHeight, "Floppy Bird Master - Djazair Raylib")
-    self.win.setFPS(60)
+        self.win = new rl.Window(self.screenWidth, self.screenHeight, "Floppy Bird Master - Djazair Raylib")
+        self.win.setFPS(60)
 
-    self.gameOver = False
-    self.pause = False
-    self.score = 0
-    self.hiScore = 0
+        self.gameOver = False
+        self.pause = False
+        self.score = 0
+        self.hiScore = 0
 
-    self.floppyX = 80
-    self.floppyY = self.screenHeight / 2 - FLOPPY_RADIUS
-    self.floppyRadius = FLOPPY_RADIUS
+        self.floppyX = 80
+        self.floppyY = self.screenHeight / 2 - FLOPPY_RADIUS
+        self.floppyRadius = FLOPPY_RADIUS
 
-    self.tubes = []
-    self.tubesSpeedX = 2
-    self.superfx = False
+        self.tubes = []
+        self.tubesSpeedX = 2
+        self.superfx = False
 
-    self.initTubes()
-end
-
-initTubes()
-self.tubes = []
-for i in 0..MAX_TUBES-1
-    let tubeX = 400 + 280 * i
-    let tubeY = 0 - rl.getRandomValue(0, 120)
-    self.tubes.append(Tube(tubeX, tubeY))
-end
-end
-
-reset()
-self.score = 0
-self.gameOver = False
-self.superfx = False
-self.pause = False
-
-self.floppyX = 80
-self.floppyY = self.screenHeight / 2 - FLOPPY_RADIUS
-
-self.initTubes()
-end
-
-update()
-if !self.gameOver
-    if rl.isKeyPressed(rl.KEY_P)
-        self.pause = !self.pause
+        self.initTubes()
     end
 
-    if !self.pause
-        for t in self.tubes
-            t.x = t.x - self.tubesSpeedX
+    initTubes()
+        self.tubes = []
+        for i in 0 .. MAX_TUBES - 1
+            let tubeX = 400 + 280 * i
+            let tubeY = 0 - rl.getRandomValue(0, 120)
+            self.tubes.append(new Tube(tubeX, tubeY))
         end
+    end
 
-        if rl.isKeyDown(rl.KEY_SPACE)
-            self.floppyY = self.floppyY - 3
-        else
-            self.floppyY = self.floppyY + 1.5
-        end
+    reset()
+        self.score = 0
+        self.gameOver = False
+        self.superfx = False
+        self.pause = False
 
-        for t in self.tubes
-            let upperY = t.y
-            let upperH = 255
+        self.floppyX = 80
+        self.floppyY = self.screenHeight / 2 - FLOPPY_RADIUS
 
-            let lowerY = 600 + t.y - 255
-            let lowerH = 255
+        self.initTubes()
+    end
 
-            let collUpper = checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, upperY, TUBES_WIDTH, upperH)
-            let collLower = checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, lowerY, TUBES_WIDTH, lowerH)
-            let collBounds = self.floppyY - self.floppyRadius < 0 or self.floppyY + self.floppyRadius > self.screenHeight
+    update()
+        if !self.gameOver
+            if rl.isKeyPressed(rl.KEY_P)
+                self.pause = !self.pause
+            end
 
-            if collUpper or collLower or collBounds
-                self.gameOver = True
-                self.pause = False
-            elif t.x < self.floppyX and t.active
-                self.score = self.score + 100
-                t.active = False
-                self.superfx = True
-
-                if self.score > self.hiScore
-                    self.hiScore = self.score
+            if !self.pause
+                for t in self.tubes
+                    t.x = t.x - self.tubesSpeedX
                 end
+
+                if rl.isKeyDown(rl.KEY_SPACE)
+                    self.floppyY = self.floppyY - 3
+                else
+                    self.floppyY = self.floppyY + 1.5
+                end
+
+                for t in self.tubes
+                    let upperY = t.y
+                    let upperH = 255
+
+                    let lowerY = 600 + t.y - 255
+                    let lowerH = 255
+
+                    let collUpper = checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, upperY, TUBES_WIDTH, upperH)
+                    let collLower = checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, lowerY, TUBES_WIDTH, lowerH)
+                    let collBounds = self.floppyY - self.floppyRadius < 0 or self.floppyY + self.floppyRadius > self.screenHeight
+
+                    if collUpper or collLower or collBounds
+                        self.gameOver = True
+                        self.pause = False
+                    elif t.x < self.floppyX and t.active
+                        self.score = self.score + 100
+                        t.active = False
+                        self.superfx = True
+
+                        if self.score > self.hiScore
+                            self.hiScore = self.score
+                        end
+                    end
+                end
+            end
+        else
+            if rl.isKeyPressed(rl.KEY_ENTER)
+                self.reset()
+                self.gameOver = False
             end
         end
     end
-else
-    if rl.isKeyPressed(rl.KEY_ENTER)
-        self.reset()
-        self.gameOver = False
-    end
-end
-end
 
-draw()
-self.win.begin()
-self.win.clear([12, 12, 24, 255])
+    draw()
+        self.win.begin()
+        self.win.clear([12, 12, 24, 255])
 
-if !self.gameOver
-    for i in 0..15
-        let starX = (i * 53) % self.screenWidth
-        let starY = (i * 29) % self.screenHeight
-        rl.drawCircle(num(starX), num(starY), 1.5, [255, 255, 255, 80])
-    end
+        if !self.gameOver
+            for i in 0 .. 15
+                let starX = (i * 53) % self.screenWidth
+                let starY = (i * 29) % self.screenHeight
+                rl.drawCircle(num(starX), num(starY), 1.5, [255, 255, 255, 80])
+            end
 
-    for t in self.tubes
-        if t.x > -TUBES_WIDTH and t.x < self.screenWidth + 100
-            let upperY = t.y
-            let lowerY = 600 + t.y - 255
+            for t in self.tubes
+                if t.x > -TUBES_WIDTH and t.x < self.screenWidth + 100
+                    let upperY = t.y
+                    let lowerY = 600 + t.y - 255
 
-            rl.drawRectangle(num(t.x), num(upperY), num(TUBES_WIDTH), 255, [0, 200, 80, 255])
-            rl.drawRectangleLines(num(t.x), num(upperY), num(TUBES_WIDTH), 255, [0, 255, 200, 255])
+                    rl.drawRectangle(num(t.x), num(upperY), num(TUBES_WIDTH), 255, [0, 200, 80, 255])
+                    rl.drawRectangleLines(num(t.x), num(upperY), num(TUBES_WIDTH), 255, [0, 255, 200, 255])
 
-            rl.drawRectangle(num(t.x), num(lowerY), num(TUBES_WIDTH), 255, [0, 200, 80, 255])
-            rl.drawRectangleLines(num(t.x), num(lowerY), num(TUBES_WIDTH), 255, [0, 255, 200, 255])
+                    rl.drawRectangle(num(t.x), num(lowerY), num(TUBES_WIDTH), 255, [0, 200, 80, 255])
+                    rl.drawRectangleLines(num(t.x), num(lowerY), num(TUBES_WIDTH), 255, [0, 255, 200, 255])
+                end
+            end
+
+            rl.drawCircle(num(self.floppyX), num(self.floppyY), num(self.floppyRadius), [255, 200, 0, 255])
+            rl.drawCircleLines(num(self.floppyX), num(self.floppyY), num(self.floppyRadius), [255, 255, 255, 200])
+            rl.drawCircle(num(self.floppyX + 6), num(self.floppyY - 5), 3, [255, 255, 255, 255])
+            rl.drawCircle(num(self.floppyX + 7), num(self.floppyY - 5), 1.5, [0, 0, 0, 255])
+            rl.drawRectangle(num(self.floppyX + 12), num(self.floppyY - 2), 8, 5, [255, 100, 0, 255])
+
+            if self.superfx
+                rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [255, 255, 255, 100])
+                self.superfx = False
+            end
+
+            rl.drawRectangle(15, 15, 130, 80, [16, 16, 32, 200])
+            rl.drawRectangleLines(15, 15, 130, 80, [50, 50, 80, 255])
+
+            rl.drawText("SCORE", 25, 23, 11, [255, 255, 255, 160])
+            rl.drawText(str(self.score), 25, 38, 24, [0, 255, 200, 255])
+            rl.drawText("HI-SCORE: " + str(self.hiScore), 25, 70, 11, [255, 200, 0, 255])
+
+            if self.pause
+                rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [0, 0, 0, 180])
+                rl.drawText("GAME PAUSED", self.screenWidth / 2 - 120, self.screenHeight / 2 - 20, 35, [255, 255, 255, 255])
+            end
+        else
+            rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [5, 5, 12, 255])
+            rl.drawText("FLOPPY MASTER", self.screenWidth / 2 - 170, self.screenHeight / 2 - 70, 45, [255, 200, 0, 255])
+            rl.drawText("GAME OVER", self.screenWidth / 2 - 100, self.screenHeight / 2 + 10, 35, [190, 33, 55, 255])
+            rl.drawText("Final Score: " + str(self.score), self.screenWidth / 2 - 65, self.screenHeight / 2 + 65, 20, [255, 255, 255, 200])
+            rl.drawText("Press [ ENTER ] to Play Again", self.screenWidth / 2 - 160, self.screenHeight / 2 + 120, 20, [0, 255, 200, 255])
         end
+
+        self.win.finish()
     end
 
-    rl.drawCircle(num(self.floppyX), num(self.floppyY), num(self.floppyRadius), [255, 200, 0, 255])
-    rl.drawCircleLines(num(self.floppyX), num(self.floppyY), num(self.floppyRadius), [255, 255, 255, 200])
-    rl.drawCircle(num(self.floppyX + 6), num(self.floppyY - 5), 3, [255, 255, 255, 255])
-    rl.drawCircle(num(self.floppyX + 7), num(self.floppyY - 5), 1.5, [0, 0, 0, 255])
-    rl.drawRectangle(num(self.floppyX + 12), num(self.floppyY - 2), 8, 5, [255, 100, 0, 255])
-
-    if self.superfx
-        rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [255, 255, 255, 100])
-        self.superfx = False
+    run()
+        while self.win.isOpen()
+            self.update()
+            self.draw()
+        end
+        self.win.close()
     end
-
-    rl.drawRectangle(15, 15, 130, 80, [16, 16, 32, 200])
-    rl.drawRectangleLines(15, 15, 130, 80, [50, 50, 80, 255])
-
-    rl.drawText("SCORE", 25, 23, 11, [255, 255, 255, 160])
-    rl.drawText(str(self.score), 25, 38, 24, [0, 255, 200, 255])
-    rl.drawText("HI-SCORE: " + str(self.hiScore), 25, 70, 11, [255, 200, 0, 255])
-
-    if self.pause
-        rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [0, 0, 0, 180])
-        rl.drawText("GAME PAUSED", self.screenWidth / 2 - 120, self.screenHeight / 2 - 20, 35, [255, 255, 255, 255])
-    end
-else
-    rl.drawRectangle(0, 0, self.screenWidth, self.screenHeight, [5, 5, 12, 255])
-    rl.drawText("FLOPPY MASTER", self.screenWidth / 2 - 170, self.screenHeight / 2 - 70, 45, [255, 200, 0, 255])
-    rl.drawText("GAME OVER", self.screenWidth / 2 - 100, self.screenHeight / 2 + 10, 35, [190, 33, 55, 255])
-    rl.drawText("Final Score: " + str(self.score), self.screenWidth / 2 - 65, self.screenHeight / 2 + 65, 20, [255, 255, 255, 200])
-    rl.drawText("Press [ ENTER ] to Play Again", self.screenWidth / 2 - 160, self.screenHeight / 2 + 120, 20, [0, 255, 200, 255])
 end
 
-self.win.finish()
-end
-
-run()
-while self.win.isOpen()
-    self.update()
-    self.draw()
-end
-self.win.close()
-end
-end
-
-let game = FloppyGame()
+let game = new FloppyGame()
 game.run()

@@ -1,0 +1,192 @@
+# database.dz - Database handling for Todo App
+
+use sqlite
+use datetime as dt
+
+class Database
+    init(dbPath)
+        self.db = new sqlite.Connection(dbPath)
+        if not self.db.isConnected()
+            print("[Database] Failed to connect to database.")
+            return
+        end
+        print("[Database] Connected successfully.")
+
+        self.initSchema()
+    end
+
+    initSchema()
+        let sqlTasks = "
+        CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        title TEXT NOT NULL, 
+        description TEXT, 
+        category TEXT, 
+        priority TEXT, 
+        due_date TEXT, 
+        status INTEGER DEFAULT 0, 
+        order_index INTEGER DEFAULT 0, 
+        created_at TEXT
+        )
+        "
+        let sqlLists = "
+        CREATE TABLE IF NOT EXISTS lists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        name TEXT NOT NULL, 
+        created_at TEXT
+        )
+        "
+        let sqlSteps = "
+        CREATE TABLE IF NOT EXISTS steps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        task_id INTEGER, 
+        title TEXT NOT NULL, 
+        status INTEGER DEFAULT 0, 
+        created_at TEXT, 
+        FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+        )
+        "
+        self.db.execute(sqlTasks)
+        self.db.execute(sqlLists)
+        self.db.execute(sqlSteps)
+
+        # Upgrade Schema seamlessly
+        try self.db.execute("ALTER TABLE tasks ADD COLUMN repeat_type TEXT") catch e print("[Schema Upgrade] " + str(e)) end
+        try self.db.execute("ALTER TABLE tasks ADD COLUMN reminder_time TEXT") catch e print("[Schema Upgrade] " + str(e)) end
+        try self.db.execute("ALTER TABLE lists ADD COLUMN theme_color TEXT") catch e print("[Schema Upgrade] " + str(e)) end
+        try self.db.execute("ALTER TABLE lists ADD COLUMN theme_bg TEXT") catch e print("[Schema Upgrade] " + str(e)) end
+    end
+
+    # --- TASKS ---
+    getTasks()
+        let sql = "SELECT * FROM tasks ORDER BY status ASC, order_index ASC, id DESC"
+        let res = self.db.query(sql)
+        if res == Null return [] end
+        return res.fetchAllAssoc()
+    end
+
+    addTask(title, description, category, priority, due_date, repeat_type, reminder_time)
+        let created_at = dt.now().format("%Y-%m-%d %H:%M:%S")
+        let maxOrder = 0
+        let orderRes = self.db.query("SELECT MAX(order_index) as max_order FROM tasks")
+        if orderRes != Null
+            let row = orderRes.fetchAssoc()
+            if row != Null and row["max_order"] != Null
+                maxOrder = int(row["max_order"]) + 1
+            end
+        end
+
+        let sql = "INSERT INTO tasks (title, description, category, priority, due_date, status, order_index, repeat_type, reminder_time, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
+        return self.db.safeExecute(sql, [title, description, category, priority, due_date, maxOrder, repeat_type, reminder_time, created_at])
+    end
+
+    updateTask(id, title, description, category, priority, due_date, repeat_type, reminder_time)
+        let sql = "UPDATE tasks SET title = ?, description = ?, category = ?, priority = ?, due_date = ?, repeat_type = ?, reminder_time = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [title, description, category, priority, due_date, repeat_type, reminder_time, id])
+    end
+
+    updateTaskStatus(id, status)
+        let sql = "UPDATE tasks SET status = ? WHERE id = ?"
+        self.db.safeExecute(sql, [status, id])
+
+        # Handle Repeating Tasks logic
+        if status == 1
+            let res = self.db.query("SELECT * FROM tasks WHERE id = ${id}")
+            if res != Null
+                let t = res.fetchAssoc()
+                if t != Null and t["repeat_type"] != Null and t["repeat_type"] != ""
+                    # Create duplicate
+                    let new_due_date = t["due_date"]
+                    if new_due_date != Null and new_due_date != ""
+                        let d = dt.fromString(new_due_date + " 00:00:00")
+                        if t["repeat_type"] == "Daily"
+                            d = d.addDays(1)
+                        elif t["repeat_type"] == "Weekly"
+                            d = d.addDays(7)
+                        elif t["repeat_type"] == "Monthly"
+                            d = d.addMonths(1)
+                        end
+                        new_due_date = d.format("%Y-%m-%d")
+                    end
+                    self.addTask(t["title"], t["description"], t["category"], t["priority"], new_due_date, t["repeat_type"], t["reminder_time"])
+
+                    # Clear repeat from the completed task so it doesn't repeat again if unchecked and checked again
+                    self.db.safeExecute("UPDATE tasks SET repeat_type = '' WHERE id = ?", [id])
+                end
+            end
+        end
+        return True
+    end
+
+    updateTaskCategory(id, category)
+        let sql = "UPDATE tasks SET category = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [category, id])
+    end
+
+    updateTaskOrder(id, order_index)
+        let sql = "UPDATE tasks SET order_index = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [order_index, id])
+    end
+
+    deleteTask(id)
+        self.db.safeExecute("DELETE FROM steps WHERE task_id = ?", [id])
+        return self.db.safeExecute("DELETE FROM tasks WHERE id = ?", [id])
+    end
+
+    # --- LISTS ---
+    getLists()
+        let sql = "SELECT * FROM lists ORDER BY id ASC"
+        let res = self.db.query(sql)
+        if res == Null return [] end
+        return res.fetchAllAssoc()
+    end
+
+    addList(name, color, bg)
+        let created_at = dt.now().format("%Y-%m-%d %H:%M:%S")
+        let sql = "INSERT INTO lists (name, theme_color, theme_bg, created_at) VALUES (?, ?, ?, ?)"
+        return self.db.safeExecute(sql, [name, color, bg, created_at])
+    end
+
+    renameList(id, name)
+        let sql = "UPDATE lists SET name = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [name, id])
+    end
+
+    updateListTheme(id, color, bg)
+        let sql = "UPDATE lists SET theme_color = ?, theme_bg = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [color, bg, id])
+    end
+
+    deleteList(id, name)
+        self.db.safeExecute("DELETE FROM tasks WHERE category = ?", [name])
+        return self.db.safeExecute("DELETE FROM lists WHERE id = ?", [id])
+    end
+
+    # --- STEPS ---
+    getSteps(task_id)
+        let sql = "SELECT * FROM steps WHERE task_id = ${task_id} ORDER BY id ASC"
+        let res = self.db.query(sql)
+        if res == Null return [] end
+        return res.fetchAllAssoc()
+    end
+
+    addStep(task_id, title)
+        let created_at = dt.now().format("%Y-%m-%d %H:%M:%S")
+        let sql = "INSERT INTO steps (task_id, title, status, created_at) VALUES (?, ?, 0, ?)"
+        return self.db.safeExecute(sql, [task_id, title, created_at])
+    end
+
+    updateStepStatus(id, status)
+        let sql = "UPDATE steps SET status = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [status, id])
+    end
+
+    deleteStep(id)
+        let sql = "DELETE FROM steps WHERE id = ?"
+        return self.db.safeExecute(sql, [id])
+    end
+
+    close()
+        self.db.close()
+    end
+end
