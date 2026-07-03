@@ -55,12 +55,26 @@ $(document).ready(() => {
 
     // --- LISTS & THEMES LOGIC ---
     function renderLists() {
+        const today = new Date().toLocaleDateString('en-CA');
+        // Compute global counts for built-in lists
+        let countMyDay = allTasks.filter(t => t.status === 0 && t.my_day_date === today).length;
+        let countImportant = allTasks.filter(t => t.status === 0 && t.priority === 'High').length;
+        let countPlanned = allTasks.filter(t => t.status === 0 && t.due_date).length;
+        let countTasks = allTasks.filter(t => t.status === 0 && (!t.category || t.category === 'Tasks')).length;
+
+        $('#countMyDay').text(countMyDay > 0 ? countMyDay : '');
+        $('#countImportant').text(countImportant > 0 ? countImportant : '');
+        $('#countPlanned').text(countPlanned > 0 ? countPlanned : '');
+        $('#countTasks').text(countTasks > 0 ? countTasks : '');
+
         let html = '';
         customLists.forEach(l => {
+            let count = allTasks.filter(t => t.status === 0 && t.category === l.name).length;
             html += `
                 <a href="#" class="nav-item custom-list-item flex items-center gap-4 px-3 py-2.5 rounded-md hover:bg-msitemhover text-sm dropzone ${currentFilter === l.name ? 'active' : ''}" data-filter="${l.name}" data-id="${l.id}" oncontextmenu="showListContextMenu(event, ${l.id}, '${escapeHTML(l.name)}')">
                     <i class="fa-solid fa-list-ul w-5 text-center" style="color: ${l.theme_color || '#5C90D2'}"></i>
                     <span class="truncate flex-1">${escapeHTML(l.name)}</span>
+                    <span class="text-xs font-semibold text-msmuted">${count > 0 ? count : ''}</span>
                 </a>
             `;
         });
@@ -178,21 +192,31 @@ $(document).ready(() => {
         e.preventDefault();
         ctxTaskId = id;
         
+        // Hide submenus initially
+        $('#ctxMoveSubMenu').addClass('hidden');
+        
         const task = allTasks.find(t => t.id == id);
         if (task) {
+            const today = new Date().toLocaleDateString('en-CA');
+            if (task.my_day_date === today) {
+                $('#ctxMyDayText').text('Remove from My Day');
+            } else {
+                $('#ctxMyDayText').text('Add to My Day');
+            }
+
             if (task.status === 1) {
-                $('#ctxToggleStatus span').text('Mark as not completed');
+                $('#ctxStatusText').text('Mark as not completed');
                 $('#ctxToggleStatus i').removeClass('fa-regular fa-circle-check').addClass('fa-solid fa-circle-xmark');
             } else {
-                $('#ctxToggleStatus span').text('Mark as completed');
+                $('#ctxStatusText').text('Mark as completed');
                 $('#ctxToggleStatus i').removeClass('fa-solid fa-circle-xmark').addClass('fa-regular fa-circle-check');
             }
             
             if (task.priority === 'High') {
-                $('#ctxToggleImportant span').text('Remove importance');
+                $('#ctxImportantText').text('Remove importance');
                 $('#ctxToggleImportant i').removeClass('fa-regular').addClass('fa-solid text-rose-400');
             } else {
-                $('#ctxToggleImportant span').text('Mark as important');
+                $('#ctxImportantText').text('Mark as important');
                 $('#ctxToggleImportant i').removeClass('fa-solid text-rose-400').addClass('fa-regular');
             }
         }
@@ -215,13 +239,71 @@ $(document).ready(() => {
         if (ctxTaskId) toggleImportant(ctxTaskId, {stopPropagation:()=>{}});
     });
 
-    $('#ctxMyDay').click(async () => {
+    $(document).on('click', '#ctxMyDay', async function() {
         $('#contextMenu').addClass('hidden');
-        if (ctxTaskId && window.djazair) {
-            await window.api.updateTaskCategory(ctxTaskId, 'My Day');
+        if (ctxTaskId) {
+            const task = allTasks.find(t => t.id == ctxTaskId);
+            const today = new Date().toLocaleDateString('en-CA');
+            const newDate = (task.my_day_date === today) ? '' : today;
+            await window.api.updateTaskMyDay(ctxTaskId, newDate);
             await loadData();
         }
     });
+
+    $(document).on('click', '#ctxDueToday', async function() {
+        $('#contextMenu').addClass('hidden');
+        if (ctxTaskId) {
+            const task = allTasks.find(t => t.id == ctxTaskId);
+            const date = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local time
+            await window.api.updateTask(task.id, ...getTaskArgs(task.id, {due_date: date}));
+            await loadData();
+        }
+    });
+
+    $(document).on('click', '#ctxDueTomorrow', async function() {
+        $('#contextMenu').addClass('hidden');
+        if (ctxTaskId) {
+            const task = allTasks.find(t => t.id == ctxTaskId);
+            const d = new Date();
+            d.setDate(d.getDate() + 1);
+            const date = d.toLocaleDateString('en-CA');
+            await window.api.updateTask(task.id, ...getTaskArgs(task.id, {due_date: date}));
+            await loadData();
+        }
+    });
+
+    $(document).on('click', '#ctxChooseDateBtn', function() {
+        document.getElementById('ctxChooseDate').showPicker();
+    });
+
+    $(document).on('change', '#ctxChooseDate', async function() {
+        $('#contextMenu').addClass('hidden');
+        if (ctxTaskId && $(this).val()) {
+            const task = allTasks.find(t => t.id == ctxTaskId);
+            await window.api.updateTask(task.id, ...getTaskArgs(task.id, {due_date: $(this).val()}));
+            await loadData();
+        }
+        $(this).val(''); // reset
+    });
+
+    $('#ctxMoveWrapper').mouseenter(() => {
+        let listsHtml = '';
+        const allLists = [{id: 'Tasks', name: 'Tasks'}, ...customLists];
+        allLists.forEach(l => {
+            listsHtml += `<div class="px-4 py-2 hover:bg-msitemhover cursor-pointer truncate" onclick="moveTaskTo('${l.name}')">${escapeHTML(l.name)}</div>`;
+        });
+        $('#ctxMoveSubMenu').html(listsHtml).removeClass('hidden');
+    }).mouseleave(() => {
+        $('#ctxMoveSubMenu').addClass('hidden');
+    });
+
+    window.moveTaskTo = async (categoryName) => {
+        $('#contextMenu').addClass('hidden');
+        if (ctxTaskId) {
+            await window.api.updateTaskCategory(ctxTaskId, categoryName);
+            await loadData();
+        }
+    };
 
     $('#ctxDelete').click(async () => {
         $('#contextMenu').addClass('hidden');
@@ -314,6 +396,9 @@ $(document).ready(() => {
                 const targetCat = $(e.currentTarget).data('filter');
                 if (targetCat === 'Important') {
                     await window.api.updateTask(draggedTaskId, ...getTaskArgs(draggedTaskId, {priority: 'High'}));
+                } else if (targetCat === 'My Day') {
+                    const today = new Date().toLocaleDateString('en-CA');
+                    await window.api.updateTaskMyDay(draggedTaskId, today);
                 } else if (targetCat !== 'Planned') {
                     await window.api.updateTaskCategory(draggedTaskId, targetCat);
                 }
@@ -358,9 +443,12 @@ $(document).ready(() => {
         if (searchQuery) {
             filtered = filtered.filter(t => t.title.toLowerCase().includes(searchQuery) || (t.description && t.description.toLowerCase().includes(searchQuery)));
         } else {
+            const today = new Date().toLocaleDateString('en-CA');
             if (currentFilter === 'Important') filtered = filtered.filter(t => t.priority === 'High');
             else if (currentFilter === 'Planned') filtered = filtered.filter(t => t.due_date);
-            else if (currentFilter !== 'My Day' && currentFilter !== 'Tasks') filtered = filtered.filter(t => t.category === currentFilter);
+            else if (currentFilter === 'My Day') filtered = filtered.filter(t => t.my_day_date === today);
+            else if (currentFilter === 'Tasks') filtered = filtered.filter(t => !t.category || t.category === 'Tasks');
+            else filtered = filtered.filter(t => t.category === currentFilter);
         }
         return filtered;
     }
@@ -380,9 +468,10 @@ $(document).ready(() => {
                     <div class="task-check" onclick="toggleTaskStatus(${task.id}, event)"><i class="fa-solid fa-check"></i></div>
                     <div class="flex-1 min-w-0 flex flex-col justify-center">
                         <span class="task-title text-[15px] truncate block ${isCompleted ? 'text-msmuted line-through' : 'text-mstext'}">${escapeHTML(task.title)}</span>
-                        ${(!isCompleted && (task.category || task.due_date || task.description || task.reminder_time || task.repeat_type)) ? `
+                        ${(!isCompleted && (task.category || task.due_date || task.description || task.reminder_time || task.repeat_type || task.total_steps > 0)) ? `
                             <div class="text-[11px] text-msmuted flex gap-2 mt-0.5 items-center">
                                 ${task.category ? `<span>${task.category}</span>` : ''}
+                                ${(task.total_steps && task.total_steps > 0) ? `<span>${task.completed_steps} sur ${task.total_steps}</span>` : ''}
                                 ${task.due_date ? `<span><i class="fa-regular fa-calendar ml-1"></i> ${task.due_date}</span>` : ''}
                                 ${task.reminder_time ? `<span><i class="fa-regular fa-bell ml-1"></i> ${task.reminder_time}</span>` : ''}
                                 ${task.repeat_type ? `<span><i class="fa-solid fa-rotate-right ml-1"></i></span>` : ''}
@@ -456,9 +545,10 @@ $(document).ready(() => {
         if (!title) return;
         const priority = currentFilter === 'Important' ? 'High' : 'Medium';
         const category = ['Important', 'My Day', 'Planned'].includes(currentFilter) ? 'Tasks' : currentFilter;
+        const myDayDate = (currentFilter === 'My Day') ? new Date().toLocaleDateString('en-CA') : '';
 
         if (window.djazair) {
-            await window.api.addTask(title, '', category, priority, pendingDueDate, '', pendingReminderTime);
+            await window.api.addTask(title, '', category, priority, pendingDueDate, '', pendingReminderTime, myDayDate);
             await loadData();
         }
         $('#inlineTaskInput').val('');
@@ -509,13 +599,33 @@ $(document).ready(() => {
             $('#detailTitle').val(task.title);
             $('#detailNotes').val(task.description || '');
             $('#detailDueDate').val(task.due_date || '');
+            $('#detailDueDateDisplay').text(task.due_date || 'Add due date');
             
             const repVal = task.repeat_type || '';
             $('#detailRepeatVal').val(repVal);
             $('#repeatSelectedText').text(repVal ? repVal : 'Never repeat');
 
-            $('#detailReminderTime').val(task.reminder_time || '');
-            $('#detailCategory').val(task.category || 'Tasks');
+            $('#detailReminderNative').val(task.reminder_time || '');
+            $('#reminderSelectedText').text(task.reminder_time || 'Rappel');
+            
+            const today = new Date().toLocaleDateString('en-CA');
+            if (task.my_day_date === today) {
+                $('#detailMyDayTextUI').text('Remove from My Day');
+                $('#detailMyDayBtn').addClass('text-msblue');
+            } else {
+                $('#detailMyDayTextUI').text('Add to My Day');
+                $('#detailMyDayBtn').removeClass('text-msblue');
+            }
+
+            if (task.file_path) {
+                $('#detailFileText').addClass('hidden');
+                $('#detailFileName').text(task.file_path).removeClass('hidden');
+                $('#detailRemoveFileBtn').removeClass('hidden');
+            } else {
+                $('#detailFileText').removeClass('hidden');
+                $('#detailFileName').addClass('hidden').text('');
+                $('#detailRemoveFileBtn').addClass('hidden');
+            }
             
             $('#detailToggleImportant i').attr('class', task.priority === 'High' ? 'fa-solid fa-star text-rose-400' : 'fa-regular fa-star');
             $('#rightPanel').addClass('panel-open');
@@ -572,24 +682,110 @@ $(document).ready(() => {
                 task.priority,
                 $('#detailDueDate').val(),
                 $('#detailRepeatVal').val(),
-                $('#detailReminderTime').val()
+                $('#detailReminderNative').val()
             );
             await loadData();
         }
     }
 
+    // Due Date logic
+    $('#detailDueDateWrapper').click(() => {
+        document.getElementById('detailDueDate').showPicker();
+    });
+
+    $('#detailDueDate').change(async function() {
+        const val = $(this).val();
+        $('#detailDueDateDisplay').text(val || 'Add due date');
+        await saveDetailChanges();
+    });
+
     $('#detailTitle, #detailNotes').on('blur', saveDetailChanges);
-    $('#detailDueDate, #detailRepeat, #detailReminder').on('change', saveDetailChanges);
+    $('#detailRepeat, #detailReminderNative').on('change', saveDetailChanges);
     $('#detailTitle').keypress((e) => { if(e.which == 13) { e.preventDefault(); $('#detailTitle').blur(); } });
     $('#detailToggleCheck').click((e) => { if (selectedTaskId) toggleTaskStatus(selectedTaskId, e); });
     $('#detailToggleImportant').click((e) => { if (selectedTaskId) toggleImportant(selectedTaskId, e); });
-    $('#deleteTaskBtn').click(async () => {
-        if (selectedTaskId && confirm("Delete this task permanently?")) {
+
+    // Custom Reminder Dropdown Toggle
+    $('#reminderContainerBtn').click(function(e) {
+        if ($(e.target).closest('#reminderDropdownDetail').length === 0) {
+            $('#reminderDropdownDetail').toggleClass('hidden');
+        }
+    });
+
+    // Close reminder dropdown on outside click
+    $(document).click(function(e) {
+        if (!$(e.target).closest('#reminderContainerBtn').length) {
+            $('#reminderDropdownDetail').addClass('hidden');
+        }
+    });
+
+    // Set reminder from dropdown
+    $('#reminderDropdownDetail .rem-opt').click(async function(e) {
+        e.stopPropagation();
+        $('#reminderDropdownDetail').addClass('hidden');
+        const val = $(this).data('val');
+        $('#detailReminderNative').val(val);
+        $('#reminderSelectedText').text(val);
+        await saveDetailChanges();
+    });
+
+    // Open native time picker
+    $('#btnChooseDateTime').click(function(e) {
+        e.stopPropagation();
+        $('#reminderDropdownDetail').addClass('hidden');
+        document.getElementById('detailReminderNative').showPicker();
+    });
+
+    // When native time picker changes
+    $('#detailReminderNative').change(async function() {
+        const val = $(this).val();
+        $('#reminderSelectedText').text(val || 'Rappel');
+        await saveDetailChanges();
+    });
+
+    $('#detailMyDayBtn').click(async () => {
+        if (!selectedTaskId) return;
+        const task = allTasks.find(t => t.id == selectedTaskId);
+        if (task) {
+            const today = new Date().toLocaleDateString('en-CA');
+            const newDate = (task.my_day_date === today) ? '' : today;
+            await window.api.updateTaskMyDay(selectedTaskId, newDate);
+            await loadData();
+            // Update UI immediately since loadData will re-render
+            if (newDate === today) {
+                $('#detailMyDayTextUI').text('Remove from My Day');
+                $('#detailMyDayBtn').addClass('text-msblue');
+            } else {
+                $('#detailMyDayTextUI').text('Add to My Day');
+                $('#detailMyDayBtn').removeClass('text-msblue');
+            }
+        }
+    });
+
+    // Delete Modal Logic
+    $('#deleteTaskBtn').click(() => {
+        if (selectedTaskId) {
+            $('#deleteModal').removeClass('hidden opacity-0').addClass('opacity-100');
+            $('#deleteModal > div').removeClass('scale-95').addClass('scale-100');
+        }
+    });
+
+    $('#deleteModalCancel').click(() => {
+        $('#deleteModal').removeClass('opacity-100').addClass('opacity-0');
+        $('#deleteModal > div').removeClass('scale-100').addClass('scale-95');
+        setTimeout(() => $('#deleteModal').addClass('hidden'), 200);
+    });
+
+    $('#deleteModalConfirm').click(async () => {
+        if (selectedTaskId) {
             await window.api.deleteTask(selectedTaskId);
+            $('#deleteModalCancel').click();
             closeRightPanel();
             await loadData();
         }
     });
+
+
 
     // Globals
     $(document).click((e) => {
@@ -623,6 +819,40 @@ $(document).ready(() => {
 
     function escapeHTML(str) { return (str || '').toString().replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 
+    // --- KEYBOARD SHORTCUTS ---
+    $(document).keydown(async function(e) {
+        // Prevent triggering shortcuts when typing in inputs/textareas
+        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+        if (e.ctrlKey && e.key.toLowerCase() === 't') {
+            e.preventDefault();
+            const targetId = ctxTaskId || selectedTaskId;
+            if (targetId) {
+                const task = allTasks.find(t => t.id == targetId);
+                const today = new Date().toLocaleDateString('en-CA');
+                const newDate = (task.my_day_date === today) ? '' : today;
+                await window.api.updateTaskMyDay(targetId, newDate);
+                await loadData();
+            }
+        } 
+        else if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+            e.preventDefault();
+            const targetId = ctxTaskId || selectedTaskId;
+            if (targetId) {
+                toggleTaskStatus(targetId, {stopPropagation:()=>{}});
+            }
+        }
+        else if (e.key === 'Delete') {
+            e.preventDefault();
+            const targetId = ctxTaskId || selectedTaskId;
+            if (targetId && confirm("Delete this task permanently?")) {
+                await window.api.deleteTask(targetId);
+                selectedTaskId = null;
+                closeRightPanel();
+                await loadData();
+            }
+        }
+    });
+
     init();
 });
-

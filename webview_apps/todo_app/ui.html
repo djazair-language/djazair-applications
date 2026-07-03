@@ -107,25 +107,29 @@
                 class="nav-item active flex items-center gap-4 px-3 py-2.5 rounded-md hover:bg-msitemhover text-sm dropzone"
                 data-filter="My Day">
                 <i class="fa-regular fa-sun w-5 text-center text-xl text-[#5C90D2]"></i>
-                <span>My Day</span>
+                <span class="flex-1">My Day</span>
+                <span id="countMyDay" class="text-xs font-semibold text-msmuted"></span>
             </a>
             <a href="#"
                 class="nav-item flex items-center gap-4 px-3 py-2.5 rounded-md hover:bg-msitemhover text-sm dropzone"
                 data-filter="Important">
                 <i class="fa-regular fa-star w-5 text-center text-xl text-rose-400"></i>
-                <span>Important</span>
+                <span class="flex-1">Important</span>
+                <span id="countImportant" class="text-xs font-semibold text-msmuted"></span>
             </a>
             <a href="#"
                 class="nav-item flex items-center gap-4 px-3 py-2.5 rounded-md hover:bg-msitemhover text-sm dropzone"
                 data-filter="Planned">
                 <i class="fa-regular fa-calendar w-5 text-center text-xl text-teal-400"></i>
-                <span>Planned</span>
+                <span class="flex-1">Planned</span>
+                <span id="countPlanned" class="text-xs font-semibold text-msmuted"></span>
             </a>
             <a href="#"
                 class="nav-item flex items-center gap-4 px-3 py-2.5 rounded-md hover:bg-msitemhover text-sm dropzone"
                 data-filter="Tasks">
                 <i class="fa-solid fa-house w-5 text-center text-xl text-[#5C90D2]"></i>
-                <span>Tasks</span>
+                <span class="flex-1">Tasks</span>
+                <span id="countTasks" class="text-xs font-semibold text-msmuted"></span>
             </a>
         </nav>
 
@@ -277,131 +281,151 @@
 
     <!-- Right Detail Panel -->
     <aside id="rightPanel"
-        class="w-[320px] bg-mssidebar border-l border-msborder flex-shrink-0 flex flex-col transform translate-x-full transition-transform duration-300 shadow-[-10px_0_20px_rgba(0,0,0,0.2)] z-20">
+        class="w-[340px] bg-mssidebar border-l border-msborder flex-shrink-0 flex flex-col transform translate-x-full transition-transform duration-300 shadow-[-10px_0_20px_rgba(0,0,0,0.2)] z-20">
         <input type="hidden" id="detailId">
 
-        <!-- Panel Header -->
-        <div class="flex items-center justify-between p-4 border-b border-msborder">
-            <div class="flex items-center gap-3 flex-1 min-w-0">
-                <button id="detailToggleCheck"
-                    class="w-[22px] h-[22px] flex-shrink-0 rounded-full border-2 border-msmuted hover:border-msblue flex items-center justify-center text-xs text-transparent transition-colors">
-                    <i class="fa-solid fa-check"></i>
-                </button>
-                <input type="text" id="detailTitle"
-                    class="bg-transparent border-none outline-none font-semibold text-[15px] flex-1 text-mstext truncate">
-            </div>
-            <div class="flex items-center flex-shrink-0">
-                <button id="detailToggleImportant"
-                    class="w-8 h-8 flex items-center justify-center text-msmuted hover:text-rose-400 transition-colors ml-1 text-lg">
-                    <i class="fa-regular fa-star"></i>
-                </button>
-                <button id="closePanelHeaderBtn"
-                    class="w-8 h-8 flex items-center justify-center text-msmuted hover:text-mstext transition-colors ml-1 text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
+        <!-- Top Header Controls -->
+        <div class="flex items-center justify-end p-2 pb-0">
+            <button id="closePanelHeaderBtn" class="w-8 h-8 flex items-center justify-center text-msmuted hover:text-mstext hover:bg-msitemhover transition-colors text-lg rounded"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4 pb-48">
+        <div class="flex-1 overflow-y-auto px-4 pt-2 pb-6 custom-scrollbar flex flex-col gap-3">
 
-            <!-- Steps Section -->
-            <div class="bg-msitem rounded-md border border-msborder p-2">
-                <div id="detailStepsContainer" class="flex flex-col gap-1 mb-2"></div>
-                <div class="flex items-center gap-3 px-2 py-1.5 text-msblue">
-                    <i class="fa-solid fa-plus text-sm w-4 text-center"></i>
-                    <input type="text" id="addStepInput" placeholder="Add step"
-                        class="bg-transparent border-none outline-none text-[13px] flex-1 placeholder:text-msblue text-mstext">
+            <!-- Card 1: Title & Steps -->
+            <div class="bg-msitem rounded border border-msborder flex flex-col pt-3 pb-2 px-3 gap-2">
+                <div class="flex items-start gap-3">
+                    <button id="detailToggleCheck" class="w-[20px] h-[20px] flex-shrink-0 mt-0.5 rounded-full border-2 border-msmuted hover:border-msblue flex items-center justify-center text-[10px] text-transparent transition-colors">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                    <input type="text" id="detailTitle" class="bg-transparent border-none outline-none font-bold text-[16px] flex-1 text-mstext truncate" />
+                    <button id="detailToggleImportant" class="w-6 h-6 flex-shrink-0 flex items-center justify-center text-msmuted hover:text-rose-400 transition-colors text-lg">
+                        <i class="fa-regular fa-star"></i>
+                    </button>
+                </div>
+                <!-- Steps Section -->
+                <div class="mt-2 pl-8">
+                    <div id="detailStepsContainer" class="flex flex-col gap-1 mb-1"></div>
+                    <div class="flex items-center gap-3 py-1.5 text-msblue cursor-text" onclick="document.getElementById('addStepInput').focus()">
+                        <i class="fa-solid fa-plus text-sm w-4 text-center"></i>
+                        <input type="text" id="addStepInput" placeholder="Next step" class="bg-transparent border-none outline-none text-[13px] flex-1 placeholder:text-msblue text-msblue">
+                    </div>
                 </div>
             </div>
 
-            <!-- Properties -->
-            <div class="bg-msitem rounded-md border border-msborder">
-                <!-- Category (Read Only) -->
-                <div
-                    class="flex items-center gap-4 p-3 border-b border-msborder cursor-pointer hover:bg-msitemhover group rounded-t-md">
-                    <i class="fa-solid fa-list-ul text-msmuted group-hover:text-mstext w-4 text-center"></i>
-                    <input type="text" id="detailCategory"
-                        class="bg-transparent border-none outline-none flex-1 text-sm text-msmuted group-hover:text-mstext"
-                        readonly>
+            <!-- Card 2: My Day -->
+            <div class="bg-msitem rounded border border-msborder">
+                <div id="detailMyDayBtn" class="flex items-center gap-4 p-3.5 cursor-pointer hover:bg-msitemhover group rounded transition-colors">
+                    <i class="fa-regular fa-sun text-msmuted group-hover:text-mstext w-4 text-center"></i>
+                    <span id="detailMyDayTextUI" class="text-[13.5px] text-msmuted group-hover:text-mstext flex-1">Add to My Day</span>
                 </div>
+            </div>
 
+            <!-- Card 3: Reminder, Due Date, Repeat -->
+            <div class="bg-msitem rounded border border-msborder">
                 <!-- Reminder -->
-                <div
-                    class="flex items-center gap-4 p-3 border-b border-msborder cursor-pointer hover:bg-msitemhover group relative">
+                <div class="flex items-center gap-4 p-3.5 border-b border-msborder cursor-pointer hover:bg-msitemhover group relative rounded-t transition-colors" id="reminderContainerBtn">
                     <i class="fa-regular fa-bell text-msmuted group-hover:text-mstext w-4 text-center"></i>
-                    <input type="time" id="detailReminder"
-                        class="bg-transparent outline-none flex-1 text-sm cursor-pointer group-hover:text-mstext text-msmuted [color-scheme:dark]">
+                    <div class="flex-1 text-[13.5px] text-msmuted group-hover:text-mstext flex items-center justify-between">
+                        <span id="reminderSelectedText">Reminder</span>
+                        <input type="hidden" id="detailReminderVal" value="">
+                        <input type="time" id="detailReminderNative" class="absolute top-0 left-0 w-0 h-0 opacity-0 pointer-events-none [color-scheme:dark]">
+                    </div>
+                    
+                    <!-- Custom Reminder Dropdown -->
+                    <div id="reminderDropdownDetail" class="hidden absolute top-full left-0 mt-1 bg-[#252525] border border-msborder rounded shadow-[0_8px_30px_rgb(0,0,0,0.5)] w-full overflow-hidden z-[100] text-sm text-mstext">
+                        <button class="w-full text-left px-4 py-3 hover:bg-[#333] flex items-center justify-between gap-3 rem-opt transition-colors" data-val="19:00">
+                            <div class="flex items-center gap-3"><i class="fa-solid fa-clock-rotate-left w-4 text-msmuted"></i> Later today</div>
+                            <span class="text-xs text-msmuted">19:00</span>
+                        </button>
+                        <button class="w-full text-left px-4 py-3 hover:bg-[#333] flex items-center justify-between gap-3 rem-opt transition-colors" data-val="09:00" id="btnRemTomorrow">
+                            <div class="flex items-center gap-3"><i class="fa-solid fa-arrow-right w-4 text-msmuted"></i> Tomorrow</div>
+                            <span class="text-xs text-msmuted" id="remTomorrowDay">09:00</span>
+                        </button>
+                        <div class="h-px bg-msborder my-1"></div>
+                        <button class="w-full text-left px-4 py-3 hover:bg-[#333] flex items-center gap-3 transition-colors" id="btnChooseDateTime">
+                            <i class="fa-solid fa-calendar-clock w-4 text-msmuted"></i> Choose a date and time
+                        </button>
+                    </div>
                 </div>
-
                 <!-- Due Date -->
-                <div
-                    class="flex items-center gap-4 p-3 border-b border-msborder cursor-pointer hover:bg-msitemhover group">
+                <div class="flex items-center gap-4 p-3.5 border-b border-msborder cursor-pointer hover:bg-msitemhover group transition-colors" id="detailDueDateWrapper">
                     <i class="fa-regular fa-calendar text-msmuted group-hover:text-mstext w-4 text-center"></i>
-                    <input type="date" id="detailDueDate"
-                        class="bg-transparent outline-none flex-1 text-sm cursor-pointer group-hover:text-mstext text-msmuted [color-scheme:dark]">
+                    <input type="date" id="detailDueDate" class="absolute top-0 left-0 w-0 h-0 opacity-0 pointer-events-none [color-scheme:dark]">
+                    <div class="flex-1 text-[13.5px] text-msmuted group-hover:text-mstext" id="detailDueDateDisplay">Add due date</div>
                 </div>
-
                 <!-- Repeat -->
-                <div class="flex items-center gap-4 p-3 cursor-pointer hover:bg-msitemhover group relative rounded-b-md"
-                    id="repeatContainerBtn">
+                <div class="flex items-center gap-4 p-3.5 cursor-pointer hover:bg-msitemhover group relative rounded-b transition-colors" id="repeatContainerBtn">
                     <i class="fa-solid fa-rotate-right text-msmuted group-hover:text-mstext w-4 text-center"></i>
-                    <div class="flex-1 text-sm text-msmuted group-hover:text-mstext">
-                        <span id="repeatSelectedText">Never repeat</span>
+                    <div class="flex-1 text-[13.5px] text-msmuted group-hover:text-mstext">
+                        <span id="repeatSelectedText">Repeat</span>
                         <input type="hidden" id="detailRepeatVal" value="">
                     </div>
-
                     <!-- Custom Repeat Dropdown -->
-                    <div id="repeatDropdown"
-                        class="hidden absolute top-full left-0 mt-1 bg-[#252525] border border-msborder rounded-lg shadow-[0_8px_30px_rgb(0,0,0,0.5)] w-full overflow-hidden z-[100] text-sm font-sans text-mstext">
-                        <button
-                            class="w-full text-left px-4 py-2.5 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors"
-                            data-val=""><i class="fa-solid fa-ban w-4 text-msmuted"></i> Never repeat</button>
-                        <button
-                            class="w-full text-left px-4 py-2.5 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors"
-                            data-val="Daily"><i class="fa-solid fa-calendar-day w-4 text-msblue"></i> Daily</button>
-                        <button
-                            class="w-full text-left px-4 py-2.5 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors"
-                            data-val="Weekly"><i class="fa-solid fa-calendar-week w-4 text-msblue"></i> Weekly</button>
-                        <button
-                            class="w-full text-left px-4 py-2.5 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors"
-                            data-val="Monthly"><i class="fa-regular fa-calendar-days w-4 text-msblue"></i>
-                            Monthly</button>
+                    <div id="repeatDropdown" class="hidden absolute top-full left-0 mt-1 bg-[#252525] border border-msborder rounded shadow-[0_8px_30px_rgb(0,0,0,0.5)] w-full overflow-hidden z-[100] text-sm text-mstext">
+                        <button class="w-full text-left px-4 py-2 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors" data-val=""><i class="fa-solid fa-ban w-4 text-msmuted"></i> Never</button>
+                        <button class="w-full text-left px-4 py-2 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors" data-val="Daily"><i class="fa-solid fa-calendar-day w-4 text-msblue"></i> Daily</button>
+                        <button class="w-full text-left px-4 py-2 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors" data-val="Weekly"><i class="fa-solid fa-calendar-week w-4 text-msblue"></i> Weekly</button>
+                        <button class="w-full text-left px-4 py-2 hover:bg-[#333] flex items-center gap-3 rep-opt transition-colors" data-val="Monthly"><i class="fa-regular fa-calendar-days w-4 text-msblue"></i> Monthly</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Notes -->
-            <div class="bg-msitem rounded-md border border-msborder flex flex-col h-32">
-                <textarea id="detailNotes"
-                    class="bg-transparent border-none outline-none p-3 text-sm flex-1 resize-none placeholder:text-msmuted custom-scrollbar"
-                    placeholder="Add note"></textarea>
+            <!-- Card 5: Notes -->
+            <div class="bg-msitem rounded border border-msborder flex flex-col h-28">
+                <textarea id="detailNotes" class="bg-transparent border-none outline-none p-3.5 text-[13.5px] flex-1 resize-none placeholder:text-msmuted custom-scrollbar" placeholder="Add a note"></textarea>
             </div>
         </div>
 
         <!-- Panel Footer -->
-        <div class="p-4 border-t border-msborder flex justify-between items-center text-xs text-msmuted">
-            <button id="closePanelBtn" class="hover:text-mstext transition-colors p-2"><i
-                    class="fa-solid fa-chevron-right text-base"></i></button>
+        <div class="p-3 border-t border-msborder flex justify-between items-center text-xs text-msmuted bg-mssidebar mt-auto">
+            <button id="closePanelBtn" class="hover:text-mstext transition-colors p-2 rounded hover:bg-msitemhover"><i class="fa-solid fa-chevron-right text-sm"></i></button>
             <span id="detailCreated">Created today</span>
-            <button id="deleteTaskBtn" class="hover:text-rose-400 transition-colors p-2"><i
-                    class="fa-regular fa-trash-can text-base"></i></button>
+            <button id="deleteTaskBtn" class="hover:text-rose-400 transition-colors p-2 rounded hover:bg-msitemhover"><i class="fa-regular fa-trash-can text-sm"></i></button>
         </div>
     </aside>
 
     <!-- Task Context Menu -->
     <div id="contextMenu"
-        class="hidden fixed bg-msitem border border-msborder rounded shadow-xl w-48 py-1 z-50 text-sm font-sans text-mstext">
-        <button id="ctxToggleStatus" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center gap-3"><i
-                class="fa-regular fa-circle-check w-4"></i> <span>Mark as completed</span></button>
-        <button id="ctxToggleImportant"
-            class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center gap-3"><i
-                class="fa-regular fa-star w-4"></i> <span>Mark as important</span></button>
-        <button id="ctxMyDay" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center gap-3"><i
-                class="fa-regular fa-sun w-4"></i> <span>Add to My Day</span></button>
-        <div class="h-[1px] bg-msborder my-1"></div>
-        <button id="ctxDelete"
-            class="w-full text-left px-4 py-2 hover:bg-msitemhover text-rose-400 flex items-center gap-3"><i
-                class="fa-regular fa-trash-can w-4"></i> <span>Delete task</span></button>
+        class="hidden fixed bg-msitem border border-msborder rounded shadow-xl w-64 py-1 z-50 text-[13px] font-sans text-mstext">
+        <button id="ctxMyDay" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center justify-between group">
+            <div class="flex items-center gap-3"><i class="fa-regular fa-sun w-4"></i> <span id="ctxMyDayText">Add to My Day</span></div>
+            <span class="text-xs text-msmuted opacity-0 group-hover:opacity-100 transition-opacity">Ctrl+T</span>
+        </button>
+        <button id="ctxToggleImportant" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center justify-between group">
+            <div class="flex items-center gap-3"><i class="fa-regular fa-star w-4"></i> <span id="ctxImportantText">Mark as important</span></div>
+        </button>
+        <button id="ctxToggleStatus" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center justify-between group">
+            <div class="flex items-center gap-3"><i class="fa-regular fa-circle-check w-4"></i> <span id="ctxStatusText">Mark as completed</span></div>
+            <span class="text-xs text-msmuted opacity-0 group-hover:opacity-100 transition-opacity">Ctrl+D</span>
+        </button>
+        <div class="h-px bg-msborder my-1"></div>
+        <button id="ctxDueToday" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center justify-between group">
+            <div class="flex items-center gap-3"><i class="fa-regular fa-calendar-day w-4 text-msblue"></i> <span>Due today</span></div>
+        </button>
+        <button id="ctxDueTomorrow" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center justify-between group">
+            <div class="flex items-center gap-3"><i class="fa-solid fa-arrow-right w-4 text-msblue"></i> <span>Due tomorrow</span></div>
+        </button>
+        <div class="relative">
+            <input type="date" id="ctxChooseDate" class="absolute top-0 left-0 w-0 h-0 opacity-0 pointer-events-none [color-scheme:dark]">
+            <button id="ctxChooseDateBtn" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center justify-between group cursor-pointer">
+                <div class="flex items-center gap-3"><i class="fa-regular fa-calendar-days w-4 text-msmuted"></i> <span>Choose a date</span></div>
+            </button>
+        </div>
+        <div class="h-px bg-msborder my-1"></div>
+        <div class="relative group/move" id="ctxMoveWrapper">
+            <button id="ctxMoveTask" class="w-full text-left px-4 py-2 hover:bg-msitemhover flex items-center justify-between">
+                <div class="flex items-center gap-3"><i class="fa-solid fa-arrow-right-to-bracket w-4 text-msmuted"></i> <span>Move task to...</span></div>
+                <i class="fa-solid fa-chevron-right text-[10px] text-msmuted"></i>
+            </button>
+            <div id="ctxMoveSubMenu" class="hidden absolute top-0 left-full w-48 bg-msitem border border-msborder rounded shadow-xl py-1 z-50 max-h-64 overflow-y-auto">
+                <!-- Lists will be injected here -->
+            </div>
+        </div>
+        <div class="h-px bg-msborder my-1"></div>
+        <button id="ctxDelete" class="w-full text-left px-4 py-2 hover:bg-msitemhover text-rose-400 flex items-center justify-between group">
+            <div class="flex items-center gap-3"><i class="fa-regular fa-trash-can w-4"></i> <span>Delete task</span></div>
+            <span class="text-xs text-msmuted opacity-0 group-hover:opacity-100 transition-opacity">Delete</span>
+        </button>
     </div>
 
     <!-- List Context Menu -->
@@ -475,6 +499,20 @@
                 <button id="btnCreateList"
                     class="w-full bg-msblue hover:bg-blue-600 text-white px-4 py-2 mt-2 text-sm rounded transition-colors font-semibold">Create
                     List</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-center justify-center backdrop-blur-sm transition-opacity opacity-0">
+        <div class="bg-msitem border border-msborder rounded-lg shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-200">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-mstext mb-2" id="deleteModalTitle">Delete task?</h3>
+                <p class="text-sm text-msmuted" id="deleteModalText">This task will be permanently deleted. You cannot undo this action.</p>
+            </div>
+            <div class="bg-mssidebar p-4 border-t border-msborder flex justify-end gap-3">
+                <button id="deleteModalCancel" class="px-4 py-2 text-sm text-mstext hover:bg-msitemhover rounded transition-colors font-medium">Cancel</button>
+                <button id="deleteModalConfirm" class="px-4 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded transition-colors font-medium">Delete</button>
             </div>
         </div>
     </div>

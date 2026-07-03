@@ -55,6 +55,8 @@ class Database
         try self.db.execute("ALTER TABLE tasks ADD COLUMN reminder_time TEXT") catch e print("[Schema Upgrade] " + str(e)) end
         try self.db.execute("ALTER TABLE lists ADD COLUMN theme_color TEXT") catch e print("[Schema Upgrade] " + str(e)) end
         try self.db.execute("ALTER TABLE lists ADD COLUMN theme_bg TEXT") catch e print("[Schema Upgrade] " + str(e)) end
+        try self.db.execute("ALTER TABLE tasks ADD COLUMN my_day_date TEXT") catch e print("[Schema Upgrade] " + str(e)) end
+        try self.db.execute("ALTER TABLE tasks ADD COLUMN file_path TEXT") catch e print("[Schema Upgrade] " + str(e)) end
     end
 
     # --- TASKS ---
@@ -65,7 +67,7 @@ class Database
         return res.fetchAllAssoc()
     end
 
-    addTask(title, description, category, priority, due_date, repeat_type, reminder_time)
+    addTask(title, description, category, priority, due_date, repeat_type, reminder_time, my_day_date="")
         let created_at = dt.now().format("%Y-%m-%d %H:%M:%S")
         let maxOrder = 0
         let orderRes = self.db.query("SELECT MAX(order_index) as max_order FROM tasks")
@@ -76,13 +78,23 @@ class Database
             end
         end
 
-        let sql = "INSERT INTO tasks (title, description, category, priority, due_date, status, order_index, repeat_type, reminder_time, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)"
-        return self.db.safeExecute(sql, [title, description, category, priority, due_date, maxOrder, repeat_type, reminder_time, created_at])
+        let sql = "INSERT INTO tasks (title, description, category, priority, due_date, status, order_index, repeat_type, reminder_time, created_at, my_day_date, file_path) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, '')"
+        return self.db.safeExecute(sql, [title, description, category, priority, due_date, maxOrder, repeat_type, reminder_time, created_at, my_day_date])
     end
 
     updateTask(id, title, description, category, priority, due_date, repeat_type, reminder_time)
         let sql = "UPDATE tasks SET title = ?, description = ?, category = ?, priority = ?, due_date = ?, repeat_type = ?, reminder_time = ? WHERE id = ?"
         return self.db.safeExecute(sql, [title, description, category, priority, due_date, repeat_type, reminder_time, id])
+    end
+
+    updateTaskMyDay(id, my_day_date)
+        let sql = "UPDATE tasks SET my_day_date = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [my_day_date, id])
+    end
+
+    updateTaskFile(id, file_path)
+        let sql = "UPDATE tasks SET file_path = ? WHERE id = ?"
+        return self.db.safeExecute(sql, [file_path, id])
     end
 
     updateTaskStatus(id, status)

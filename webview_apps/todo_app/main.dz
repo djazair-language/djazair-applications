@@ -26,7 +26,9 @@ class TodoApp
         self.app.bridge.expose("getTasks", fn(args) return self.db.getTasks() end)
         self.app.bridge.expose("addTask", fn(args)
         if args.length() < 7 return False end
-            return self.db.addTask(args[0], args[1], args[2], args[3], args[4], args[5], args[6])
+            let myDayDate = ""
+            if args.length() >= 8 myDayDate = args[7] end
+            return self.db.addTask(args[0], args[1], args[2], args[3], args[4], args[5], args[6], myDayDate)
         end)
         self.app.bridge.expose("updateTask", fn(args)
         if args.length() < 8 return False end
@@ -39,6 +41,14 @@ class TodoApp
         self.app.bridge.expose("updateTaskCategory", fn(args)
         if args.length() < 2 return False end
             return self.db.updateTaskCategory(int(args[0]), args[1])
+        end)
+        self.app.bridge.expose("updateTaskMyDay", fn(args)
+        if args.length() < 2 return False end
+            return self.db.updateTaskMyDay(int(args[0]), args[1])
+        end)
+        self.app.bridge.expose("updateTaskFile", fn(args)
+        if args.length() < 2 return False end
+            return self.db.updateTaskFile(int(args[0]), args[1])
         end)
         self.app.bridge.expose("updateTaskOrder", fn(args)
         if args.length() < 2 return False end

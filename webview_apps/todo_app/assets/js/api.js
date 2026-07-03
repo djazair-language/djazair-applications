@@ -7,8 +7,8 @@ window.api = {
         const raw = await window.djazair.invoke('getTasks');
         return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : [];
     },
-    async addTask(title, desc, category, priority, dueDate, repeatType, reminderTime) {
-        if (window.djazair) await window.djazair.invoke('addTask', [title, desc, category, priority, dueDate, repeatType, reminderTime]);
+    async addTask(title, desc, category, priority, dueDate, repeatType, reminderTime, myDayDate = '') {
+        if (window.djazair) await window.djazair.invoke('addTask', [title, desc, category, priority, dueDate, repeatType, reminderTime, myDayDate]);
     },
     async updateTaskStatus(id, status) {
         if (window.djazair) await window.djazair.invoke('updateTaskStatus', [id, status]);
@@ -18,6 +18,9 @@ window.api = {
     },
     async updateTaskCategory(id, category) {
         if (window.djazair) await window.djazair.invoke('updateTaskCategory', [id, category]);
+    },
+    async updateTaskMyDay(id, dateStr) {
+        if (window.djazair) await window.djazair.invoke('updateTaskMyDay', [id, dateStr]);
     },
     async updateTaskOrder(id, orderIndex) {
         if (window.djazair) await window.djazair.invoke('updateTaskOrder', [id, orderIndex]);
