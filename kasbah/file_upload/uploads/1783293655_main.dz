@@ -1,0 +1,8 @@
+let g
+while True 
+    g = input()
+    if g == "exit"
+        break
+    end
+    print(g)
+end

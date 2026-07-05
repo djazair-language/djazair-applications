@@ -14,5 +14,21 @@
     "size": 46,
     "type": "text/plain",
     "name": "testapp.txt"
+  },
+  {
+    "uploadedAt": 1783293655,
+    "sizeFormatted": "27 B",
+    "safeName": "1783293655_dj.config",
+    "size": 27,
+    "type": "application/octet-stream",
+    "name": "dj.config"
+  },
+  {
+    "uploadedAt": 1783293655,
+    "sizeFormatted": "105 B",
+    "safeName": "1783293655_main.dz",
+    "size": 105,
+    "type": "application/octet-stream",
+    "name": "main.dz"
   }
 ]

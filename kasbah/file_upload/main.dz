@@ -95,7 +95,7 @@ let formatSize = fn(bytes)
     end
 end
 
-let app = new kasbah.Kasbah({
+let app = new kasbah.KasbahApp({
     "port": 3000,
     "bodyParser": True,
     "maxBodySize": 20 * 1024 * 1024,
