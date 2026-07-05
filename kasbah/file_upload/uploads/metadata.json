@@ -1,0 +1,18 @@
+[
+  {
+    "uploadedAt": 1783290417,
+    "sizeFormatted": "27 B",
+    "safeName": "1783290417_dj.config",
+    "size": 27,
+    "type": "application/octet-stream",
+    "name": "dj.config"
+  },
+  {
+    "uploadedAt": 1783291846,
+    "sizeFormatted": "46 B",
+    "safeName": "1783291846_testapp.txt",
+    "size": 46,
+    "type": "text/plain",
+    "name": "testapp.txt"
+  }
+]

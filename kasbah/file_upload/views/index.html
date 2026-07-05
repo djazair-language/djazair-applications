@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رفع الملفات</title>
+<script src="https://cdn.tailwindcss.com">
+</script>
+<script>
+tailwind.config={theme:{extend:{colors:{primary:{50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a'}}}}}
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+body{background:linear-gradient(135deg,#f0f4ff 0,#e8f0fe 100%);min-height:100vh}
+.drop-zone{border:2px dashed #93c5fd;border-radius:1rem;background:#fff;transition:all .3s ease;cursor:pointer}
+.drop-zone:hover,.drop-zone.dragover{border-color:#3b82f6;background:#eff6ff;transform:translateY(-2px);box-shadow:0 8px 25px rgba(59,130,246,.15)}
+.drop-zone.dragover{background:#dbeafe;border-color:#2563eb}
+.file-card{transition:all .3s ease;border:1px solid #e5e7eb}
+.file-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.08);border-color:#93c5fd}
+.file-card .actions{opacity:0;transition:opacity .25s ease}
+.file-card:hover .actions{opacity:1}
+.preview-img{width:48px;height:48px;object-fit:cover;border-radius:8px}
+.progress-bar{height:4px;background:#e5e7eb;border-radius:2px;overflow:hidden}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:2px;transition:width .4s ease}
+.toast{position:fixed;bottom:24px;right:24px;z-index:1000;transform:translateY(100px);opacity:0;transition:all .4s ease}
+.toast.show{transform:translateY(0);opacity:1}
+.toast-error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.toast-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal-content{background:#fff;border-radius:1rem;padding:2rem;max-width:500px;width:90%;box-shadow:0 25px 50px rgba(0,0,0,.2);animation:modalIn .3s ease}
+@keyframes modalIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.empty-state{text-align:center;padding:4rem 2rem;color:#9ca3af}
+.empty-state i{font-size:4rem;margin-bottom:1rem}
+.skeleton{background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <div class="text-center mb-10">
+    <div class="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-2xl mb-4">
+      <i class="fas fa-cloud-upload-alt text-3xl text-primary-600"></i>
+    </div>
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">رفع الملفات</h1>
+    <p class="text-gray-500">اسحب وأفلت ملفاتك هنا أو اخترها للرفع. الحد الأقصى 10 ميغابايت للملف.</p>
+  </div>
+
+  <div class="drop-zone p-8 mb-8 text-center" id="dropZone">
+    <i class="fas fa-cloud-upload-alt text-5xl text-primary-400 mb-4"></i>
+    <p class="text-lg font-medium text-gray-700 mb-2">اسحب وأفلت الملفات هنا</p>
+    <p class="text-gray-400 mb-4">أو</p>
+    <button onclick="document.getElementById('fileInput').click()" class="bg-primary-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-primary-700 transition shadow-md hover:shadow-lg">
+      <i class="fas fa-folder-open ml-2"></i>اختر ملفات
+    </button>
+    <input type="file" id="fileInput" class="hidden" multiple>
+    <div id="uploadProgress" class="mt-4 hidden">
+      <div class="progress-bar"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+      <p class="text-sm text-gray-500 mt-2" id="progressText">جاري الرفع...</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-files ml-2 text-primary-500"></i>الملفات المرفوعة</h2>
+      <span class="text-sm text-gray-400" id="fileCount">0 ملف</span>
+    </div>
+    <div id="filesContainer" class="p-6">
+      <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p class="text-lg font-medium">لا توجد ملفات بعد</p>
+        <p class="text-sm">قم برفع ملفك الأول باستخدام المنطقة أعلاه</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-content">
+    <div class="text-center">
+      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-trash-alt text-2xl text-red-500"></i>
+      </div>
+      <h3 class="text-xl font-bold text-gray-800 mb-2">تأكيد الحذف</h3>
+      <p class="text-gray-500 mb-6" id="deleteMsg">هل أنت متأكد من حذف هذا الملف؟</p>
+      <div class="flex gap-3 justify-center">
+        <button onclick="closeDeleteModal()" class="px-6 py-2.5 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition font-medium">إلغاء</button>
+        <button id="confirmDelete" class="px-6 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium shadow-sm">
+          <i class="fas fa-trash-alt ml-2"></i>حذف
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer"></div>
+
+<script>
+const API = window.location.origin;
+let deleteTarget = null;
+
+function showToast(msg, type) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast rounded-xl px-6 py-3 shadow-lg flex items-center gap-3 ' + (type === 'error' ? 'toast-error' : 'toast-success');
+  t.innerHTML = '<i class="fas fa-' + (type === 'error' ? 'exclamation-circle' : 'check-circle') + '"></i><span>' + msg + '</span>';
+  c.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 500) }, 3000);
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+  deleteTarget = null;
+}
+
+function confirmDelete(safeName, fileName) {
+  deleteTarget = safeName;
+  document.getElementById('deleteMsg').textContent = 'هل أنت متأكد من حذف "' + fileName + '"؟';
+  document.getElementById('deleteModal').classList.add('open');
+}
+
+document.getElementById('confirmDelete').onclick = function() {
+  if (!deleteTarget) return;
+  const btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i>جاري الحذف...';
+  fetch(API + '/api/files/' + encodeURIComponent(deleteTarget), { method: 'DELETE' })
+    .then(r => r.json())
+    .then(() => { showToast('تم حذف الملف بنجاح', 'success'); loadFiles(); closeDeleteModal() })
+    .catch(() => showToast('فشل حذف الملف', 'error'))
+    .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash-alt ml-2"></i>حذف' });
+};
+
+function formatDate(d) {
+  if (!d) return '—';
+  if (typeof d === 'number') {
+    const date = new Date(d * 1000);
+    return date.toLocaleString('ar-DZ');
+  }
+  const p = d.split('T');
+  if (p.length < 2) return d;
+  return p[0] + ' ' + p[1].split('.')[0];
+}
+
+function getIcon(type, name) {
+  if (type.startsWith('image/')) return 'fa-file-image text-green-500';
+  if (type.startsWith('video/')) return 'fa-file-video text-purple-500';
+  if (type.startsWith('audio/')) return 'fa-file-audio text-yellow-500';
+  if (type.startsWith('text/') || name.endsWith('.pdf')) return 'fa-file-pdf text-red-500';
+  if (type.includes('zip') || type.includes('rar') || type.includes('tar') || type.includes('7z') || type.includes('gzip'))
+    return 'fa-file-archive text-orange-500';
+  if (type.includes('spreadsheet') || type.includes('excel') || name.endsWith('.xls') || name.endsWith('.xlsx'))
+    return 'fa-file-excel text-emerald-600';
+  if (type.includes('document') || type.includes('word') || name.endsWith('.doc') || name.endsWith('.docx'))
+    return 'fa-file-word text-blue-600';
+  return 'fa-file text-gray-400';
+}
+
+function getPreviewHtml(file) {
+  if (file.type.startsWith('image/'))
+    return '<img src="' + API + '/u/' + encodeURIComponent(file.safeName) + '" alt="" class="preview-img" loading="lazy">';
+  return '<i class="fas ' + getIcon(file.type, file.name) + ' text-3xl"></i>';
+}
+
+function loadFiles() {
+  const c = document.getElementById('filesContainer');
+  c.innerHTML = '';
+  for (let i = 0; i < 4; i++)
+    c.innerHTML += '<div class="flex items-center gap-4 p-4 border-b border-gray-50"><div class="skeleton" style="width:48px;height:48px"></div><div class="flex-1"><div class="skeleton" style="width:60%;height:14px;margin-bottom:8px"></div><div class="skeleton" style="width:30%;height:12px"></div></div></div>';
+  fetch(API + '/api/files')
+    .then(r => r.json())
+    .then(files => {
+      document.getElementById('fileCount').textContent = files.length + ' ملف' + (files.length !== 1 ? (files.length < 11 ? 'ات' : '') : '');
+      c.innerHTML = '';
+      if (!files.length) {
+        c.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p class="text-lg font-medium">لا توجد ملفات بعد</p><p class="text-sm">قم برفع ملفك الأول باستخدام المنطقة أعلاه</p></div>';
+        return;
+      }
+      files.forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'file-card rounded-xl p-4 flex items-center gap-4 bg-white mb-3';
+        card.innerHTML = '<div class="flex-shrink-0">' + getPreviewHtml(f) + '</div>' +
+          '<div class="flex-1 min-w-0"><p class="font-medium text-gray-800 truncate" title="' + f.name + '">' + f.name + '</p>' +
+          '<p class="text-sm text-gray-400"><span>' + f.sizeFormatted + '</span><span class="mx-2">·</span><span>' + formatDate(f.uploadedAt) + '</span></p></div>' +
+          '<div class="actions flex items-center gap-2"><a href="' + API + '/u/' + encodeURIComponent(f.safeName) + '" target="_blank" class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition" title="معاينة"><i class="fas fa-eye"></i></a>' +
+          '<a href="' + API + '/d/' + encodeURIComponent(f.safeName) + '" class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition" title="تحميل"><i class="fas fa-download"></i></a>' +
+          '<button onclick="confirmDelete(\'' + f.safeName + '\',\'' + f.name.replace(/'/g, "\\'") + '\')" class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition" title="حذف"><i class="fas fa-trash-alt"></i></button></div>';
+        c.appendChild(card);
+      });
+    })
+    .catch(() => {
+      c.innerHTML = '<div class="text-center py-8 text-red-500"><i class="fas fa-exclamation-triangle text-4xl mb-3"></i><p class="font-medium">فشل تحميل الملفات</p><p class="text-sm mt-2">تأكد من تشغيل الخادم</p></div>';
+    });
+}
+
+function uploadFile(file) {
+  const p = document.getElementById('uploadProgress');
+  const pf = document.getElementById('progressFill');
+  const pt = document.getElementById('progressText');
+  p.classList.remove('hidden');
+  pf.style.width = '10%';
+  pt.textContent = 'جاري التجهيز...';
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  pf.style.width = '40%';
+  pt.textContent = 'جاري الرفع...';
+  
+  fetch(API + '/api/upload', {
+    method: 'POST',
+    body: formData
+  })
+  .then(r => {
+    pf.style.width = '90%';
+    if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'خطأ في الرفع') });
+    return r.json();
+  })
+  .then(() => {
+    pf.style.width = '100%';
+    pt.textContent = 'تم الرفع بنجاح ✓';
+    showToast('تم رفع "' + file.name + '" بنجاح', 'success');
+    loadFiles();
+    setTimeout(() => { p.classList.add('hidden'); pf.style.width = '0%' }, 1000);
+  })
+  .catch(err => {
+    pf.style.width = '0%';
+    pt.textContent = 'فشل الرفع: ' + err.message;
+    showToast('فشل رفع "' + file.name + '"', 'error');
+    setTimeout(() => p.classList.add('hidden'), 2000);
+  });
+}
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover') });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  Array.from(e.dataTransfer.files).forEach(f => uploadFile(f));
+});
+fileInput.addEventListener('change', () => {
+  Array.from(fileInput.files).forEach(f => uploadFile(f));
+  fileInput.value = '';
+});
+
+window.addEventListener('keydown', e => { if (e.key === 'Escape') closeDeleteModal() });
+document.getElementById('deleteModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDeleteModal() });
+
+loadFiles();
+</script>
+</body>
+</html>
