@@ -11,7 +11,9 @@ use process
 let APP_DIR = process.scriptDir()
 let UPLOAD_DIR = APP_DIR + "/uploads"
 let META_FILE = UPLOAD_DIR + "/metadata.json"
-let MAX_SIZE = 10 * 1024 * 1024
+let MAX_SIZE = 1024 * 1024 * 1024
+let BLOCKED_EXTS = [".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".pif", ".sh", ".bash", ".dll", ".vbs", ".ps1", ".jar", ".wasm"]
+let ALLOWED_SORT = ["date", "name", "size"]
 
 if not file.exists(UPLOAD_DIR)
     dir.createAll(UPLOAD_DIR)
@@ -29,173 +31,262 @@ let loadMeta = fn()
 end
 
 let saveMeta = fn(files)
-    file.write(META_FILE, json.stringify(files, Null, True))
+file.write(META_FILE, json.stringify(files, Null, True))
 end
 
 let appendMeta = fn(info)
-    let files = loadMeta()
-    files.append(info)
-    saveMeta(files)
+let files = loadMeta()
+files.append(info)
+saveMeta(files)
 end
 
 let removeMeta = fn(safeName)
-    let files = loadMeta()
-    let remaining = []
-    let i = 0
-    while i < files.length()
-        if files[i]["safeName"] != safeName
-            remaining.append(files[i])
-        end
-        i = i + 1
+let files = loadMeta()
+let remaining = []
+let i = 0
+while i < files.length()
+    if files[i]["safeName"] != safeName
+        remaining.append(files[i])
     end
-    saveMeta(remaining)
+    i = i + 1
+end
+saveMeta(remaining)
 end
 
 let findMeta = fn(safeName)
-    let files = loadMeta()
-    let i = 0
-    while i < files.length()
-        if files[i]["safeName"] == safeName
-            return files[i]
-        end
-        i = i + 1
+let files = loadMeta()
+let i = 0
+while i < files.length()
+    if files[i]["safeName"] == safeName
+        return files[i]
     end
-    return Null
+    i = i + 1
+end
+return Null
 end
 
 let sanitizeName = fn(name)
-    let base = path.basename(name)
-    let allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_"
-    let safe = ""
-    let i = 0
-    while i < base.length()
-        let c = base[i]
-        if allowed.contains(c)
-            safe = safe + c
-        else
-            safe = safe + "_"
-        end
-        i = i + 1
+let base = path.basename(name)
+let allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_"
+let safe = ""
+let i = 0
+while i < base.length()
+    let c = base[i]
+    if allowed.contains(c)
+        safe = safe + c
+    else
+        safe = safe + "_"
     end
-    if safe == "" or safe.length() == 0
-        safe = "file"
-    end
-    return safe
+    i = i + 1
+end
+if safe == "" or safe.length() == 0
+    safe = "file"
+end
+return safe
 end
 
 let formatSize = fn(bytes)
-    if bytes < 1024
-        return bytes + " B"
-    elif bytes < 1024 * 1024
-        return int(bytes / 1024) + " KB"
-    elif bytes < 1024 * 1024 * 1024
-        return int(bytes / (1024 * 1024)) + " MB"
-    else
-        return int(bytes / (1024 * 1024 * 1024)) + " GB"
-    end
+if bytes < 1024
+    return bytes + " B"
+elif bytes < 1024 * 1024
+    return int(bytes / 1024) + " KB"
+elif bytes < 1024 * 1024 * 1024
+    return int(bytes / (1024 * 1024)) + " MB"
+else
+    return int(bytes / (1024 * 1024 * 1024)) + " GB"
+end
 end
 
-let app = new kasbah.KasbahApp({
-    "port": 3000,
-    "bodyParser": True,
-    "maxBodySize": 20 * 1024 * 1024,
-    "logger": True,
+let extname = fn(name)
+let i = name.length() - 1
+while i >= 0
+    if name[i] == "."
+        return name.slice(i).lower()
+    end
+    i = i - 1
+end
+return ""
+end
+
+let isBlocked = fn(name)
+let ext = extname(name)
+for blocked in BLOCKED_EXTS
+    if ext == blocked
+        return True
+    end
+end
+return False
+end
+
+let app = new kasbah.kasbahApp({
+    "port": 3000, 
+    "bodyParser": True, 
+    "maxBodySize": 2 * 1024 * 1024 * 1024, 
+    "logger": True, 
+    "views": APP_DIR + "/views"
 })
 
 app.get("/", fn(req, res)
-    res.file(APP_DIR + "/views/index.html")
+res.file(APP_DIR + "/views/index.html")
+end)
+
+app.get("/view", fn(req, res)
+res.view("hello.html", {
+    "title": "Kasbah View System", 
+    "name": "Djazair Developer", 
+    "message": "This view was rendered successfully using the raw view system!"
+})
 end)
 
 app.get("/api/files", fn(req, res)
-    let files = loadMeta()
-    let reversed = files.reversed()
-    res.json(reversed)
+let files = loadMeta()
+
+let sortBy = "date"
+let rawSort = req.query("sort")
+if !isNull(rawSort) and ALLOWED_SORT.contains(rawSort)
+    sortBy = rawSort
+end
+
+if sortBy == "name"
+    files.sort(fn(a, b) return a["name"].lower() < b["name"].lower() end)
+elif sortBy == "size"
+    files.sort(fn(a, b) return a["size"] > b["size"] end)
+end
+
+let page = 1
+let rawPage = req.query("page")
+if !isNull(rawPage)
+    let np = int(rawPage)
+    if np > 0 page = np end
+end
+
+let limit = 50
+let rawLimit = req.query("limit")
+if !isNull(rawLimit)
+    let nl = int(rawLimit)
+    if nl > 0 and nl <= 200 limit = nl end
+end
+
+let total = files.length()
+let start = (page - 1) * limit
+let items = files.slice(start, start + limit)
+if isNull(items) items = [] end
+
+res.json({"items": items, "total": total, "page": page, "limit": limit})
 end)
 
 app.post("/api/upload", fn(req, res)
-    let uploadedFile = req.files["file"]
-    
-    if isNull(uploadedFile)
-        res.status(400).json({"error": "file is required in form-data"})
-        return
-    end
+let uploadedFile = req.files["file"]
 
-    let name = uploadedFile["filename"]
-    let fileSize = uploadedFile["size"]
-    let fileType = uploadedFile["type"]
-    let tempPath = uploadedFile["tempPath"]
+if isNull(uploadedFile)
+    res.status(400).json({"error": "file is required in form-data"})
+    return
+end
 
-    if fileSize > MAX_SIZE
-        file.delete(tempPath)
-        res.status(413).json({"error": "الملف كبير جداً. الحد الأقصى 10 ميغابايت."})
-        return
-    end
+let name = uploadedFile["filename"]
+let fileSize = uploadedFile["size"]
+let fileType = uploadedFile["type"]
+let tempPath = uploadedFile["tempPath"]
 
-    let safeName = str(datetime.timestamp()) + "_" + sanitizeName(name)
-    let filePath = UPLOAD_DIR + "/" + safeName
+if isBlocked(name)
+    file.delete(tempPath)
+    res.status(400).json({"error": "File type not allowed"})
+    return
+end
 
-    # Move from tempPath to filePath
-    file.move(tempPath, filePath)
+if fileSize > MAX_SIZE
+    file.delete(tempPath)
+    res.status(413).json({"error": "File too large. Max 1 GB."})
+    return
+end
 
-    let meta = {
-        "name": name,
-        "safeName": safeName,
-        "type": fileType,
-        "size": fileSize,
-        "sizeFormatted": formatSize(fileSize),
-        "uploadedAt": datetime.timestamp(),
-    }
-    appendMeta(meta)
-    res.status(201).json(meta)
+let safeName = str(datetime.timestamp()) + "_" + sanitizeName(name)
+let filePath = UPLOAD_DIR + "/" + safeName
+
+if !path.isSafe(UPLOAD_DIR, safeName)
+    file.delete(tempPath)
+    res.status(400).json({"error": "Invalid file name"})
+    return
+end
+
+file.move(tempPath, filePath)
+
+let meta = {
+    "name": name, 
+    "safeName": safeName, 
+    "type": fileType, 
+    "size": fileSize, 
+    "sizeFormatted": formatSize(fileSize), 
+    "uploadedAt": datetime.timestamp(), 
+}
+appendMeta(meta)
+res.status(201).json(meta)
 end)
 
 app.delete("/api/files/:safeName", fn(req, res)
-    let safeName = req.param("safeName")
-    let filePath = UPLOAD_DIR + "/" + safeName
+let safeName = req.param("safeName")
 
-    if file.exists(filePath)
-        file.delete(filePath)
-        removeMeta(safeName)
-        res.json({"deleted": safeName})
-    else
-        res.status(404).json({"error": "الملف غير موجود"})
-    end
+if !path.isSafe(UPLOAD_DIR, safeName)
+    res.status(400).json({"error": "Invalid file name"})
+    return
+end
+
+let filePath = UPLOAD_DIR + "/" + safeName
+
+if file.exists(filePath)
+    file.delete(filePath)
+    removeMeta(safeName)
+    res.json({"deleted": safeName})
+else
+    res.status(404).json({"error": "File not found"})
+end
 end)
 
 app.get("/u/:safeName", fn(req, res)
-    let safeName = req.param("safeName")
-    let filePath = UPLOAD_DIR + "/" + safeName
+let safeName = req.param("safeName")
 
-    if file.exists(filePath)
-        let meta = findMeta(safeName)
-        if not isNull(meta)
-            res.setHeader("Content-Disposition", "inline; filename=\"" + meta["name"] + "\"")
-            res.setHeader("Content-Type", meta["type"])
-        end
-        res.file(filePath)
-    else
-        res.status(404).json({"error": "الملف غير موجود"})
+if !path.isSafe(UPLOAD_DIR, safeName)
+    res.status(400).json({"error": "Invalid file name"})
+    return
+end
+
+let filePath = UPLOAD_DIR + "/" + safeName
+
+if file.exists(filePath)
+    let meta = findMeta(safeName)
+    if not isNull(meta)
+        res.setHeader("Content-Disposition", "inline; filename=\"" + meta["name"] + "\"")
+        res.setHeader("Content-Type", meta["type"])
     end
+    res.file(filePath)
+else
+    res.status(404).json({"error": "File not found"})
+end
 end)
 
 app.get("/d/:safeName", fn(req, res)
-    let safeName = req.param("safeName")
-    let filePath = UPLOAD_DIR + "/" + safeName
+let safeName = req.param("safeName")
 
-    if file.exists(filePath)
-        let meta = findMeta(safeName)
-        let origName = safeName
-        if not isNull(meta)
-            origName = meta["name"]
-        end
-        res.download(filePath, origName)
-    else
-        res.status(404).json({"error": "الملف غير موجود"})
+if !path.isSafe(UPLOAD_DIR, safeName)
+    res.status(400).json({"error": "Invalid file name"})
+    return
+end
+
+let filePath = UPLOAD_DIR + "/" + safeName
+
+if file.exists(filePath)
+    let meta = findMeta(safeName)
+    let origName = safeName
+    if not isNull(meta)
+        origName = meta["name"]
     end
+    res.download(filePath, origName)
+else
+    res.status(404).json({"error": "File not found"})
+end
 end)
 
-print("\n╔══════════════════════════════════════╗")
-print("\n║   خادم رفع الملفات جاهز             ║")
-print("\n║   http://localhost:3000              ║")
-print("\n╚══════════════════════════════════════╝\n")
+
+print("http://localhost:3000")
+
 app.listen(3000)
