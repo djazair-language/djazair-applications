@@ -27,11 +27,11 @@ let loadMeta = fn()
     if isNull(content) or content == ""
         return []
     end
-    return json.parse(content)
+    return json.decode(content)
 end
 
 let saveMeta = fn(files)
-file.write(META_FILE, json.stringify(files, Null, True))
+file.write(META_FILE, json.encode(files, Null, True))
 end
 
 let appendMeta = fn(info)

@@ -30,7 +30,7 @@ fn main()
         return {
             "os": {
                 "name": os.name(),
-                "type": os.type(),
+                "type": os.osType(),
                 "version": os.version(),
                 "arch": os.arch(),
                 "hostname": os.hostname(),
