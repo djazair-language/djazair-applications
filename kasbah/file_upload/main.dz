@@ -15,12 +15,12 @@ let MAX_SIZE = 1024 * 1024 * 1024
 let BLOCKED_EXTS = [".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".pif", ".sh", ".bash", ".dll", ".vbs", ".ps1", ".jar", ".wasm"]
 let ALLOWED_SORT = ["date", "name", "size"]
 
-if not file.exists(UPLOAD_DIR)
+if !file.exists(UPLOAD_DIR)
     dir.createAll(UPLOAD_DIR)
 end
 
 let loadMeta = fn()
-    if not file.exists(META_FILE)
+    if !file.exists(META_FILE)
         return []
     end
     let content = file.read(META_FILE)
@@ -254,7 +254,7 @@ let filePath = UPLOAD_DIR + "/" + safeName
 
 if file.exists(filePath)
     let meta = findMeta(safeName)
-    if not isNull(meta)
+    if !isNull(meta)
         res.setHeader("Content-Disposition", "inline; filename=\"" + meta["name"] + "\"")
         res.setHeader("Content-Type", meta["type"])
     end
@@ -277,7 +277,7 @@ let filePath = UPLOAD_DIR + "/" + safeName
 if file.exists(filePath)
     let meta = findMeta(safeName)
     let origName = safeName
-    if not isNull(meta)
+    if !isNull(meta)
         origName = meta["name"]
     end
     res.download(filePath, origName)
