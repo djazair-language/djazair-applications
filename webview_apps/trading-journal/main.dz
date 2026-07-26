@@ -1,0 +1,131 @@
+use webview
+use json
+use process
+use file
+use path
+
+import "core/database.dz" as db
+import "core/journal.dz" as journal
+import "core/analytics.dz" as analytics
+
+fn main()
+    print("Starting Trading Journal...")
+
+    db.init()
+
+    let app = webview.createWindow({
+        "title": "Trading Journal - Professional Edition",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "resizable": True,
+        "debug": True
+    })
+
+    let win = app.window
+
+    # Bridge: Load trades
+    app.bridge.on("get_trades", fn(filter)
+        return journal.getTrades(filter)
+    end)
+
+    # Bridge: Add trade
+    app.bridge.on("add_trade", fn(trade)
+        return journal.addTrade(trade)
+    end)
+
+    # Bridge: Update trade
+    app.bridge.on("update_trade", fn(trade)
+        return journal.updateTrade(trade)
+    end)
+
+    # Bridge: Delete trade
+    app.bridge.on("delete_trade", fn(data)
+        return journal.deleteTrade(data["id"])
+    end)
+
+    # Bridge: Get analytics
+    app.bridge.on("get_analytics", fn(params)
+        return analytics.getAnalytics(params)
+    end)
+
+    # Bridge: Get equity curve
+    app.bridge.on("get_equity_curve", fn(params)
+        return analytics.getEquityCurve(params)
+    end)
+
+    # Bridge: Get daily P&L
+    app.bridge.on("get_daily_pnl", fn(params)
+        return analytics.getDailyPnl(params)
+    end)
+
+    # Bridge: Get performance by symbol
+    app.bridge.on("get_performance_by_symbol", fn(params)
+        return analytics.getPerformanceBySymbol(params)
+    end)
+
+    # Bridge: Get performance by session
+    app.bridge.on("get_performance_by_session", fn(params)
+        return analytics.getPerformanceBySession(params)
+    end)
+
+    # Bridge: Get performance by day
+    app.bridge.on("get_performance_by_day", fn(params)
+        return analytics.getPerformanceByDay(params)
+    end)
+
+    # Bridge: Export data
+    app.bridge.on("export_data", fn(params)
+        return journal.exportData(params)
+    end)
+
+    # Bridge: Get settings
+    app.bridge.on("get_settings", fn(_)
+        return db.getSettings()
+    end)
+
+    # Bridge: Save settings
+    app.bridge.on("save_settings", fn(settings)
+        return db.saveSettings(settings)
+    end)
+
+    # Bridge: Get journal stats
+    app.bridge.on("get_journal_stats", fn(payload)
+        print(">>> get_journal_stats called")
+        let stats = journal.getJournalStats()
+        print(">>> stats: ${stats}")
+        return stats
+    end)
+
+    # Bridge: Get tags
+    app.bridge.on("get_tags", fn(_)
+        return journal.getTags()
+    end)
+
+    # Bridge: Save screenshot/note for trade
+    app.bridge.on("save_trade_note", fn(data)
+        return journal.saveTradeNote(data)
+    end)
+
+    app.onReady(fn()
+        print("Trading Journal ready!")
+    end)
+
+    app.onQuit(fn()
+        print("Shutting down Trading Journal...")
+        db.close()
+    end)
+
+    let scriptDir = process.scriptDir()
+    let uiPath = path.join(scriptDir, "ui", "index.html")
+    let jsPath = path.join(scriptDir, "ui", "js", "app.js")
+    let htmlContent = file.read(uiPath)
+    let jsContent = file.read(jsPath)
+    let fullHtml = htmlContent.replace("<script src=\"js/app.js\"></script>", "<script>${jsContent}</script>")
+    win.setHtml(fullHtml)
+
+    app.run()
+end
+
+main()

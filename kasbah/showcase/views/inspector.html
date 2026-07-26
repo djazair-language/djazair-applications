@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Route Inspector — Kasbah Showcase</title>
+  <link rel="preload" href="/public/style.css" as="style">
+  <link rel="preload" href="/public/app.js" as="script">
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body data-page="inspector">
+  <nav class="nav">
+    <a href="/" class="nav-brand">⚡ Kasbah</a>
+    <a href="/">Home</a>
+    <a href="/tasks">Tasks</a>
+    <a href="/session-page">Session</a>
+    <a href="/cookies-page">Cookies</a>
+    <a href="/upload-page">Upload</a>
+    <a href="/inspector" class="active">Inspector</a>
+    <a href="/admin">Admin</a>
+  </nav>
+
+  <div class="container">
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="badge badge-purple">⚡</span>
+        <span class="card-title">HTTP Route Inspector</span>
+      </div>
+      <div class="grid" style="grid-template-columns:120px 1fr;gap:.75rem;margin-bottom:.75rem">
+        <select id="ri-method" style="width:100%">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>PATCH</option>
+          <option>DELETE</option>
+          <option>HEAD</option>
+          <option>OPTIONS</option>
+        </select>
+        <input id="ri-path" value="/api/info" placeholder="/api/tasks">
+      </div>
+      <div class="form-group">
+        <label>Request Body (JSON) — for POST/PUT/PATCH</label>
+        <textarea id="ri-body" placeholder='{"title": "New task", "priority": "urgent"}'></textarea>
+      </div>
+      <button id="ri-send" class="btn btn-primary">▶ Send Request</button>
+    </div>
+
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="badge badge-get">RESPONSE</span>
+        <span class="card-title">Output</span>
+      </div>
+      <pre id="ri-output" style="min-height:120px;color:var(--accent2)">Hit "Send Request" above…</pre>
+    </div>
+
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="badge badge-get">QUICK</span>
+        <span class="card-title">Quick Tests</span>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="quickTest('GET','/api/info')">GET /api/info</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickTest('GET','/api/tasks')">GET /api/tasks</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickTest('GET','/api/echo?name=Kasbah&lang=Djazair')">GET /api/echo?…</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickTest('GET','/api/session')">GET /api/session</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickTest('GET','/admin/stats')">GET /admin/stats</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickTest('GET','/error-demo')">GET /error-demo</button>
+        <button class="btn btn-ghost btn-sm" onclick="quickTest('GET','/old-home')">GET /old-home (redirect)</button>
+        <button class="btn btn-post btn-sm btn-primary" onclick="quickTest('POST','/api/tasks','title=Quick test&amp;author=Inspector')">POST task (form)</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/public/app.js"></script>
+  <script>
+    function quickTest(method, path, body) {
+      document.getElementById('ri-method').value = method;
+      document.getElementById('ri-path').value   = path;
+      document.getElementById('ri-body').value   = body || '';
+      testRoute();
+    }
+  </script>
+</body>
+</html>

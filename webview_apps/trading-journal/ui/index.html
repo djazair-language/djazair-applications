@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: {
+                        surface: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' },
+                        profit: { DEFAULT: '#22c55e', light: '#4ade80', dark: '#16a34a', bg: 'rgba(34,197,94,0.1)' },
+                        loss: { DEFAULT: '#ef4444', light: '#f87171', dark: '#dc2626', bg: 'rgba(239,68,68,0.1)' },
+                        accent: { DEFAULT: '#3b82f6', light: '#60a5fa', dark: '#2563eb', bg: 'rgba(59,130,246,0.1)' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { scrollbar-width: thin; scrollbar-color: #334155 #0f172a; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        body { font-family: 'Inter', sans-serif; background: #020617; }
+        .glass { background: rgba(15,23,42,0.8); backdrop-filter: blur(20px); border: 1px solid rgba(51,65,85,0.5); }
+        .glass-card { background: rgba(15,23,42,0.6); backdrop-filter: blur(12px); border: 1px solid rgba(51,65,85,0.4); }
+        .glass-hover:hover { background: rgba(30,41,59,0.8); border-color: rgba(59,130,246,0.4); }
+        .nav-item { transition: all 0.2s ease; }
+        .nav-item.active { background: rgba(59,130,246,0.15); color: #60a5fa; border-right: 3px solid #3b82f6; }
+        .nav-item:hover:not(.active) { background: rgba(51,65,85,0.3); }
+        .stat-card { transition: all 0.3s ease; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+        .glow-profit { box-shadow: 0 0 20px rgba(34,197,94,0.15); }
+        .glow-loss { box-shadow: 0 0 20px rgba(239,68,68,0.15); }
+        .glow-accent { box-shadow: 0 0 20px rgba(59,130,246,0.15); }
+        .page { display: none; }
+        .page.active { display: block; }
+        .modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+        .modal { animation: modalIn 0.2s ease-out; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .table-row:hover { background: rgba(30,41,59,0.5); }
+        .badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600; letter-spacing: 0.025em; }
+        input, select, textarea { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+        input:focus, select:focus, textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); outline: none; }
+        .tab-btn { transition: all 0.2s ease; }
+        .tab-btn.active { background: #3b82f6; color: white; }
+        .tab-btn:not(.active):hover { background: rgba(51,65,85,0.5); }
+        .calendar-day { transition: all 0.15s ease; }
+        .calendar-day:hover { background: rgba(59,130,246,0.2); }
+        .calendar-day.has-trades { border: 1px solid rgba(59,130,246,0.3); }
+        .tooltip { position: relative; }
+        .tooltip::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding: 4px 8px; background: #1e293b; color: #e2e8f0; font-size: 0.7rem; border-radius: 4px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+        .tooltip:hover::after { opacity: 1; }
+        .custom-scrollbar { overflow-y: auto; max-height: calc(100vh - 200px); }
+    </style>
+</head>
+<body class="bg-surface-950 text-surface-200 min-h-screen">
+    <div id="app" class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-60 glass flex flex-col border-r border-surface-700/50 flex-shrink-0">
+            <div class="p-4 border-b border-surface-700/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-blue-400 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-bold text-white">Trading Journal</h1>
+                        <p class="text-[10px] text-surface-400 font-mono">Pro Edition v1.0</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex-1 py-3">
+                <a href="#" class="nav-item active flex items-center gap-3 px-5 py-2.5 text-sm font-medium" data-page="dashboard">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    Dashboard
+                </a>
+                <a href="#" class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-surface-400" data-page="trades">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    Trade Log
+                </a>
+                <a href="#" class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-surface-400" data-page="analytics">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    Analytics
+                </a>
+                <a href="#" class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-surface-400" data-page="calendar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Calendar
+                </a>
+                <a href="#" class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-surface-400" data-page="settings">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Settings
+                </a>
+            </nav>
+            <div class="p-4 border-t border-surface-700/50">
+                <button id="btnAddTrade" class="w-full py-2.5 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    New Trade
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Bar -->
+            <header class="glass h-14 flex items-center justify-between px-6 border-b border-surface-700/50 flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <h2 id="pageTitle" class="text-lg font-semibold text-white">Dashboard</h2>
+                    <div id="liveStatus" class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-profit pulse-dot"></span>
+                        <span class="text-[10px] text-surface-400 font-mono">LIVE</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <input type="text" id="globalSearch" placeholder="Search trades..." class="w-56 bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-1.5 text-sm text-surface-200 placeholder-surface-500 focus:ring-1">
+                        <svg class="w-3.5 h-3.5 text-surface-500 absolute right-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <span id="currentDate" class="text-xs text-surface-400 font-mono"></span>
+                </div>
+            </header>
+
+            <!-- Pages Container -->
+            <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <!-- Dashboard Page -->
+                <div id="page-dashboard" class="page active fade-in">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="stat-card glass-card rounded-xl p-4 glow-accent">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[11px] text-surface-400 uppercase tracking-wider font-medium">Total P&L</span>
+                                <div class="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg></div>
+                            </div>
+                            <p id="statTotalPnl" class="text-2xl font-bold text-white font-mono">$0.00</p>
+                            <p class="text-[10px] text-surface-500 mt-1">0 trades closed</p>
+                        </div>
+                        <div class="stat-card glass-card rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[11px] text-surface-400 uppercase tracking-wider font-medium">Win Rate</span>
+                                <div class="w-7 h-7 rounded-lg bg-profit/10 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-profit-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+                            </div>
+                            <p id="statWinRate" class="text-2xl font-bold text-white font-mono">0%</p>
+                            <p class="text-[10px] text-surface-500 mt-1"><span id="statWins">0</span>W / <span id="statLosses">0</span>L</p>
+                        </div>
+                        <div class="stat-card glass-card rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[11px] text-surface-400 uppercase tracking-wider font-medium">Profit Factor</span>
+                                <div class="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg></div>
+                            </div>
+                            <p id="statProfitFactor" class="text-2xl font-bold text-white font-mono">0.00</p>
+                            <p class="text-[10px] text-surface-500 mt-1">Risk/Reward ratio</p>
+                        </div>
+                        <div class="stat-card glass-card rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[11px] text-surface-400 uppercase tracking-wider font-medium">Equity</span>
+                                <div class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
+                            </div>
+                            <p id="statEquity" class="text-2xl font-bold text-white font-mono">$10,000</p>
+                            <p class="text-[10px] text-surface-500 mt-1">Account balance</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                        <div class="lg:col-span-2 glass-card rounded-xl p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-semibold text-white">Equity Curve</h3>
+                                <div class="flex gap-1">
+                                    <button class="tab-btn active px-2 py-1 rounded text-[10px] font-medium" data-range="all">All</button>
+                                    <button class="tab-btn px-2 py-1 rounded text-[10px] font-medium text-surface-400" data-range="30">30D</button>
+                                    <button class="tab-btn px-2 py-1 rounded text-[10px] font-medium text-surface-400" data-range="7">7D</button>
+                                </div>
+                            </div>
+                            <div class="h-56"><canvas id="equityChart"></canvas></div>
+                        </div>
+                        <div class="glass-card rounded-xl p-5">
+                            <h3 class="text-sm font-semibold text-white mb-4">Daily P&L</h3>
+                            <div class="h-56"><canvas id="dailyPnlChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="glass-card rounded-xl p-5">
+                            <h3 class="text-sm font-semibold text-white mb-4">Performance by Symbol</h3>
+                            <div class="h-52"><canvas id="symbolChart"></canvas></div>
+                        </div>
+                        <div class="glass-card rounded-xl p-5">
+                            <h3 class="text-sm font-semibold text-white mb-4">Recent Trades</h3>
+                            <div id="recentTrades" class="space-y-2 max-h-52 overflow-y-auto custom-scrollbar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trades Page -->
+                <div id="page-trades" class="page">
+                    <div class="glass-card rounded-xl p-4 mb-4">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <select id="filterSymbol" class="bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-1.5 text-xs text-surface-200">
+                                <option value="">All Symbols</option>
+                                <option value="EURUSD">EUR/USD</option>
+                                <option value="GBPUSD">GBP/USD</option>
+                                <option value="USDJPY">USD/JPY</option>
+                                <option value="AUDUSD">AUD/USD</option>
+                                <option value="USDCAD">USD/CAD</option>
+                                <option value="NZDUSD">NZD/USD</option>
+                                <option value="USDCHF">USD/CHF</option>
+                                <option value="EURGBP">EUR/GBP</option>
+                                <option value="EURJPY">EUR/JPY</option>
+                                <option value="GBPJPY">GBP/JPY</option>
+                                <option value="XAUUSD">XAU/USD</option>
+                                <option value="BTCUSD">BTC/USD</option>
+                            </select>
+                            <select id="filterDirection" class="bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-1.5 text-xs text-surface-200">
+                                <option value="">All Directions</option>
+                                <option value="buy">Long</option>
+                                <option value="sell">Short</option>
+                            </select>
+                            <select id="filterStatus" class="bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-1.5 text-xs text-surface-200">
+                                <option value="">All Status</option>
+                                <option value="open">Open</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                            <input type="date" id="filterDateFrom" class="bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-1.5 text-xs text-surface-200">
+                            <input type="date" id="filterDateTo" class="bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-1.5 text-xs text-surface-200">
+                            <button id="btnApplyFilter" class="px-3 py-1.5 bg-accent/20 text-accent-light rounded-lg text-xs font-medium hover:bg-accent/30 transition">Apply</button>
+                            <button id="btnClearFilter" class="px-3 py-1.5 bg-surface-700/50 text-surface-400 rounded-lg text-xs font-medium hover:bg-surface-700 transition">Clear</button>
+                            <div class="ml-auto flex gap-2">
+                                <button id="btnExportCsv" class="px-3 py-1.5 bg-surface-700/50 text-surface-300 rounded-lg text-xs font-medium hover:bg-surface-700 transition flex items-center gap-1.5">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-surface-700/50">
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Symbol</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Direction</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Entry</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Exit</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Lot</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">P&L</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Pips</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Strategy</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Date</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Status</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tradesTableBody" class="divide-y divide-surface-800/50"></tbody>
+                            </table>
+                        </div>
+                        <div id="tradesEmpty" class="hidden py-16 text-center">
+                            <svg class="w-12 h-12 text-surface-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                            <p class="text-surface-500 text-sm">No trades found</p>
+                            <p class="text-surface-600 text-xs mt-1">Click "New Trade" to get started</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Page -->
+                <div id="page-analytics" class="page">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Avg Win</span>
+                            <p id="analyticsAvgWin" class="text-xl font-bold text-profit font-mono mt-1">$0</p>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Avg Loss</span>
+                            <p id="analyticsAvgLoss" class="text-xl font-bold text-loss font-mono mt-1">$0</p>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Expectancy</span>
+                            <p id="analyticsExpectancy" class="text-xl font-bold text-white font-mono mt-1">$0</p>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Avg Pips</span>
+                            <p id="analyticsAvgPips" class="text-xl font-bold text-accent-light font-mono mt-1">0</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Best Trade</span>
+                            <p id="analyticsBestTrade" class="text-lg font-bold text-profit font-mono mt-1">$0</p>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Worst Trade</span>
+                            <p id="analyticsWorstTrade" class="text-lg font-bold text-loss font-mono mt-1">$0</p>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Max Consec. Wins</span>
+                            <p id="analyticsMaxWins" class="text-lg font-bold text-profit font-mono mt-1">0</p>
+                        </div>
+                        <div class="glass-card rounded-xl p-4">
+                            <span class="text-[10px] text-surface-400 uppercase tracking-wider">Max Consec. Losses</span>
+                            <p id="analyticsMaxLosses" class="text-lg font-bold text-loss font-mono mt-1">0</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                        <div class="glass-card rounded-xl p-5">
+                            <h3 class="text-sm font-semibold text-white mb-4">Win/Loss by Direction</h3>
+                            <div class="h-52"><canvas id="directionChart"></canvas></div>
+                        </div>
+                        <div class="glass-card rounded-xl p-5">
+                            <h3 class="text-sm font-semibold text-white mb-4">Performance by Day of Week</h3>
+                            <div class="h-52"><canvas id="dayOfWeekChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="glass-card rounded-xl p-5">
+                            <h3 class="text-sm font-semibold text-white mb-4">Performance by Session</h3>
+                            <div class="h-52"><canvas id="sessionChart"></canvas></div>
+                        </div>
+                        <div class="glass-card rounded-xl p-5">
+                            <h3 class="text-sm font-semibold text-white mb-4">Cumulative P&L by Symbol</h3>
+                            <div class="h-52"><canvas id="symbolPnlChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar Page -->
+                <div id="page-calendar" class="page">
+                    <div class="glass-card rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-5">
+                            <button id="calPrev" class="p-2 hover:bg-surface-700/50 rounded-lg transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+                            <h3 id="calMonth" class="text-base font-semibold text-white"></h3>
+                            <button id="calNext" class="p-2 hover:bg-surface-700/50 rounded-lg transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+                        </div>
+                        <div class="grid grid-cols-7 gap-px mb-2">
+                            <div class="text-center text-[10px] text-surface-400 font-semibold py-2">Sun</div>
+                            <div class="text-center text-[10px] text-surface-400 font-semibold py-2">Mon</div>
+                            <div class="text-center text-[10px] text-surface-400 font-semibold py-2">Tue</div>
+                            <div class="text-center text-[10px] text-surface-400 font-semibold py-2">Wed</div>
+                            <div class="text-center text-[10px] text-surface-400 font-semibold py-2">Thu</div>
+                            <div class="text-center text-[10px] text-surface-400 font-semibold py-2">Fri</div>
+                            <div class="text-center text-[10px] text-surface-400 font-semibold py-2">Sat</div>
+                        </div>
+                        <div id="calGrid" class="grid grid-cols-7 gap-px"></div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="page-settings" class="page">
+                    <div class="max-w-2xl">
+                        <div class="glass-card rounded-xl p-6 mb-4">
+                            <h3 class="text-sm font-semibold text-white mb-4">Account Settings</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1.5">Account Balance ($)</label>
+                                    <input type="number" id="settingBalance" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="10000">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1.5">Risk Per Trade (%)</label>
+                                    <input type="number" id="settingRisk" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="1" step="0.1">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1.5">Default Lot Size</label>
+                                    <input type="number" id="settingLotSize" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="0.01" step="0.01">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1.5">Max Daily Loss (%)</label>
+                                    <input type="number" id="settingMaxLoss" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="3">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1.5">Max Daily Trades</label>
+                                    <input type="number" id="settingMaxTrades" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="5">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1.5">Currency</label>
+                                    <select id="settingCurrency" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="btnSaveSettings" class="px-5 py-2.5 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-semibold transition-all">Save Settings</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Trade Modal -->
+    <div id="tradeModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" id="modalOverlay"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="modal glass-card rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="flex items-center justify-between p-5 border-b border-surface-700/50">
+                    <h3 id="modalTitle" class="text-base font-semibold text-white">New Trade</h3>
+                    <button id="btnCloseModal" class="p-1.5 hover:bg-surface-700/50 rounded-lg transition"><svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                </div>
+                <form id="tradeForm" class="p-5 space-y-4">
+                    <input type="hidden" id="tradeId">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Symbol *</label>
+                            <select id="tradeSymbol" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" required>
+                                <option value="EURUSD">EUR/USD</option>
+                                <option value="GBPUSD">GBP/USD</option>
+                                <option value="USDJPY">USD/JPY</option>
+                                <option value="AUDUSD">AUD/USD</option>
+                                <option value="USDCAD">USD/CAD</option>
+                                <option value="NZDUSD">NZD/USD</option>
+                                <option value="USDCHF">USD/CHF</option>
+                                <option value="EURGBP">EUR/GBP</option>
+                                <option value="EURJPY">EUR/JPY</option>
+                                <option value="GBPJPY">GBP/JPY</option>
+                                <option value="XAUUSD">XAU/USD</option>
+                                <option value="BTCUSD">BTC/USD</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Direction *</label>
+                            <select id="tradeDirection" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" required>
+                                <option value="buy">Long (Buy)</option>
+                                <option value="sell">Short (Sell)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Lot Size *</label>
+                            <input type="number" id="tradeLotSize" step="0.01" min="0.01" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="0.01" required>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Status</label>
+                            <select id="tradeStatus" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                <option value="open">Open</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Entry Price *</label>
+                            <input type="number" id="tradeEntry" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" required>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Exit Price</label>
+                            <input type="number" id="tradeExit" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Stop Loss</label>
+                            <input type="number" id="tradeSL" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Take Profit</label>
+                            <input type="number" id="tradeTP" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">P&L ($)</label>
+                            <input type="number" id="tradePnl" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Pips</label>
+                            <input type="number" id="tradePips" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Commission</label>
+                            <input type="number" id="tradeCommission" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" value="0">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Swap</label>
+                            <input type="number" id="tradeSwap" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" value="0">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Entry Time</label>
+                            <input type="datetime-local" id="tradeEntryTime" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Exit Time</label>
+                            <input type="datetime-local" id="tradeExitTime" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Timeframe</label>
+                            <select id="tradeTimeframe" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                <option value="M1">M1</option>
+                                <option value="M5">M5</option>
+                                <option value="M15">M15</option>
+                                <option value="M30">M30</option>
+                                <option value="H1" selected>H1</option>
+                                <option value="H4">H4</option>
+                                <option value="D1">D1</option>
+                                <option value="W1">W1</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Session</label>
+                            <select id="tradeSession" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                <option value="">None</option>
+                                <option value="Asian">Asian</option>
+                                <option value="London">London</option>
+                                <option value="NewYork">New York</option>
+                                <option value="Overlap">London/NY Overlap</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Strategy</label>
+                            <input type="text" id="tradeStrategy" placeholder="e.g. Breakout, Trend Following..." class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Market Condition</label>
+                            <select id="tradeMarketCondition" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                <option value="">None</option>
+                                <option value="trending">Trending</option>
+                                <option value="ranging">Ranging</option>
+                                <option value="volatile">Volatile</option>
+                                <option value="quiet">Quiet</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Emotions</label>
+                            <select id="tradeEmotions" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                <option value="">None</option>
+                                <option value="confident">Confident</option>
+                                <option value="fearful">Fearful</option>
+                                <option value="greedy">Greedy</option>
+                                <option value="fomo">FOMO</option>
+                                <option value="calm">Calm</option>
+                                <option value="frustrated">Frustrated</option>
+                                <option value="revenge">Revenge Trading</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Setup Quality (1-10)</label>
+                            <input type="number" id="tradeSetupQuality" min="1" max="10" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="5">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Tags</label>
+                        <input type="text" id="tradeTags" placeholder="Comma separated: breakout, H1, trend" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Notes</label>
+                        <textarea id="tradeNotes" rows="3" placeholder="Trade analysis, lessons learned..." class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600 resize-none"></textarea>
+                    </div>
+                    <div class="flex items-center justify-end gap-3 pt-2 border-t border-surface-700/50">
+                        <button type="button" id="btnCancelModal" class="px-4 py-2 text-surface-400 hover:text-surface-200 text-sm font-medium transition">Cancel</button>
+                        <button type="submit" class="px-5 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-semibold transition-all">Save Trade</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
