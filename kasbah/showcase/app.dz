@@ -437,31 +437,35 @@ app.group("/admin", [authMiddleware], fn(r)
         let doneTasks = 0
         let urgentTasks = 0
         for t in tasks
-            if t["done"]        doneTasks = doneTasks + 1      end
-                if t["priority"] == "urgent" urgentTasks = urgentTasks + 1 end
-                end
-                let uptime = datetime.timestamp() - startTime
-                res.json({
-                    "tasks": {
-                        "total":   tasks.length(),
-                        "done":    doneTasks,
-                        "open":    tasks.length() - doneTasks,
-                        "urgent":  urgentTasks
-                    },
-                    "server": {
-                        "uptime":   uptime,
-                        "requests": reqCount,
-                        "port":     PORT
-                    }
-                })
-            end)
+            if t["done"]
+                doneTasks = doneTasks + 1
+            end
+            if t["priority"] == "urgent"
+                urgentTasks = urgentTasks + 1
+            end
+        end
+        let uptime = datetime.timestamp() - startTime
+        res.json({
+            "tasks": {
+                "total":  tasks.length(),
+                "done":   doneTasks,
+                "open":   tasks.length() - doneTasks,
+                "urgent": urgentTasks
+            },
+            "server": {
+                "uptime":   uptime,
+                "requests": reqCount,
+                "port":     PORT
+            }
+        })
+    end)
 
-            r.delete("/tasks", fn(req, res)
-                tasks = []
-                nextId = 0
-                res.json({ "cleared": True })
-            end)
-        end)
+    r.delete("/tasks", fn(req, res)
+        tasks = []
+        nextId = 0
+        res.json({ "cleared": True })
+    end)
+end)
 
         # ══════════════════════════════════════════════════════════════════════════════
         # Seed a few demo tasks on startup
