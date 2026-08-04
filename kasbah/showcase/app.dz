@@ -13,7 +13,7 @@
 #   - Custom error handler (onError)
 #   - req.ip, req.isAjax(), req.accepts(), req.contentIs()
 
-import "d:/Programing/Djazair Programming Language/djazair-language/extensions/kasbah/init.dz" as kasbah
+use kasbah
 use datetime
 use process
 use path
@@ -37,7 +37,7 @@ let app = new kasbah.kasbahApp({
     "bodyParser":    True,
     "maxBodySize":   2,
     "session":       True,
-    "sessionSecret": "kasbah-showcase-secret-2026",
+    "sessionSecret": "kasbah-showcase-session-secret-2026!",
     "static":        "${APP_DIR}/public",
     "views":         "${APP_DIR}/views"
 })
@@ -467,42 +467,42 @@ app.group("/admin", [authMiddleware], fn(r)
     end)
 end)
 
-        # ══════════════════════════════════════════════════════════════════════════════
-        # Seed a few demo tasks on startup
-        # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# Seed a few demo tasks on startup
+# ══════════════════════════════════════════════════════════════════════════════
 
-        fn addTask(title, author, priority)
-            tasks.append({
-                "id":        nextId,
-                "title":     title,
-                "author":    author,
-                "priority":  priority,
-                "done":      False,
-                "createdAt": datetime.timestamp()
-            })
-            nextId = nextId + 1
-        end
+fn addTask(title, author, priority)
+    tasks.append({
+        "id":        nextId,
+        "title":     title,
+        "author":    author,
+        "priority":  priority,
+        "done":      False,
+        "createdAt": datetime.timestamp()
+    })
+    nextId = nextId + 1
+end
 
-        addTask("Build Kasbah web framework", "Riad", "urgent")
-        addTask("Write comprehensive tests", "Riad", "normal")
-        addTask("Add Keep-Alive support to http lib", "Riad", "normal")
-        addTask("Fix cookie header injection bug", "Riad", "urgent")
+addTask("Build Kasbah web framework", "Riad", "urgent")
+addTask("Write comprehensive tests", "Riad", "normal")
+addTask("Add Keep-Alive support to http lib", "Riad", "normal")
+addTask("Fix cookie header injection bug", "Riad", "urgent")
 
-        tasks[0]["done"] = True
-        tasks[2]["done"] = True
+tasks[0]["done"] = True
+tasks[2]["done"] = True
 
-        # ══════════════════════════════════════════════════════════════════════════════
-        # Start server
-        # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# Start server
+# ══════════════════════════════════════════════════════════════════════════════
 
-        print("")
-        print("╔══════════════════════════════════════════════════╗")
-        print("║        ⚡  KASBAH SHOWCASE — Djazair             ║")
-        print("╚══════════════════════════════════════════════════╝")
-        print("")
-        print("  → http://localhost:${PORT}")
-        print("  → Admin panel: http://localhost:${PORT}/admin")
-        print("  → Route Inspector: http://localhost:${PORT}/inspector")
-        print("")
+print("")
+print("╔══════════════════════════════════════════════════╗")
+print("║        ⚡  KASBAH SHOWCASE — Djazair             ║")
+print("╚══════════════════════════════════════════════════╝")
+print("")
+print("  → http://localhost:${PORT}")
+print("  → Admin panel: http://localhost:${PORT}/admin")
+print("  → Route Inspector: http://localhost:${PORT}/inspector")
+print("")
 
-        app.listen(PORT)
+app.listen(PORT)

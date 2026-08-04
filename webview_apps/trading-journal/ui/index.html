@@ -205,6 +205,15 @@
 
                 <!-- Trades Page -->
                 <div id="page-trades" class="page">
+                    <!-- Quick Filters -->
+                    <div class="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+                        <button class="quick-filter px-4 py-1.5 rounded-full text-xs font-medium bg-accent text-white transition-all active" data-filter="all">All Trades</button>
+                        <button class="quick-filter px-4 py-1.5 rounded-full text-xs font-medium bg-surface-800 text-surface-400 hover:text-white hover:bg-surface-700 transition-all" data-filter="open">Open</button>
+                        <button class="quick-filter px-4 py-1.5 rounded-full text-xs font-medium bg-surface-800 text-surface-400 hover:text-white hover:bg-surface-700 transition-all" data-filter="closed">Closed</button>
+                        <button class="quick-filter px-4 py-1.5 rounded-full text-xs font-medium bg-surface-800 text-surface-400 hover:text-white hover:bg-profit transition-all" data-filter="winning">Winning</button>
+                        <button class="quick-filter px-4 py-1.5 rounded-full text-xs font-medium bg-surface-800 text-surface-400 hover:text-white hover:bg-loss transition-all" data-filter="losing">Losing</button>
+                    </div>
+
                     <div class="glass-card rounded-xl p-4 mb-4">
                         <div class="flex flex-wrap items-center gap-3">
                             <select id="filterSymbol" class="bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-1.5 text-xs text-surface-200">
@@ -258,7 +267,7 @@
                                         <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Pips</th>
                                         <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Strategy</th>
                                         <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Date</th>
-                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Status</th>
+                                        <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Media</th>
                                         <th class="text-left px-4 py-3 text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Actions</th>
                                     </tr>
                                 </thead>
@@ -403,172 +412,302 @@
         <div class="absolute inset-0 flex items-center justify-center p-4">
             <div class="modal glass-card rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <div class="flex items-center justify-between p-5 border-b border-surface-700/50">
-                    <h3 id="modalTitle" class="text-base font-semibold text-white">New Trade</h3>
+                    <h3 id="modalTitle" class="text-base font-semibold text-white">New Trade Wizard</h3>
                     <button id="btnCloseModal" class="p-1.5 hover:bg-surface-700/50 rounded-lg transition"><svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </div>
-                <form id="tradeForm" class="p-5 space-y-4">
+                
+                <!-- Wizard Progress -->
+                <div class="px-5 pt-4 pb-2">
+                    <div class="flex items-center justify-between relative">
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-surface-700/50 -z-10"></div>
+                        <div id="progressLine" class="absolute left-0 top-1/2 -translate-y-1/2 w-0 h-0.5 bg-accent transition-all duration-300 -z-10"></div>
+                        
+                        <div class="step-indicator flex flex-col items-center gap-1 w-1/4" data-step="1">
+                            <div class="w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold ring-4 ring-surface-950 transition-colors">1</div>
+                            <span class="text-[9px] text-surface-300 font-medium uppercase">Basics</span>
+                        </div>
+                        <div class="step-indicator flex flex-col items-center gap-1 w-1/4" data-step="2">
+                            <div class="w-6 h-6 rounded-full bg-surface-800 text-surface-500 flex items-center justify-center text-xs font-bold ring-4 ring-surface-950 transition-colors">2</div>
+                            <span class="text-[9px] text-surface-500 font-medium uppercase">Execution</span>
+                        </div>
+                        <div class="step-indicator flex flex-col items-center gap-1 w-1/4" data-step="3">
+                            <div class="w-6 h-6 rounded-full bg-surface-800 text-surface-500 flex items-center justify-center text-xs font-bold ring-4 ring-surface-950 transition-colors">3</div>
+                            <span class="text-[9px] text-surface-500 font-medium uppercase">Analysis</span>
+                        </div>
+                        <div class="step-indicator flex flex-col items-center gap-1 w-1/4" data-step="4">
+                            <div class="w-6 h-6 rounded-full bg-surface-800 text-surface-500 flex items-center justify-center text-xs font-bold ring-4 ring-surface-950 transition-colors">4</div>
+                            <span class="text-[9px] text-surface-500 font-medium uppercase">Results</span>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="tradeForm" novalidate class="p-5">
                     <input type="hidden" id="tradeId">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Symbol *</label>
-                            <select id="tradeSymbol" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" required>
-                                <option value="EURUSD">EUR/USD</option>
-                                <option value="GBPUSD">GBP/USD</option>
-                                <option value="USDJPY">USD/JPY</option>
-                                <option value="AUDUSD">AUD/USD</option>
-                                <option value="USDCAD">USD/CAD</option>
-                                <option value="NZDUSD">NZD/USD</option>
-                                <option value="USDCHF">USD/CHF</option>
-                                <option value="EURGBP">EUR/GBP</option>
-                                <option value="EURJPY">EUR/JPY</option>
-                                <option value="GBPJPY">GBP/JPY</option>
-                                <option value="XAUUSD">XAU/USD</option>
-                                <option value="BTCUSD">BTC/USD</option>
-                            </select>
+                    <div class="relative min-h-[300px]">
+                        
+                        <!-- STEP 1: BASICS -->
+                        <div id="wizardStep1" class="wizard-step block space-y-4 fade-in">
+                            <h4 class="text-sm font-medium text-accent-light mb-4 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Trade Basics
+                            </h4>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Symbol *</label>
+                                    <select id="tradeSymbol" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" required>
+                                        <option value="EURUSD">EUR/USD</option>
+                                        <option value="GBPUSD">GBP/USD</option>
+                                        <option value="USDJPY">USD/JPY</option>
+                                        <option value="AUDUSD">AUD/USD</option>
+                                        <option value="USDCAD">USD/CAD</option>
+                                        <option value="NZDUSD">NZD/USD</option>
+                                        <option value="USDCHF">USD/CHF</option>
+                                        <option value="XAUUSD">XAU/USD</option>
+                                        <option value="BTCUSD">BTC/USD</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Direction *</label>
+                                    <select id="tradeDirection" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" required>
+                                        <option value="buy">Long (Buy)</option>
+                                        <option value="sell">Short (Sell)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Lot Size *</label>
+                                    <input type="number" id="tradeLotSize" step="0.01" min="0.01" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="0.01" required>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Timeframe</label>
+                                    <select id="tradeTimeframe" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                        <option value="M1">M1</option>
+                                        <option value="M5">M5</option>
+                                        <option value="M15">M15</option>
+                                        <option value="M30">M30</option>
+                                        <option value="H1" selected>H1</option>
+                                        <option value="H4">H4</option>
+                                        <option value="D1">D1</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Session</label>
+                                    <select id="tradeSession" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                        <option value="">None</option>
+                                        <option value="Asian">Asian</option>
+                                        <option value="London">London</option>
+                                        <option value="NewYork">New York</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Status</label>
+                                    <select id="tradeStatus" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                        <option value="open">Open</option>
+                                        <option value="closed">Closed</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Direction *</label>
-                            <select id="tradeDirection" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" required>
-                                <option value="buy">Long (Buy)</option>
-                                <option value="sell">Short (Sell)</option>
-                            </select>
+
+                        <!-- STEP 2: EXECUTION -->
+                        <div id="wizardStep2" class="wizard-step hidden space-y-4">
+                            <h4 class="text-sm font-medium text-accent-light mb-4 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                                Execution Details
+                            </h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-3 p-3 bg-surface-800/30 rounded-lg border border-surface-700/30">
+                                    <h5 class="text-xs font-semibold text-surface-300 mb-2">Entry</h5>
+                                    <div>
+                                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Entry Price *</label>
+                                        <input type="number" id="tradeEntry" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" required>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Entry Time</label>
+                                        <input type="datetime-local" id="tradeEntryTime" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                    </div>
+                                </div>
+                                <div class="space-y-3 p-3 bg-surface-800/30 rounded-lg border border-surface-700/30">
+                                    <h5 class="text-xs font-semibold text-surface-300 mb-2">Targets</h5>
+                                    <div>
+                                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Stop Loss</label>
+                                        <input type="number" id="tradeSL" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Take Profit</label>
+                                        <input type="number" id="tradeTP" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-surface-800/30 rounded-lg border border-surface-700/30">
+                                <h5 class="text-xs font-semibold text-surface-300 mb-2">Exit <span class="text-[10px] font-normal text-surface-500">(Leave empty if open)</span></h5>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Exit Price</label>
+                                        <input type="number" id="tradeExit" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Exit Time</label>
+                                        <input type="datetime-local" id="tradeExitTime" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Lot Size *</label>
-                            <input type="number" id="tradeLotSize" step="0.01" min="0.01" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="0.01" required>
+
+                        <!-- STEP 3: ANALYSIS -->
+                        <div id="wizardStep3" class="wizard-step hidden space-y-4">
+                            <h4 class="text-sm font-medium text-accent-light mb-4 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                Psychology & Strategy
+                            </h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Strategy</label>
+                                    <input type="text" id="tradeStrategy" placeholder="e.g. Breakout, Support/Resistance..." class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Market Condition</label>
+                                    <select id="tradeMarketCondition" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                        <option value="">None</option>
+                                        <option value="trending">Trending</option>
+                                        <option value="ranging">Ranging</option>
+                                        <option value="volatile">Volatile</option>
+                                        <option value="quiet">Quiet</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Emotions</label>
+                                    <select id="tradeEmotions" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
+                                        <option value="">None</option>
+                                        <option value="confident">Confident</option>
+                                        <option value="fearful">Fearful</option>
+                                        <option value="greedy">Greedy</option>
+                                        <option value="fomo">FOMO</option>
+                                        <option value="calm">Calm</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Setup Quality (1-10)</label>
+                                    <input type="number" id="tradeSetupQuality" min="1" max="10" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="5">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Tags</label>
+                                    <input type="text" id="tradeTags" placeholder="Comma separated: breakout, H1, trend" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600">
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Status</label>
-                            <select id="tradeStatus" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
-                                <option value="open">Open</option>
-                                <option value="closed">Closed</option>
-                            </select>
+
+                        <!-- STEP 4: RESULTS -->
+                        <div id="wizardStep4" class="wizard-step hidden space-y-4">
+                            <h4 class="text-sm font-medium text-accent-light mb-4 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                Results & Media
+                            </h4>
+                            <div class="grid grid-cols-4 gap-3">
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">P&L ($)</label>
+                                    <input type="number" id="tradePnl" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Pips</label>
+                                    <input type="number" id="tradePips" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Commission</label>
+                                    <input type="number" id="tradeCommission" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" value="0">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Swap</label>
+                                    <input type="number" id="tradeSwap" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" value="0">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Notes / Journal Entry</label>
+                                <textarea id="tradeNotes" rows="2" placeholder="Trade analysis, lessons learned..." class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600 resize-none"></textarea>
+                            </div>
+                            
+                            <div>
+                                <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Screenshots / Chart Images (Multiple Allowed)</label>
+                                <div class="space-y-3">
+                                    <label class="block border-2 border-dashed border-surface-600/50 rounded-lg p-3 text-center cursor-pointer hover:bg-surface-800/50 transition">
+                                        <input type="file" id="tradeImage" accept="image/*" multiple class="hidden">
+                                        <svg class="w-6 h-6 text-surface-500 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <span class="text-xs text-surface-400 font-medium" id="imageLabel">Click to upload analysis images (Multiple allowed)</span>
+                                    </label>
+                                    
+                                    <div id="imageGallery" class="flex flex-wrap gap-2 min-h-[64px] p-2 bg-surface-900/50 rounded-lg border border-surface-700/40">
+                                        <p class="text-xs text-surface-500 my-auto mx-auto" id="emptyGalleryText">No images attached yet</p>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="tradeScreenshotBase64">
+                            </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Entry Price *</label>
-                            <input type="number" id="tradeEntry" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" required>
+
+                    <div class="flex items-center justify-between pt-4 mt-2 border-t border-surface-700/50">
+                        <button type="button" id="btnPrevStep" class="px-4 py-2 bg-surface-800 text-surface-300 hover:text-white rounded-lg text-sm font-medium transition invisible">Previous</button>
+                        <div class="flex gap-3">
+                            <button type="button" id="btnCancelModal" class="px-4 py-2 text-surface-400 hover:text-surface-200 text-sm font-medium transition">Cancel</button>
+                            <button type="button" id="btnNextStep" class="px-5 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-semibold transition-all">Next</button>
+                            <button type="submit" id="btnSaveTrade" class="hidden px-5 py-2 bg-profit hover:bg-profit-dark text-white rounded-lg text-sm font-semibold transition-all">Save Trade</button>
                         </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Exit Price</label>
-                            <input type="number" id="tradeExit" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Stop Loss</label>
-                            <input type="number" id="tradeSL" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Take Profit</label>
-                            <input type="number" id="tradeTP" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">P&L ($)</label>
-                            <input type="number" id="tradePnl" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Pips</label>
-                            <input type="number" id="tradePips" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Commission</label>
-                            <input type="number" id="tradeCommission" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" value="0">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Swap</label>
-                            <input type="number" id="tradeSwap" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" value="0">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Entry Time</label>
-                            <input type="datetime-local" id="tradeEntryTime" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Exit Time</label>
-                            <input type="datetime-local" id="tradeExitTime" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Timeframe</label>
-                            <select id="tradeTimeframe" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
-                                <option value="M1">M1</option>
-                                <option value="M5">M5</option>
-                                <option value="M15">M15</option>
-                                <option value="M30">M30</option>
-                                <option value="H1" selected>H1</option>
-                                <option value="H4">H4</option>
-                                <option value="D1">D1</option>
-                                <option value="W1">W1</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Session</label>
-                            <select id="tradeSession" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
-                                <option value="">None</option>
-                                <option value="Asian">Asian</option>
-                                <option value="London">London</option>
-                                <option value="NewYork">New York</option>
-                                <option value="Overlap">London/NY Overlap</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Strategy</label>
-                            <input type="text" id="tradeStrategy" placeholder="e.g. Breakout, Trend Following..." class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Market Condition</label>
-                            <select id="tradeMarketCondition" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
-                                <option value="">None</option>
-                                <option value="trending">Trending</option>
-                                <option value="ranging">Ranging</option>
-                                <option value="volatile">Volatile</option>
-                                <option value="quiet">Quiet</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Emotions</label>
-                            <select id="tradeEmotions" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200">
-                                <option value="">None</option>
-                                <option value="confident">Confident</option>
-                                <option value="fearful">Fearful</option>
-                                <option value="greedy">Greedy</option>
-                                <option value="fomo">FOMO</option>
-                                <option value="calm">Calm</option>
-                                <option value="frustrated">Frustrated</option>
-                                <option value="revenge">Revenge Trading</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Setup Quality (1-10)</label>
-                            <input type="number" id="tradeSetupQuality" min="1" max="10" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200" value="5">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Tags</label>
-                        <input type="text" id="tradeTags" placeholder="Comma separated: breakout, H1, trend" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600">
-                    </div>
-                    <div>
-                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Notes</label>
-                        <textarea id="tradeNotes" rows="3" placeholder="Trade analysis, lessons learned..." class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 placeholder-surface-600 resize-none"></textarea>
-                    </div>
-                    <div class="flex items-center justify-end gap-3 pt-2 border-t border-surface-700/50">
-                        <button type="button" id="btnCancelModal" class="px-4 py-2 text-surface-400 hover:text-surface-200 text-sm font-medium transition">Cancel</button>
-                        <button type="submit" class="px-5 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-semibold transition-all">Save Trade</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
+    <!-- Quick Close Modal -->
+    <div id="closeTradeModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" id="closeOverlay"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="modal glass-card rounded-xl w-full max-w-sm p-5">
+                <h3 class="text-base font-semibold text-white mb-4">Close Trade</h3>
+                <input type="hidden" id="quickCloseId">
+                <div class="space-y-3 mb-5">
+                    <div>
+                        <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Exit Price *</label>
+                        <input type="number" id="quickExitPrice" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">P&L ($)</label>
+                            <input type="number" id="quickPnl" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-surface-400 uppercase tracking-wider block mb-1">Pips</label>
+                            <input type="number" id="quickPips" step="any" class="w-full bg-surface-800/50 border border-surface-600/50 rounded-lg px-3 py-2 text-sm text-surface-200 font-mono">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button id="btnCancelClose" class="px-3 py-1.5 text-surface-400 hover:text-white text-sm">Cancel</button>
+                    <button id="btnConfirmClose" class="px-4 py-1.5 bg-profit text-white rounded-lg text-sm font-semibold">Confirm Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="lightboxModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="relative max-w-5xl max-h-[90vh] flex flex-col items-center">
+            <button id="btnCloseLightbox" class="absolute -top-10 right-0 text-white hover:text-red-400 p-2 text-sm font-semibold flex items-center gap-1 cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                Close
+            </button>
+            <img id="lightboxImg" src="" class="max-w-full max-h-[85vh] rounded-xl shadow-2xl border border-surface-700 object-contain">
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
 
+    <script src="js/modules/api.js"></script>
+    <script src="js/modules/media.js"></script>
+    <script src="js/modules/wizard.js"></script>
+    <script src="js/modules/trades.js"></script>
+    <script src="js/modules/charts.js"></script>
+    <script src="js/modules/calendar.js"></script>
+    <script src="js/modules/settings.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

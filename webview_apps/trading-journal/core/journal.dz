@@ -1,8 +1,8 @@
 import "database.dz" as db
+import "media.dz" as media
 use json
 use datetime
 use file
-use dir
 use path
 use process
 
@@ -37,121 +37,108 @@ fn getTrades(filter = {})
 
     if filter.has("date_to") and filter["date_to"] != ""
         where = where + " AND entry_time <= ?"
-        params.append(filter["date_to"])
+        params.append(filter["date_to"] + " 23:59:59")
     end
 
     if filter.has("search") and filter["search"] != ""
-        where = where + " AND (symbol LIKE ? OR notes LIKE ? OR strategy LIKE ?)"
-        let s = "%" + filter["search"] + "%"
-        params.append(s)
-        params.append(s)
-        params.append(s)
+        where = where + " AND (symbol LIKE ? OR notes LIKE ? OR tags LIKE ?)"
+        let term = "%" + filter["search"] + "%"
+        params.append(term)
+        params.append(term)
+        params.append(term)
     end
 
     let query = "SELECT * FROM trades ${where} ORDER BY entry_time DESC"
-
-    if filter.has("limit")
-        query = query + " LIMIT " + str(filter["limit"])
-    end
-
-    let rows = db.queryAll(query, params)
-    let trades = []
-    for row in rows
-        let trade = _rowToTrade(row)
-        trades.append(trade)
-    end
-    return trades
+    return db.queryAll(query, params)
 end
 
-fn _rowToTrade(row)
-    return {
-        "id": row[0],
-        "symbol": row[1],
-        "direction": row[2],
-        "entry_price": row[3],
-        "exit_price": row[4],
-        "lot_size": row[5],
-        "stop_loss": row[6],
-        "take_profit": row[7],
-        "entry_time": row[8],
-        "exit_time": row[9],
-        "pnl": row[10],
-        "pnl_pips": row[11],
-        "commission": row[12],
-        "swap": row[13],
-        "net_pnl": row[14],
-        "status": row[15],
-        "timeframe": row[16],
-        "strategy": row[17],
-        "session": row[18],
-        "tags": row[19],
-        "notes": row[20],
-        "screenshot": row[21],
-        "emotions": row[22],
-        "setup_quality": row[23],
-        "market_condition": row[24],
-        "confidence_level": row[25],
-        "created_at": row[26],
-        "updated_at": row[27]
-    }
+fn getTrade(id)
+    let rows = db.queryAll("SELECT * FROM trades WHERE id = ?", [id])
+    if rows.length() == 0
+        return Null
+    end
+    return rows[0]
 end
 
 fn addTrade(trade)
-    let now = datetime.now().format("%Y-%m-%d %H:%M:%S")
-    let netPnl = trade["pnl"] - trade["commission"] + trade["swap"]
+    try
+        let netPnl = trade["pnl"] - trade["commission"] + trade["swap"]
 
-    db.getDB().safeExecute("
-        INSERT INTO trades (
-            symbol, direction, entry_price, exit_price, lot_size,
-            stop_loss, take_profit, entry_time, exit_time,
-            pnl, pnl_pips, commission, swap, net_pnl,
-            status, timeframe, strategy, session, tags,
-            notes, screenshot, emotions, setup_quality,
-            market_condition, confidence_level
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ", [
-        trade["symbol"], trade["direction"], trade["entry_price"],
-        trade["exit_price"], trade["lot_size"], trade["stop_loss"],
-        trade["take_profit"], trade["entry_time"], trade["exit_time"],
-        trade["pnl"], trade["pnl_pips"], trade["commission"],
-        trade["swap"], netPnl, trade["status"], trade["timeframe"],
-        trade["strategy"], trade["session"], trade["tags"],
-        trade["notes"], trade["screenshot"], trade["emotions"],
-        trade["setup_quality"], trade["market_condition"],
-        trade["confidence_level"]
-    ])
+        db.getDB().safeExecute("
+            INSERT INTO trades (
+                symbol, direction, entry_price, exit_price, lot_size,
+                stop_loss, take_profit, entry_time, exit_time,
+                pnl, pnl_pips, commission, swap, net_pnl,
+                status, timeframe, strategy, session, tags,
+                notes, screenshot, emotions, setup_quality,
+                market_condition, confidence_level
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ", [
+            trade["symbol"], trade["direction"], trade["entry_price"],
+            trade["exit_price"], trade["lot_size"], trade["stop_loss"],
+            trade["take_profit"], trade["entry_time"], trade["exit_time"],
+            trade["pnl"], trade["pnl_pips"], trade["commission"],
+            trade["swap"], netPnl, trade["status"], trade["timeframe"],
+            trade["strategy"], trade["session"], trade["tags"],
+            trade["notes"], "", trade["emotions"],
+            trade["setup_quality"], trade["market_condition"],
+            trade["confidence_level"]
+        ])
 
-    let id = db.getDB().insertId()
-    return {"success": True, "id": id}
+        let id = db.getDB().insertId()
+
+        let screenshotPath = trade["screenshot"]
+        if isString(screenshotPath) and screenshotPath != ""
+            if screenshotPath.startsWith("data:image")
+                screenshotPath = media._saveScreenshot(screenshotPath, id)
+            end
+            db.getDB().safeExecute("UPDATE trades SET screenshot=? WHERE id=?", [screenshotPath, id])
+        end
+
+        return {"success": True, "id": id}
+    catch e
+        file.write("data/error_log.txt", "Exception in addTrade: " + str(e))
+        return {"success": False, "error": str(e)}
+    end
 end
 
 fn updateTrade(trade)
-    let netPnl = trade["pnl"] - trade["commission"] + trade["swap"]
-    let now = datetime.now().format("%Y-%m-%d %H:%M:%S")
+    try
+        let netPnl = trade["pnl"] - trade["commission"] + trade["swap"]
+        let now = datetime.now().format("%Y-%m-%d %H:%M:%S")
+        
+        let savedPath = trade["screenshot"]
+        if isString(savedPath) and savedPath != "" and savedPath.startsWith("data:image")
+            savedPath = media._saveScreenshot(trade["screenshot"], trade["id"])
+        end
 
-    db.getDB().safeExecute("
-        UPDATE trades SET
-            symbol=?, direction=?, entry_price=?, exit_price=?,
-            lot_size=?, stop_loss=?, take_profit=?, entry_time=?,
-            exit_time=?, pnl=?, pnl_pips=?, commission=?, swap=?,
-            net_pnl=?, status=?, timeframe=?, strategy=?, session=?,
-            tags=?, notes=?, screenshot=?, emotions=?,
-            setup_quality=?, market_condition=?, confidence_level=?,
-            updated_at=?
-        WHERE id=?
-    ", [
-        trade["symbol"], trade["direction"], trade["entry_price"],
-        trade["exit_price"], trade["lot_size"], trade["stop_loss"],
-        trade["take_profit"], trade["entry_time"], trade["exit_time"],
-        trade["pnl"], trade["pnl_pips"], trade["commission"],
-        trade["swap"], netPnl, trade["status"], trade["timeframe"],
-        trade["strategy"], trade["session"], trade["tags"],
-        trade["notes"], trade["screenshot"], trade["emotions"],
-        trade["setup_quality"], trade["market_condition"],
-        trade["confidence_level"], now, trade["id"]
-    ])
+        db.getDB().safeExecute("
+            UPDATE trades SET
+                symbol=?, direction=?, entry_price=?, exit_price=?,
+                lot_size=?, stop_loss=?, take_profit=?, entry_time=?,
+                exit_time=?, pnl=?, pnl_pips=?, commission=?, swap=?,
+                net_pnl=?, status=?, timeframe=?, strategy=?, session=?,
+                tags=?, notes=?, screenshot=?, emotions=?,
+                setup_quality=?, market_condition=?, confidence_level=?,
+                updated_at=?
+            WHERE id=?
+        ", [
+            trade["symbol"], trade["direction"], trade["entry_price"],
+            trade["exit_price"], trade["lot_size"], trade["stop_loss"],
+            trade["take_profit"], trade["entry_time"], trade["exit_time"],
+            trade["pnl"], trade["pnl_pips"], trade["commission"],
+            trade["swap"], netPnl, trade["status"], trade["timeframe"],
+            trade["strategy"], trade["session"], trade["tags"],
+            trade["notes"], savedPath, trade["emotions"],
+            trade["setup_quality"], trade["market_condition"],
+            trade["confidence_level"], now, trade["id"]
+        ])
 
-    return {"success": True}
+        return {"success": True}
+    catch e
+        file.write("data/error_log.txt", "Exception in updateTrade: " + str(e))
+        return {"success": False, "error": str(e)}
+    end
 end
 
 fn deleteTrade(id)
@@ -159,84 +146,75 @@ fn deleteTrade(id)
     return {"success": True}
 end
 
-fn saveTradeNote(data)
-    let now = datetime.now().format("%Y-%m-%d %H:%M:%S")
-    db.getDB().safeExecute(
-        "UPDATE trades SET notes=?, screenshot=?, updated_at=? WHERE id=?",
-        [data["notes"], data["screenshot"], now, data["id"]]
-    )
+fn getTags()
+    let rows = db.queryAll("SELECT tags FROM trades WHERE tags IS NOT NULL AND tags != ''", [])
+    let tagSet = {}
+    for r in rows
+        try
+            let list = json.decode(r["tags"])
+            for t in list
+                tagSet[t] = True
+            end
+        catch e
+        end
+    end
+    return tagSet.keys()
+end
+
+fn saveTradeNote(tradeId, note)
+    db.getDB().safeExecute("UPDATE trades SET notes = ? WHERE id = ?", [note, tradeId])
     return {"success": True}
 end
 
-fn getTags()
-    let rows = db.queryAll("SELECT * FROM tags", [])
-    let tags = []
-    for row in rows
-        tags.append({"id": row[0], "name": row[1], "color": row[2]})
-    end
-    return tags
-end
-
 fn getJournalStats()
-    let total = _scalarQuery("SELECT COUNT(*) FROM trades")
-    let openCount = _scalarQuery("SELECT COUNT(*) FROM trades WHERE status='open'")
-    let closed = _scalarQuery("SELECT COUNT(*) FROM trades WHERE status='closed'")
-    let pnl = _scalarQuery("SELECT COALESCE(SUM(net_pnl), 0) FROM trades WHERE status='closed'")
-    let wins = _scalarQuery("SELECT COUNT(*) FROM trades WHERE status='closed' AND net_pnl > 0")
-    let losses = _scalarQuery("SELECT COUNT(*) FROM trades WHERE status='closed' AND net_pnl <= 0")
-
-    let winRate = 0
-    if closed > 0
-        winRate = (wins * 100.0) / closed
+    let totalRow = db.queryRow("SELECT COUNT(*) as cnt FROM trades", [])
+    let total = 0
+    if !isNull(totalRow) and !isNull(totalRow["cnt"])
+        total = totalRow["cnt"]
     end
 
-    let avgW = _scalarQuery("SELECT COALESCE(AVG(net_pnl), 0) FROM trades WHERE status='closed' AND net_pnl > 0")
-    let avgL = _scalarQuery("SELECT COALESCE(AVG(net_pnl), 0) FROM trades WHERE status='closed' AND net_pnl <= 0")
-
-    let profitFactor = 0
-    if avgL != 0
-        profitFactor = abs(avgW / avgL)
+    let winsRow = db.queryRow("SELECT COUNT(*) as cnt FROM trades WHERE net_pnl > 0", [])
+    let wins = 0
+    if !isNull(winsRow) and !isNull(winsRow["cnt"])
+        wins = winsRow["cnt"]
     end
 
-    let settings = db.getSettings()
-    let balance = 10000
-    if settings.has("account_balance")
-        balance = num(settings["account_balance"])
+    let lossesRow = db.queryRow("SELECT COUNT(*) as cnt FROM trades WHERE net_pnl < 0", [])
+    let losses = 0
+    if !isNull(lossesRow) and !isNull(lossesRow["cnt"])
+        losses = lossesRow["cnt"]
+    end
+
+    let openRow = db.queryRow("SELECT COUNT(*) as cnt FROM trades WHERE status = 'open'", [])
+    let openCount = 0
+    if !isNull(openRow) and !isNull(openRow["cnt"])
+        openCount = openRow["cnt"]
+    end
+
+    let closedRow = db.queryRow("SELECT COUNT(*) as cnt FROM trades WHERE status = 'closed'", [])
+    let closedCount = 0
+    if !isNull(closedRow) and !isNull(closedRow["cnt"])
+        closedCount = closedRow["cnt"]
+    end
+
+    let netPnlRow = db.queryRow("SELECT SUM(net_pnl) as total FROM trades", [])
+    let netPnl = 0.0
+    if !isNull(netPnlRow) and !isNull(netPnlRow["total"])
+        netPnl = netPnlRow["total"]
+    end
+
+    let winRate = 0.0
+    if closedCount > 0
+        winRate = (wins * 100.0) / closedCount
     end
 
     return {
-        "total_trades": total,
-        "open_trades": openCount,
-        "closed_trades": closed,
-        "total_pnl": round(pnl, 2),
-        "winning_trades": wins,
-        "losing_trades": losses,
-        "win_rate": round(winRate, 1),
-        "avg_win": round(avgW, 2),
-        "avg_loss": round(avgL, 2),
-        "profit_factor": round(profitFactor, 2),
-        "account_balance": balance,
-        "equity": round(balance + pnl, 2)
+        "totalTrades": total,
+        "winningTrades": wins,
+        "losingTrades": losses,
+        "openTrades": openCount,
+        "closedTrades": closedCount,
+        "netPnl": netPnl,
+        "winRate": winRate
     }
-end
-
-fn _scalarQuery(sql, params = [])
-    let row = db.queryRow(sql, params)
-    if isNull(row) return 0 end
-    if isNull(row[0]) return 0 end
-    return row[0]
-end
-
-fn exportData(params)
-    let trades = getTrades(params)
-    let jsonData = json.encode(trades)
-    let exportDir = path.join(process.scriptDir(), "data", "exports")
-    try
-        dir.createAll(exportDir)
-    catch err
-    end
-    let timestamp = datetime.now().format("%Y%m%d_%H%M%S")
-    let filePath = path.join(exportDir, "trades_export_${timestamp}.json")
-    file.write(filePath, jsonData)
-    return {"success": True, "path": filePath, "count": trades.length()}
 end

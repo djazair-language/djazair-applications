@@ -41,8 +41,9 @@ fn getAnalytics(params = {})
     end
 
     let profitFactor = 0
-    if aLoss != 0
-        profitFactor = abs(aWin / aLoss)
+    let grossLoss = aLoss * losses
+    if grossLoss != 0
+        profitFactor = abs((aWin * wins) / grossLoss)
     end
 
     let expectancy = 0
@@ -50,8 +51,8 @@ fn getAnalytics(params = {})
         expectancy = pnl / total
     end
 
-    let maxConsecutiveWins = _getMaxConsecutive("win")
-    let maxConsecutiveLosses = _getMaxConsecutive("loss")
+    let maxConsecutiveWins = _getMaxConsecutive("win", where, filterParams)
+    let maxConsecutiveLosses = _getMaxConsecutive("loss", where, filterParams)
 
     let longCount = _scalar("SELECT COUNT(*) FROM trades ${where} AND direction='buy'", filterParams)
     let shortCount = _scalar("SELECT COUNT(*) FROM trades ${where} AND direction='sell'", filterParams)
@@ -96,15 +97,15 @@ fn getAnalytics(params = {})
 end
 
 fn _scalar(sql, params = [])
-    let row = db.queryRow(sql, params)
+    let row = db.queryRowIndexed(sql, params)
     if isNull(row) return 0 end
     if isNull(row[0]) return 0 end
     return row[0]
 end
 
-fn _getMaxConsecutive(type)
-    let rows = db.queryAll(
-        "SELECT net_pnl FROM trades WHERE status='closed' ORDER BY entry_time ASC", []
+fn _getMaxConsecutive(type, where, params)
+    let rows = db.queryAllIndexed(
+        "SELECT net_pnl FROM trades ${where} ORDER BY entry_time ASC", params
     )
     let maxCount = 0
     let currentCount = 0
@@ -148,7 +149,7 @@ fn getEquityCurve(params = {})
         balance = num(settings["account_balance"])
     end
 
-    let rows = db.queryAll(
+    let rows = db.queryAllIndexed(
         "SELECT entry_time, net_pnl FROM trades ${where} ORDER BY entry_time ASC",
         filterParams
     )
@@ -178,7 +179,7 @@ fn getDailyPnl(params = {})
         filterParams.append(params["date_to"])
     end
 
-    let rows = db.queryAll(
+    let rows = db.queryAllIndexed(
         "SELECT DATE(entry_time) as day, SUM(net_pnl), COUNT(*) FROM trades ${where} GROUP BY day ORDER BY day ASC",
         filterParams
     )
@@ -208,7 +209,7 @@ fn getPerformanceBySymbol(params = {})
         filterParams.append(params["date_to"])
     end
 
-    let rows = db.queryAll(
+    let rows = db.queryAllIndexed(
         "SELECT symbol, COUNT(*), SUM(net_pnl), AVG(net_pnl), " +
         "SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as wins " +
         "FROM trades ${where} GROUP BY symbol ORDER BY SUM(net_pnl) DESC",
@@ -248,7 +249,7 @@ fn getPerformanceBySession(params = {})
         filterParams.append(params["date_to"])
     end
 
-    let rows = db.queryAll(
+    let rows = db.queryAllIndexed(
         "SELECT session, COUNT(*), SUM(net_pnl), AVG(net_pnl), " +
         "SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as wins " +
         "FROM trades ${where} GROUP BY session ORDER BY SUM(net_pnl) DESC",
@@ -288,7 +289,7 @@ fn getPerformanceByDay(params = {})
         filterParams.append(params["date_to"])
     end
 
-    let rows = db.queryAll(
+    let rows = db.queryAllIndexed(
         "SELECT strftime('%w', entry_time) as day_num, COUNT(*), SUM(net_pnl), " +
         "SUM(CASE WHEN net_pnl > 0 THEN 1 ELSE 0 END) as wins " +
         "FROM trades ${where} GROUP BY day_num ORDER BY day_num ASC",

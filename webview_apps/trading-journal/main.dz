@@ -1,16 +1,16 @@
 use webview
-use json
 use process
-use file
 use path
+use file
 
 import "core/database.dz" as db
 import "core/journal.dz" as journal
+import "core/media.dz" as media
 import "core/analytics.dz" as analytics
+import "core/settings.dz" as settings
 
 fn main()
     print("Starting Trading Journal...")
-
     db.init()
 
     let app = webview.createWindow({
@@ -24,108 +24,90 @@ fn main()
     })
 
     let win = app.window
+    win.navigate("ui/index.html")
 
-    # Bridge: Load trades
+    # ═══════════════════════════════════════════════════════════════
+    # IPC BRIDGE CHANNELS
+    # ═══════════════════════════════════════════════════════════════
+
+    # --- Trades CRUD Channel ---
     app.bridge.on("get_trades", fn(filter)
         return journal.getTrades(filter)
     end)
 
-    # Bridge: Add trade
     app.bridge.on("add_trade", fn(trade)
         return journal.addTrade(trade)
     end)
 
-    # Bridge: Update trade
     app.bridge.on("update_trade", fn(trade)
         return journal.updateTrade(trade)
     end)
 
-    # Bridge: Delete trade
     app.bridge.on("delete_trade", fn(data)
         return journal.deleteTrade(data["id"])
     end)
 
-    # Bridge: Get analytics
+    app.bridge.on("get_journal_stats", fn(payload)
+        return journal.getJournalStats()
+    end)
+
+    app.bridge.on("get_tags", fn(payload)
+        return journal.getTags()
+    end)
+
+    app.bridge.on("save_trade_note", fn(data)
+        return journal.saveTradeNote(data["trade_id"], data["note"])
+    end)
+
+    # --- Media Channel ---
+    app.bridge.on("upload_image", fn(data)
+        return media.uploadImage(data["base64"])
+    end)
+
+    app.bridge.on("get_image_data", fn(data)
+        return media.getImageData(data["path"])
+    end)
+
+    # --- Analytics Channel ---
     app.bridge.on("get_analytics", fn(params)
         return analytics.getAnalytics(params)
     end)
 
-    # Bridge: Get equity curve
-    app.bridge.on("get_equity_curve", fn(params)
-        return analytics.getEquityCurve(params)
-    end)
-
-    # Bridge: Get daily P&L
     app.bridge.on("get_daily_pnl", fn(params)
         return analytics.getDailyPnl(params)
     end)
 
-    # Bridge: Get performance by symbol
     app.bridge.on("get_performance_by_symbol", fn(params)
-        return analytics.getPerformanceBySymbol(params)
+        return analytics.getPerformanceBySymbol()
     end)
 
-    # Bridge: Get performance by session
     app.bridge.on("get_performance_by_session", fn(params)
-        return analytics.getPerformanceBySession(params)
+        return analytics.getPerformanceBySession()
     end)
 
-    # Bridge: Get performance by day
     app.bridge.on("get_performance_by_day", fn(params)
-        return analytics.getPerformanceByDay(params)
+        return analytics.getPerformanceByDay()
     end)
 
-    # Bridge: Export data
-    app.bridge.on("export_data", fn(params)
-        return journal.exportData(params)
+    # --- Settings & Data Export Channel ---
+    app.bridge.on("get_settings", fn(payload)
+        return settings.getSettings()
     end)
 
-    # Bridge: Get settings
-    app.bridge.on("get_settings", fn(_)
-        return db.getSettings()
+    app.bridge.on("save_settings", fn(data)
+        return settings.saveSettings(data)
     end)
 
-    # Bridge: Save settings
-    app.bridge.on("save_settings", fn(settings)
-        return db.saveSettings(settings)
+    app.bridge.on("export_data", fn(payload)
+        return settings.exportData()
     end)
 
-    # Bridge: Get journal stats
-    app.bridge.on("get_journal_stats", fn(payload)
-        print(">>> get_journal_stats called")
-        let stats = journal.getJournalStats()
-        print(">>> stats: ${stats}")
-        return stats
-    end)
-
-    # Bridge: Get tags
-    app.bridge.on("get_tags", fn(_)
-        return journal.getTags()
-    end)
-
-    # Bridge: Save screenshot/note for trade
-    app.bridge.on("save_trade_note", fn(data)
-        return journal.saveTradeNote(data)
-    end)
-
-    app.onReady(fn()
-        print("Trading Journal ready!")
-    end)
-
-    app.onQuit(fn()
-        print("Shutting down Trading Journal...")
-        db.close()
-    end)
-
-    let scriptDir = process.scriptDir()
-    let uiPath = path.join(scriptDir, "ui", "index.html")
-    let jsPath = path.join(scriptDir, "ui", "js", "app.js")
-    let htmlContent = file.read(uiPath)
-    let jsContent = file.read(jsPath)
-    let fullHtml = htmlContent.replace("<script src=\"js/app.js\"></script>", "<script>${jsContent}</script>")
-    win.setHtml(fullHtml)
-
+    # ═══════════════════════════════════════════════════════════════
+    # APP EVENT LOOP
+    # ═══════════════════════════════════════════════════════════════
+    print("Trading Journal ready!")
     app.run()
+    print("Shutting down Trading Journal...")
 end
 
 main()

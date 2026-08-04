@@ -97,12 +97,28 @@ end
 fn queryRow(sql, params = [])
     let rs = _db.safeQuery(sql, params)
     if isNull(rs) return Null end
+    let row = rs.fetchAssoc()
+    rs.close()
+    return row
+end
+
+fn queryRowIndexed(sql, params = [])
+    let rs = _db.safeQuery(sql, params)
+    if isNull(rs) return Null end
     let row = rs.fetchRow()
     rs.close()
     return row
 end
 
 fn queryAll(sql, params = [])
+    let rs = _db.safeQuery(sql, params)
+    if isNull(rs) return [] end
+    let results = rs.fetchAllAssoc()
+    rs.close()
+    return results
+end
+
+fn queryAllIndexed(sql, params = [])
     let rs = _db.safeQuery(sql, params)
     if isNull(rs) return [] end
     let results = []
@@ -119,7 +135,7 @@ fn getSettings()
     let rows = queryAll("SELECT key, value FROM settings", [])
     let settings = {}
     for row in rows
-        settings[row[0]] = row[1]
+        settings[row["key"]] = row["value"]
     end
     return settings
 end
@@ -128,7 +144,7 @@ fn saveSettings(settings)
     for key in settings.keys()
         _db.safeExecute(
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-            [key, settings[key]]
+            [key, str(settings[key])]
         )
     end
     return {"success": True}

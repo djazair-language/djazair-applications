@@ -1,0 +1,92 @@
+import "database.dz" as db
+use json
+use datetime
+use file
+use path
+use process
+
+fn getSettings()
+    let settingsMap = db.getSettings()
+    if isNull(settingsMap) or settingsMap.keys().length() == 0
+        return {
+            "initialBalance": 10000.0,
+            "currency": "USD",
+            "theme": "dark",
+            "riskPerTrade": 1.0,
+            "maxDrawdown": 10.0
+        }
+    end
+
+    let initialBalance = 10000.0
+    if settingsMap.has("account_balance")
+        initialBalance = num(settingsMap["account_balance"])
+    end
+
+    let riskPerTrade = 1.0
+    if settingsMap.has("risk_per_trade")
+        riskPerTrade = num(settingsMap["risk_per_trade"])
+    end
+
+    let maxDrawdown = 10.0
+    if settingsMap.has("max_daily_loss")
+        maxDrawdown = num(settingsMap["max_daily_loss"])
+    end
+
+    return {
+        "initialBalance": initialBalance,
+        "currency": if settingsMap.has("currency") ? settingsMap["currency"] else "USD",
+        "theme": if settingsMap.has("theme") ? settingsMap["theme"] else "dark",
+        "riskPerTrade": riskPerTrade,
+        "maxDrawdown": maxDrawdown
+    }
+end
+
+fn saveSettings(newSettings)
+    let mapToSave = {
+        "account_balance": str(if newSettings.has("initialBalance") ? newSettings["initialBalance"] else 10000),
+        "risk_per_trade": str(if newSettings.has("riskPerTrade") ? newSettings["riskPerTrade"] else 1),
+        "currency": str(if newSettings.has("currency") ? newSettings["currency"] else "USD"),
+        "max_daily_loss": str(if newSettings.has("maxDrawdown") ? newSettings["maxDrawdown"] else 10),
+        "theme": str(if newSettings.has("theme") ? newSettings["theme"] else "dark")
+    }
+    return db.saveSettings(mapToSave)
+end
+
+fn exportData()
+    let trades = db.queryAll("SELECT * FROM trades ORDER BY entry_time ASC", [])
+    let csv = "ID,Symbol,Direction,Entry Price,Exit Price,Lot Size,Stop Loss,Take Profit,Entry Time,Exit Time,PnL,Pips,Commission,Swap,Net PnL,Status,Timeframe,Strategy,Session,Tags,Notes,Emotions,Setup Quality,Market Condition\n"
+
+    for t in trades
+        let row = [
+            str(t["id"]),
+            t["symbol"],
+            t["direction"],
+            str(t["entry_price"]),
+            str(if isNull(t["exit_price"]) ? "" else t["exit_price"]),
+            str(t["lot_size"]),
+            str(if isNull(t["stop_loss"]) ? "" else t["stop_loss"]),
+            str(if isNull(t["take_profit"]) ? "" else t["take_profit"]),
+            str(t["entry_time"]),
+            str(if isNull(t["exit_time"]) ? "" else t["exit_time"]),
+            str(t["pnl"]),
+            str(t["pnl_pips"]),
+            str(t["commission"]),
+            str(t["swap"]),
+            str(t["net_pnl"]),
+            t["status"],
+            t["timeframe"],
+            str(if isNull(t["strategy"]) ? "" else t["strategy"]),
+            str(if isNull(t["session"]) ? "" else t["session"]),
+            str(if isNull(t["tags"]) ? "" else t["tags"]),
+            str(if isNull(t["notes"]) ? "" else t["notes"]),
+            str(if isNull(t["emotions"]) ? "" else t["emotions"]),
+            str(t["setup_quality"]),
+            str(if isNull(t["market_condition"]) ? "" else t["market_condition"])
+        ]
+        csv = csv + row.join(",") + "\n"
+    end
+
+    let exportPath = path.join(process.scriptDir(), "data", "trades_export.csv")
+    file.write(exportPath, csv)
+    return {"success": True, "path": exportPath, "csv": csv}
+end
