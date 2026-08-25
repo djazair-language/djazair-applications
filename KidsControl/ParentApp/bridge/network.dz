@@ -133,7 +133,7 @@ while running
         let rContent = ""
         try
             let c = new net.tcpClient()
-            c.setTimeout(0.5)
+            c.setTimeout(2.0)
             if c.connect(ip, port)
                 c.send("KIDS_CTRL_2026|||PING")
                 let r = c.receive(128)
@@ -154,7 +154,7 @@ end
     let payloads = []
     for ip in candidates payloads.append({"ip": ip, "port": port}) end
     
-    let results = p.map(payloads, 1.5)
+    let results = p.map(payloads, 3.0)
     p.close()
 
     if !isNull(results) and type(results) == "Array"
