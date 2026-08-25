@@ -1,5 +1,0 @@
-use datetime
-let d = datetime.now()
-print(str(d))
-try print(d.hour) catch e end
-try print(d.hour()) catch e end

@@ -1,6 +1,0 @@
-let code = `
-let ps = \`
-hello
-\`
-`
-print(code)

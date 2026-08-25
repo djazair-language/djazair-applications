@@ -1,0 +1,75 @@
+use process
+import "system.dz" as system
+
+let SECRET = "KIDS_CTRL_2026"
+
+/**
+ * Dispatches the raw payload to the appropriate system command.
+ * @param {string} raw - The raw command payload received from network.
+ * @param {string} systemHostname - The hostname of this machine.
+ * @return {string} The result of the command execution.
+ */
+fn dispatch(raw, systemHostname)
+    let parts = raw.split("|||")
+    if parts.length() < 2 or parts[0] != SECRET
+        return "ERR:UNAUTHORIZED"
+    end
+    
+    let cmd = parts[1].strip()
+    print("[Agent] Received: " + cmd.slice(0, 80))
+
+    # Command matching using if/elif (cleaner structure)
+    if cmd == "PING"
+        return "PONG:" + systemHostname
+        
+    elif cmd == "SYSINFO"
+        return system.getSysInfo()
+        
+    elif cmd == "LOCK"
+        process.exec("rundll32.exe user32.dll,LockWorkStation")
+        return "OK:LOCK"
+        
+    elif cmd == "SHUTDOWN"
+        process.exec("shutdown /s /t 5")
+        return "OK:SHUTDOWN"
+        
+    elif cmd == "RESTART"
+        process.exec("shutdown /r /t 5")
+        return "OK:RESTART"
+        
+    elif cmd == "SCREENSHOT"
+        return system.takeScreenshot()
+        
+    elif cmd == "WEBCAM"
+        return system.takeWebcamSnapshot()
+        
+    elif cmd == "ACTIVE_WINDOW"
+        return system.getActiveWindow()
+        
+    elif cmd == "TASKS"
+        return system.getTasks()
+        
+    elif cmd.startsWith("KILL:")
+        return system.killTask(cmd.slice(5, cmd.length()).strip())
+        
+    elif cmd.startsWith("MSG:")
+        return system.showMessage(cmd.slice(4, cmd.length()))
+        
+    elif cmd.startsWith("BLOCK:")
+        return system.blockDomain(cmd.slice(6, cmd.length()).strip())
+        
+    elif cmd.startsWith("UNBLOCK:")
+        return system.unblockDomain(cmd.slice(8, cmd.length()).strip())
+        
+    elif cmd.startsWith("SCHEDULE:")
+        return system.setSchedule(cmd.slice(9, cmd.length()).strip())
+        
+    elif cmd.startsWith("EXEC:")
+        let shellCmd = cmd.slice(5, cmd.length())
+        let result = process.exec(shellCmd)
+        return "EXEC_RESULT:" + result["stdout"] + result["stderr"]
+        
+    else
+        return "ERR:UNKNOWN_COMMAND:" + cmd
+    end
+end

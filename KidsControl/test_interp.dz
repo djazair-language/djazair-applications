@@ -1,8 +1,0 @@
-let ip = "127.0.0.1"
-let port = 8888
-let code = `
-try
-    print("${ip}:${port}")
-catch e end
-`
-print(code)
