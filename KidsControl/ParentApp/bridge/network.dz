@@ -6,10 +6,182 @@ use file
 use json
 import "../core/config.dz" as config
 
+let SCAN_RESULTS_FILE = "__kc_scan_results.json"
 let knownOnline = {}
 
-# Notifies the user via a Windows Balloon Tip when a device comes online.
-# @param {string} hostname - The hostname of the device.
+# Background thread code
+let BG_SCANNER_CODE = `
+use net
+use process
+use thread
+use file
+use json
+
+let port = 8888
+
+# Maps to resolve duplicates
+fn deduplicate(results)
+    let seen = {}
+    let final = []
+    for dev in results
+        let h = dev["hostname"]
+        let ip = dev["ip"]
+        if not seen.has(h)
+            seen[h] = True
+            final.append(dev)
+        else
+            if ip != "127.0.0.1"
+                for i in range(final.length())
+                    if final[i]["hostname"] == h and final[i]["ip"] == "127.0.0.1"
+                        final[i]["ip"] = ip
+                    end
+                end
+            end
+        end
+    end
+    return final
+end
+
+while True
+    let candidates = []
+    let found = []
+
+    # 1. UDP Broadcast Discovery
+    try
+        let c = new net.udpClient()
+        c.setTimeout(1.0)
+        let broadcasts = []
+        let r = process.exec("ipconfig")
+        let lines = r["stdout"].split("\n")
+        for line in lines
+            if line.contains("IPv4")
+                let parts = line.split(":")
+                if parts.length() > 1
+                    let ip = parts[1].strip()
+                    let octets = ip.split(".")
+                    if octets.length() == 4
+                        let bcast = octets[0] + "." + octets[1] + "." + octets[2] + ".255"
+                        if not broadcasts.contains(bcast)
+                            broadcasts.append(bcast)
+                        end
+                    end
+                end
+            end
+        end
+        if broadcasts.length() == 0
+            broadcasts.append("255.255.255.255")
+        end
+        for bcast in broadcasts
+            try c.send("KIDS_CTRL_2026|||DISCOVER", bcast, 8889) catch e end
+        end
+        let receiving = True
+        while receiving
+            try
+                let response = c.receiveFrom(1024)
+                let d = response["data"]
+                if type(d) == "String" and d.startsWith("KIDS_CTRL_2026|||HERE:")
+                    if not candidates.contains(response["ip"])
+                        candidates.append(response["ip"])
+                    end
+                end
+            catch e
+                receiving = False
+            end
+        end
+        c.close()
+    catch e end
+
+    # 2. ARP Fallback
+    try
+        let r2 = process.exec("arp -a")
+        let lines2 = r2["stdout"].split("\n")
+        for line in lines2
+            let t = line.strip()
+            if t.length() > 10 and not t.contains("Interface")
+                let parts = t.split(" ")
+                let ips = []
+                for p in parts
+                    if p != "" ips.append(p) end
+                end
+                if ips.length() >= 1
+                    let ip = ips[0]
+                    if ip.contains(".") and ip != "127.0.0.1" and ip != "255.255.255.255"
+                        if not candidates.contains(ip) candidates.append(ip) end
+                    end
+                end
+            end
+        end
+    catch e end
+
+    if not candidates.contains("127.0.0.1") candidates.append("127.0.0.1") end
+
+    # 3. TCP Ping Candidates (Parallel Thread Pool)
+    let workerCode = \`
+use thread
+use net
+use json
+let running = True
+while running
+    let msg = thread.receive()
+    if isNull(msg) or msg == "SHUTDOWN"
+        running = False
+    else
+        let req = json.decode(msg)
+        let payload = req["data"]
+        let ip = payload["ip"]
+        let port = payload["port"]
+        let rContent = ""
+        try
+            let c = new net.tcpClient()
+            c.setTimeout(0.5)
+            if c.connect(ip, port)
+                c.send("KIDS_CTRL_2026|||PING")
+                let r = c.receive(128)
+                c.close()
+                if !isNull(r) and type(r) == "String" and r.startsWith("PONG")
+                    rContent = r
+                end
+            end
+        catch e end
+        thread.reply(json.encode({"id": req["id"], "data": rContent}))
+    end
+end
+\`
+    
+    let poolSize = candidates.length()
+    if poolSize > 30 poolSize = 30 end
+    let p = thread.inlinePool(workerCode, poolSize)
+    let payloads = []
+    for ip in candidates payloads.append({"ip": ip, "port": port}) end
+    
+    let results = p.map(payloads, 1.5)
+    p.close()
+
+    if !isNull(results) and type(results) == "Array"
+        for i in range(candidates.length())
+            let ip = candidates[i]
+            let rContent = results[i]
+            if !isNull(rContent) and type(rContent) == "String" and rContent != ""
+                let hname = ip
+                if rContent.contains(":")
+                    let p = rContent.split(":")
+                    if p.length() > 1 and p[1].strip() != ""
+                        hname = p[1].strip()
+                    end
+                elif ip == "127.0.0.1"
+                    hname = "localhost (this machine)"
+                end
+                found.append({"ip": ip, "hostname": hname, "port": port})
+            end
+        end
+    end
+    
+    let final = deduplicate(found)
+    file.write("__kc_scan_results.json", json.encode(final))
+    process.sleep(3.0)
+end
+`
+
 fn notifyOnline(hostname)
     let code = `
 use file
@@ -33,283 +205,80 @@ try file.delete("__kc_notify.ps1") catch e end
     thread.spawnCode(code)
 end
 
-# Pings a list of candidate IPs and returns the online devices using a Thread Pool.
-# @param {Array} candidates - A list of IP addresses to scan.
-# @param {number} waitTime - The amount of time (in seconds) to wait for responses.
-# @return {Array} List of dictionaries containing device info (ip, hostname, port).
-fn scanIps(candidates, waitTime)
-    let found = []
-    if candidates.length() == 0
-        return found
-    end
-
-    let port = config.AGENT_TCP_PORT
-
-    # Worker code for pinging IPs concurrently without writing to files.
-    let workerCode = `
-use thread
-use json
-use net
-
-let running = True
-while running
-    let msg = thread.receive()
-    if isNull(msg) or msg == "SHUTDOWN"
-        running = False
-    else
-        let req = json.decode(msg)
-        if !isNull(req) and type(req) == "Map" and req.has("id") and req.has("data")
-            let payload = req["data"]
-            let ip = payload["ip"]
-            let port = payload["port"]
-            let rContent = ""
-            
-            try
-                let c = new net.tcpClient()
-                c.setTimeout(1.0)
-                if c.connect(ip, port)
-                    c.send("KIDS_CTRL_2026|||PING")
-                    let r = c.receive(128)
-                    c.close()
-                    if !isNull(r) and type(r) == "String" and r.startsWith("PONG")
-                        rContent = r
-                    end
-                end
-            catch e
-            end
-            
-            thread.reply(json.encode({"id": req["id"], "data": rContent}))
-        end
-    end
-end
-`
-
-    # Create a pool of up to 30 workers depending on candidate size
-    let poolSize = candidates.length()
-    if poolSize > 30 
-        poolSize = 30
-    end
-    
-    let p = thread.inlinePool(workerCode, poolSize)
-    
-    # Prepare payloads
-    let payloads = []
-    for ip in candidates
-        payloads.append({"ip": ip, "port": port})
-    end
-    
-    # Map payloads to workers with the specified timeout
-    let results = p.map(payloads, waitTime)
-    p.close()
-    
-    # Process results (results is Null if timed out entirely, but individual timeouts return Null for their specific entry? 
-    # The thread.map(s, timeout) returns Null if the whole batch times out. We should handle it safely.
-    if !isNull(results) and type(results) == "Array"
-        let seenHostnames = {}
-        for i in range(candidates.length())
-            let ip = candidates[i]
-            let rContent = results[i]
-            
-            if !isNull(rContent) and type(rContent) == "String" and rContent != ""
-                let hname = ip
-                if rContent.contains(":")
-                    let p = rContent.split(":")
-                    if p.length() > 1 and p[1].strip() != ""
-                        hname = p[1].strip()
-                    end
-                elif ip == "127.0.0.1"
-                    hname = "localhost (this machine)"
-                end
-                
-                if not seenHostnames.has(hname)
-                    seenHostnames[hname] = True
-                    found.append({
-                        "ip":       ip,
-                        "hostname": hname,
-                        "port":     port
-                    })
-                else
-                    # If we found a real IP and the existing one is 127.0.0.1, replace it.
-                    # Or if the existing one is 127.0.0.1 and we found a real IP.
-                    if ip != "127.0.0.1"
-                        for dev in found
-                            if dev["hostname"] == hname and dev["ip"] == "127.0.0.1"
-                                dev["ip"] = ip
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    # Update online status and trigger notifications
-    let newOnline = {}
-    for dev in found
-        let h = dev["hostname"]
-        newOnline[h] = True
-        if not knownOnline.has(h)
-            notifyOnline(h)
-        end
-    end
-
-    # Reset knownOnline to current state
-    let keys = knownOnline.keys()
-    for k in keys
-        knownOnline.pop(k)
-    end
-    for k in newOnline.keys()
-        knownOnline[k] = True
-    end
-
-    return found
-end
 
 # Registers the network IPC handlers for the UI.
-# @param {App} app - The WebView application instance.
 fn register(app)
+    # Start the continuous background scanner to prevent UI freezing
+    thread.spawnCode(BG_SCANNER_CODE)
+
     # Event: scanNetwork
-    # Discovers devices instantly using UDP Broadcast, falling back to ARP and known devices.
+    # Reads instantly from the background scanner's output file
     app.bridge.on("scanNetwork", fn(payload)
-        let candidates = []
-        
-        # Add known devices from payload
-        if not isNull(payload)
-            try
-                let devList = json.decode(payload)
-                if type(devList) == "Array"
-                    for dev in devList
-                        if type(dev) == "Map" and dev.has("ip")
-                            candidates.append(dev["ip"])
-                        end
-                    end
-                end
-            catch e end
-        end
-
-        # UDP BROADCAST DISCOVERY (Ultra-fast & reliable)
+        let found = []
         try
-            let c = new net.udpClient()
-            c.setTimeout(1.0) # Wait 1 second for all replies
-            
-            # Get subnet broadcast addresses
-            let broadcasts = []
-            let r = process.exec("ipconfig")
-            let lines = r["stdout"].split("\n")
-            for line in lines
-                if line.contains("IPv4")
-                    let parts = line.split(":")
-                    if parts.length() > 1
-                        let ip = parts[1].strip()
-                        let octets = ip.split(".")
-                        if octets.length() == 4
-                            let bcast = octets[0] + "." + octets[1] + "." + octets[2] + ".255"
-                            if not broadcasts.contains(bcast)
-                                broadcasts.append(bcast)
-                            end
-                        end
+            if file.isFile(SCAN_RESULTS_FILE)
+                let data = file.read(SCAN_RESULTS_FILE)
+                found = json.decode(data)
+            end
+        catch e end
+
+        # Handle notifications for newly online devices
+        let newOnline = {}
+        if type(found) == "Array"
+            for dev in found
+                if type(dev) == "Map" and dev.has("hostname")
+                    let h = dev["hostname"]
+                    newOnline[h] = True
+                    if not knownOnline.has(h)
+                        notifyOnline(h)
                     end
                 end
             end
-            
-            if broadcasts.length() == 0
-                broadcasts.append("255.255.255.255")
-            end
-            
-            for bcast in broadcasts
-                try
-                    c.send("KIDS_CTRL_2026|||DISCOVER", bcast, 8889)
-                catch e end
-            end
-            
-            # Receive all replies within the 1-second timeout
-            let receiving = True
-            while receiving
-                try
-                    let response = c.receiveFrom(1024)
-                    let d = response["data"]
-                    if type(d) == "String" and d.startsWith("KIDS_CTRL_2026|||HERE:")
-                        if not candidates.contains(response["ip"])
-                            candidates.append(response["ip"])
-                        end
-                    end
-                catch e
-                    # Timeout reached
-                    receiving = False
-                end
-            end
-            c.close()
-        catch e
-            print("[Discovery] UDP Broadcast Error: " + str(e))
         end
 
-        # Add ARP candidates (fallback for devices that didn't catch UDP)
-        let r2 = process.exec("arp -a")
-        let lines2 = r2["stdout"].split("\n")
-        for line in lines2
-            let t = line.strip()
-            if t != "" and t.contains("dynamic")
-                let parts = t.split(" ")
-                let ip = parts[0].strip()
-                if ip != "" and not candidates.contains(ip)
-                    candidates.append(ip)
-                end
-            end
-        end
-        
-        if not candidates.contains("127.0.0.1")
-            candidates.append("127.0.0.1")
-        end
+        # Reset knownOnline to current state
+        let keys = knownOnline.keys()
+        for k in keys knownOnline.pop(k) end
+        for k in newOnline.keys() knownOnline[k] = True end
 
-        # TCP Ping the combined candidates
-        return scanIps(candidates, 0.5)
+        return found
     end)
 
     # Event: refreshDevices
-    # Pings known devices to update their connection status.
+    # Just returns the current state instantly
     app.bridge.on("refreshDevices", fn(payload)
-        let candidates = []
-
-        if not isNull(payload)
-            try
-                let devList = json.decode(payload)
-                if type(devList) == "Array"
-                    for dev in devList
-                        if type(dev) == "Map" and dev.has("ip")
-                            candidates.append(dev["ip"])
-                        end
-                    end
-                end
-            catch e 
-                # Invalid payload format, ignore.
+        let found = []
+        try
+            if file.isFile(SCAN_RESULTS_FILE)
+                let data = file.read(SCAN_RESULTS_FILE)
+                found = json.decode(data)
             end
-        end
-
-        return scanIps(candidates, 0.5)
+        catch e end
+        return found
     end)
 
-    # Event: loadDevices
-    # Loads the saved devices from the configuration file.
     app.bridge.on("loadDevices", fn(payload)
         try
             if file.isFile(config.DEVICES_FILE)
                 let content = file.read(config.DEVICES_FILE)
-                return json.decode(content)
+                if content != ""
+                    return json.decode(content)
+                end
             end
-        catch e 
-            print("[NetworkBridge] Error loading devices: " + str(e))
-        end
+        catch e end
         return []
     end)
 
-    # Event: saveDevices
-    # Saves the devices list to the configuration file.
     app.bridge.on("saveDevices", fn(payload)
         try
-            file.write(config.DEVICES_FILE, json.encode(payload))
-            return True
+            if type(payload) == "String"
+                file.write(config.DEVICES_FILE, payload)
+                return True
+            else
+                file.write(config.DEVICES_FILE, json.encode(payload))
+                return True
+            end
         catch e
-            print("[NetworkBridge] Error saving devices: " + str(e))
             return False
         end
     end)
