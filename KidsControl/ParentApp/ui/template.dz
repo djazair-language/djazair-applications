@@ -311,6 +311,11 @@ fn getHtml()
               <div class='ac-label'>Screenshot</div>
               <div class='ac-sub'>Capture screen now</div>
             </div>
+            <div class='action-card danger' style='border-color: #8B0000;' onclick='confirmAction(\"Stop Agent\", \"This will completely close the KidsControl program on the child computer. You will lose connection until you restart it manually. Proceed?\", function(){doCmd(\"EXIT\");})'>
+              <div class='ac-icon' style='color:#8B0000;'><i class='fa-solid fa-skull-crossbones'></i></div>
+              <div class='ac-label'>Stop Agent</div>
+              <div class='ac-sub'>Kill remote app</div>
+            </div>
           </div>
 
           <div class='kc-card'>
@@ -612,6 +617,9 @@ function addManualDevice() {
 
 
 function performScan(isManual) {
+    if (isScanning) return;
+    isScanning = true;
+
     if (isManual) {
         var btn = $('#scanBtn');
         btn.html('<span class=\"spin\"></span> Scanning (4s)...');
@@ -619,10 +627,13 @@ function performScan(isManual) {
         toast('Scanning network for agents...', 'info');
     }
     
-    var endpoint = isManual ? 'scanNetwork' : 'refreshDevices';
-    var payload = isManual ? null : JSON.stringify(devices);
+    // Always use scanNetwork so it discovers new devices automatically, passing known devices in payload
+    var endpoint = 'scanNetwork';
+    var payload = JSON.stringify(devices);
 
     window.djazair.invoke(endpoint, payload).then(function(res) {
+        isScanning = false;
+        
         if (isManual) {
             var btn = $('#scanBtn');
             btn.html('<i class=\"fa-solid fa-radar\"></i> Scan Network');
@@ -674,21 +685,16 @@ function performScan(isManual) {
             if (listChanged || isManual) {
                 renderDevices();
                 if (isManual) {
-                    $('#welcomeScreen').show();
-                    $('#controlPanel').hide();
                     toast('No agents found. Make sure child_app.dz is running.', 'warning');
                 }
             }
-            if (lostSelectedDevice) {
-                setTimeout(function() {
-                    selectedDev = null;
-                    $('#controlPanel').hide();
-                    $('#welcomeScreen').show();
-                    $('#topbarTitle').text('No device selected');
-                    $('#topbarBadge').html('');
-                    $('#pingBtn').hide();
-                    renderDevices();
-                }, 3000);
+            if (lostSelectedDevice || selectedDev) {
+                selectedDev = null;
+                $('#controlPanel').hide();
+                $('#welcomeScreen').show();
+                $('#topbarTitle').text('No device selected');
+                $('#topbarBadge').html('');
+                $('#pingBtn').hide();
             }
             return;
         }
@@ -702,19 +708,8 @@ function performScan(isManual) {
                 } else {
                     selectDevice(0);
                 }
-            } else if (selectedDev && lostSelectedDevice) {
-                // We lost the selected device
-                setTimeout(function() {
-                    selectedDev = null;
-                    $('#controlPanel').hide();
-                    $('#welcomeScreen').show();
-                    $('#topbarTitle').text('No device selected');
-                    $('#topbarBadge').html('');
-                    $('#pingBtn').hide();
-                    renderDevices();
-                }, 3000);
-                renderDevices(); // Render the sidebar without it immediately
             } else {
+                // We lost the selected device or didn't have one, just pick the first available
                 selectDevice(0);
             }
         }
@@ -730,10 +725,17 @@ function startScan() {
 }
 
 
-function sendCmd(command, successCb, failCb) {
+function sendCmd(command, successCb, failCb, retryCount) {
     if (!selectedDev) { toast('No device selected.', 'warning'); return; }
+    retryCount = retryCount || 0;
+    
     window.djazair.invoke('agentCommand', { ip: selectedDev.ip, hostname: selectedDev.hostname, command: command }).then(function(res) {
         if (!res.ok) {
+            if (retryCount < 1) {
+                // Auto-retry once silently before failing
+                setTimeout(function() { sendCmd(command, successCb, failCb, retryCount + 1); }, 300);
+                return;
+            }
             toast('Connection error: ' + res.data, 'danger');
             if (failCb) failCb(res.data);
             return;
@@ -744,7 +746,14 @@ function sendCmd(command, successCb, failCb) {
             if (failCb) failCb(res.data);
             return;
         }
-        if (successCb) successCb(res.data);
+        
+        // Show latency indicator
+        if (res.latency !== undefined) {
+            var color = res.latency < 50 ? '#2ea043' : (res.latency < 200 ? '#d29922' : '#f85149');
+            $('#topbarBadge').html('<span class=\"badge\" style=\"background: ' + color + '\">' + res.latency + ' ms</span>');
+        }
+        
+        if (successCb) successCb(res.data, res.latency);
     });
 }
 
@@ -756,7 +765,9 @@ function switchTab(id) {
 
 
 function doPing() {
-    sendCmd('PING', function(r) { toast('Pong! Device is online.', 'success'); });
+    sendCmd('PING', function(r, latency) { 
+        toast('Pong! Device is online. Latency: ' + latency + 'ms', 'success'); 
+    });
 }
 
 function doCmd(cmd) {
@@ -963,16 +974,11 @@ function termKeydown(e) {
 function doActiveWindow() {
     if(!selectedDev) return;
     toast(\"Requesting active window...\", \"success\");
-    __dz_invoke('agentCommand', { ip: selectedDev.ip, hostname: selectedDev.hostname, command: 'ACTIVE_WINDOW' })
-      .then(res => {
-        if(res.ok) {
-          let text = res.data;
-          if(text.startsWith(\"ACTIVE_WINDOW:\")) text = text.substring(14);
-          alert(\"Currently Active Window:\\n\\n\" + text);
-        } else {
-          toast(\"Error: \" + res.data, \"danger\");
-        }
-      });
+    sendCmd('ACTIVE_WINDOW', function(res) {
+        let text = res;
+        if(text.startsWith(\"ACTIVE_WINDOW:\")) text = text.substring(14);
+        alert(\"Currently Active Window:\\n\\n\" + text);
+    });
 }
 
 function doSetSchedule() {

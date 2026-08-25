@@ -1,4 +1,5 @@
 use net
+use datetime
 import "../core/config.dz" as config
 
 # Registers the commands IPC handlers for the UI.
@@ -12,12 +13,14 @@ fn register(app)
         
         try
             let client = new net.tcpClient()
+            client.setTimeout(15.0)
             let connected = client.connect(ip, config.AGENT_TCP_PORT)
 
             if not connected
                 return {"ok": False, "data": "Cannot connect to " + ip}
             end
 
+            let t1 = datetime.ticks()
             client.send(command)
             
             let response = ""
@@ -43,9 +46,11 @@ fn register(app)
                     response = ""
                 end
             end
+            let t2 = datetime.ticks()
+            let latencyMs = int(t2 - t1)
             
             client.close()
-            return {"ok": True, "data": response}
+            return {"ok": True, "data": response, "latency": latencyMs}
         catch e
             return {"ok": False, "data": "Network error: " + str(e)}
         end

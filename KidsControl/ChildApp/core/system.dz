@@ -81,87 +81,93 @@ fn getSysInfo()
 end
 
 # Captures the screen and returns a base64 encoded image.
+let NATIVE_EXE = "KidsControlNative.exe"
+
+# Compiles the high-performance C# helper on startup if missing.
+fn setupNativeHelper()
+    if file.isFile(NATIVE_EXE) return end
+    let csCode = `using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+using System.Threading;
+
+class KidsControlNative {
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    [DllImport("avicap32.dll")] static extern IntPtr capCreateCaptureWindowA(string lpszWindowName, int dwStyle, int X, int Y, int nWidth, int nHeight, IntPtr hwndParent, int nID);
+    [DllImport("user32", EntryPoint="SendMessage")] static extern int SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
+
+    [STAThread]
+    static void Main(string[] args) {
+        if (args.Length == 0) return;
+        string cmd = args[0].ToLower();
+        if (cmd == "window") {
+            IntPtr hwnd = GetForegroundWindow();
+            StringBuilder sb = new StringBuilder(256);
+            if (GetWindowText(hwnd, sb, 256) > 0) Console.WriteLine(sb.ToString());
+            else Console.WriteLine("None/Desktop");
+        } else if (cmd == "screenshot") {
+            Rectangle bounds = Screen.PrimaryScreen.Bounds;
+            using (Bitmap bmp = new Bitmap(bounds.Width, bounds.Height)) {
+                using (Graphics g = Graphics.FromImage(bmp)) {
+                    g.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+                }
+                using (Image thumb = bmp.GetThumbnailImage(bounds.Width / 2, bounds.Height / 2, null, IntPtr.Zero)) {
+                    using (MemoryStream ms = new MemoryStream()) {
+                        thumb.Save(ms, ImageFormat.Jpeg);
+                        Console.WriteLine(Convert.ToBase64String(ms.ToArray()));
+                    }
+                }
+            }
+        } else if (cmd == "webcam") {
+            IntPtr hwnd = capCreateCaptureWindowA("Webcam", 0, 0, 0, 640, 480, IntPtr.Zero, 0);
+            SendMessage(hwnd, 1034, 0, 0); Thread.Sleep(800);
+            SendMessage(hwnd, 1084, 0, 0); SendMessage(hwnd, 1054, 0, 0); SendMessage(hwnd, 1035, 0, 0);
+            if (Clipboard.ContainsImage()) {
+                using (Image img = Clipboard.GetImage()) {
+                    using (MemoryStream ms = new MemoryStream()) {
+                        img.Save(ms, ImageFormat.Jpeg);
+                        Console.WriteLine(Convert.ToBase64String(ms.ToArray()));
+                    }
+                }
+                Clipboard.Clear();
+            } else Console.WriteLine("NO_WEBCAM");
+        }
+    }
+}
+`
+    let csFile = "NativeHelper.cs"
+    file.write(csFile, csCode)
+    let csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe"
+    process.exec(csc + " /out:" + NATIVE_EXE + " /r:System.Windows.Forms.dll /r:System.Drawing.dll " + csFile)
+    try file.delete(csFile) catch e end
+end
+
 # @return {string} Base64 image data prefixed with SCREENSHOT:
 fn takeScreenshot()
-    let script = `
-Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-$s = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-$bmp = New-Object System.Drawing.Bitmap $s.Width, $s.Height
-$g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($s.Location, [System.Drawing.Point]::Empty, $s.Size)
-$thumb = $bmp.GetThumbnailImage($s.Width / 2, $s.Height / 2, $null, [intptr]::Zero)
-$ms = New-Object System.IO.MemoryStream
-$thumb.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg)
-Write-Host ([Convert]::ToBase64String($ms.ToArray()))
-$g.Dispose(); $bmp.Dispose(); $thumb.Dispose(); $ms.Dispose()
-`
-    let b64 = runPowerShell(script)
-    return "SCREENSHOT:" + b64
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " screenshot")
+    return "SCREENSHOT:" + r["stdout"].strip()
 end
 
 # Captures a webcam image and returns it as a base64 string.
 # @return {string} Base64 image data prefixed with WEBCAM:
 fn takeWebcamSnapshot()
-    let script = `
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class Cam {
-    [DllImport("avicap32.dll")]
-    public static extern IntPtr capCreateCaptureWindowA(string lpszWindowName, int dwStyle, int X, int Y, int nWidth, int nHeight, IntPtr hwndParent, int nID);
-    [DllImport("user32", EntryPoint="SendMessage")]
-    public static extern int SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
-}
-"@
-$hwnd = [Cam]::capCreateCaptureWindowA("Webcam", 0, 0, 0, 640, 480, [IntPtr]::Zero, 0)
-[Cam]::SendMessage($hwnd, 1034, 0, 0) | Out-Null
-Start-Sleep -Milliseconds 800
-[Cam]::SendMessage($hwnd, 1084, 0, 0) | Out-Null
-[Cam]::SendMessage($hwnd, 1054, 0, 0) | Out-Null
-[Cam]::SendMessage($hwnd, 1035, 0, 0) | Out-Null
-Add-Type -AssemblyName System.Windows.Forms
-$img = [System.Windows.Forms.Clipboard]::GetImage()
-if ($img -ne $null) {
-    $ms = New-Object System.IO.MemoryStream
-    $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Jpeg)
-    Write-Host ([Convert]::ToBase64String($ms.ToArray()))
-    $img.Dispose(); $ms.Dispose()
-} else {
-    Write-Host "NO_WEBCAM"
-}
-`
-    let tmpFile = "__kc_cam.ps1"
-    file.write(tmpFile, script)
-    let result = process.exec("powershell -STA -ExecutionPolicy Bypass -NoProfile -NonInteractive -File " + tmpFile)["stdout"].strip()
-    try file.delete(tmpFile) catch e end
-    return "WEBCAM:" + result
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " webcam")
+    return "WEBCAM:" + r["stdout"].strip()
 end
 
 # Gets the title of the currently active window on the machine.
 # @return {string} Window title prefixed with ACTIVE_WINDOW:
 fn getActiveWindow()
-    let script = `
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-public class Win {
-    [DllImport("user32.dll")]
-    public static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")]
-    public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-}
-"@
-$hwnd = [Win]::GetForegroundWindow()
-$title = New-Object System.Text.StringBuilder 256
-if ([Win]::GetWindowText($hwnd, $title, 256) -gt 0) {
-    Write-Host $title.ToString()
-} else {
-    Write-Host "None/Desktop"
-}
-`
-    let res = runPowerShell(script)
-    return "ACTIVE_WINDOW:" + res
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " window")
+    return "ACTIVE_WINDOW:" + r["stdout"].strip()
 end
 
 # Retrieves a list of running tasks.
@@ -202,6 +208,7 @@ fn blockDomain(domain)
         let entryWww = "127.0.0.1 www." + domain
         if not hosts.contains(entry)
             file.write(HOSTS_FILE, hosts + "\r\n" + entry + "\r\n" + entryWww)
+            process.exec("ipconfig /flushdns")
         end
         return "OK:BLOCK:" + domain
     catch e
@@ -224,6 +231,7 @@ fn unblockDomain(domain)
             end
         end
         file.write(HOSTS_FILE, filtered.join("\n"))
+        process.exec("ipconfig /flushdns")
         return "OK:UNBLOCK:" + domain
     catch e
         return "ERR:ADMIN_REQUIRED"
@@ -277,6 +285,10 @@ fn setupStartup()
         if exePath.endsWith(".exe")
             process.exec("reg add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v KidsControlAgent /t REG_SZ /d \"\\\"" + exePath + "\\\"\" /f")
         end
+        
+        # Add Firewall exceptions (requires Admin, fails silently if not Admin)
+        process.exec("netsh advfirewall firewall add rule name=\"KidsControl TCP\" dir=in action=allow protocol=TCP localport=8888")
+        process.exec("netsh advfirewall firewall add rule name=\"KidsControl UDP\" dir=in action=allow protocol=UDP localport=8889")
         
         # Startup folder method
         if exePath.endsWith(".exe") and not exePath.endsWith("djazair.exe")

@@ -1,4 +1,5 @@
 use process
+use thread
 import "system.dz" as system
 
 let SECRET = "KIDS_CTRL_2026"
@@ -19,6 +20,14 @@ fn dispatch(raw, systemHostname)
     # Command matching using if/elif (cleaner structure)
     if cmd == "PING"
         return "PONG:" + systemHostname
+        
+    elif cmd == "EXIT"
+        thread.spawnCode(`
+use process
+process.sleep(1.0)
+process.exit(0)
+`)
+        return "OK:EXIT"
         
     elif cmd == "SYSINFO"
         return system.getSysInfo()

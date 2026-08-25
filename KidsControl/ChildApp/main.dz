@@ -52,8 +52,33 @@ end
     thread.spawnCode(monitorCode)
 end
 
-# Start the background schedule monitor
+# Starts the UDP Discovery Server to respond to ParentApp broadcasts
+fn startDiscoveryServer(hostname)
+    let bcastCode = `
+use net
+use thread
+let UDP_PORT = 8889
+let SECRET = "KIDS_CTRL_2026"
+let hname = "` + hostname + `"
+
+let s = new net.udpServer(fn(data, ip, port)
+    if data == (SECRET + "|||DISCOVER")
+        s.reply(SECRET + "|||HERE:" + hname, ip, port)
+    end
+end)
+
+try
+    s.listen(UDP_PORT, "0.0.0.0")
+catch e
+    print("[Discovery] Error starting UDP server: " + str(e))
+end
+`
+    thread.spawnCode(bcastCode)
+end
+
+# Start the background schedule monitor and discovery server
 startScheduleMonitor()
+startDiscoveryServer(systemHostname)
 
 # Setup the main TCP Server for receiving commands from ParentApp
 let server = new net.tcpServer(fn(client, ip, port)
@@ -77,7 +102,7 @@ let server = new net.tcpServer(fn(client, ip, port)
 
     print("[Agent] Connection closed with " + ip)
     client.close()
-end)
+end, {"timeout": 10})
 
 # Start Agent
 print("================================================")
