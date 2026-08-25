@@ -1,0 +1,47 @@
+use webview
+use process
+
+let ui = "
+<!DOCTYPE html>
+<html><body>
+<script>
+window.onload = function() {
+    window.djazair.invoke('test', [{ip: '127.0.0.1', hostname: 'host'}]).then(res => {
+        window.djazair.invoke('quit', res);
+    });
+};
+</script>
+</body></html>
+"
+
+let app = webview.createWindow({
+    "title":  "Test",
+    "width":  400.0,
+    "height": 300.0,
+    "debug":  True
+})
+
+app.onReady(fn()
+    app.bridge.on("test", fn(payload)
+        print("Payload type: " + type(payload))
+        let s = ""
+        if type(payload) == "Array"
+            for item in payload
+                s = s + type(item) + " "
+                if type(item) == "Map"
+                    s = s + "has_ip: " + str(item.has("ip"))
+                end
+            end
+        end
+        return s
+    end)
+
+    app.bridge.on("quit", fn(payload)
+        print("Result: " + payload)
+        process.exit(0)
+    end)
+
+    app.window.setHtml(ui)
+end)
+
+app.run()

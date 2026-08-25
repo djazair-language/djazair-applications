@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasks — Kasbah Showcase</title>
+  <link rel="preload" href="/public/style.css" as="style">
+  <link rel="preload" href="/public/app.js" as="script">
+  <link rel="stylesheet" href="/public/style.css">
+</head>
+<body data-page="tasks">
+  <nav class="nav">
+    <a href="/" class="nav-brand">⚡ Kasbah</a>
+    <a href="/">Home</a>
+    <a href="/tasks" class="active">Tasks</a>
+    <a href="/session-page">Session</a>
+    <a href="/cookies-page">Cookies</a>
+    <a href="/upload-page">Upload</a>
+    <a href="/inspector">Inspector</a>
+    <a href="/admin">Admin</a>
+  </nav>
+
+  <div class="container">
+    <div id="tasks-alerts"></div>
+
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <span class="card-title">Create Task</span>
+        <span style="margin-left:auto;color:var(--muted);font-size:.85rem">
+          <span id="task-count">0</span> tasks total
+        </span>
+      </div>
+      <form id="task-form">
+        <div class="grid">
+          <div class="form-group">
+            <label>Title *</label>
+            <input name="title" placeholder="e.g. Fix the bug in auth module" required>
+          </div>
+          <div class="form-group">
+            <label>Author</label>
+            <input name="author" placeholder="Your name">
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select name="priority">
+              <option value="normal">Normal</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">+ Add Task</button>
+      </form>
+    </div>
+
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="badge badge-get">GET</span>
+        <span class="card-title">All Tasks</span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="loadTasks()">↻ Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Title</th><th>Status</th><th>Author</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="tasks-body">
+          <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem">
+            <div class="spinner"></div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="badge badge-get">API</span>
+        <span class="card-title">Raw JSON — GET /api/tasks</span>
+      </div>
+      <pre id="raw-api">Loading…</pre>
+    </div>
+  </div>
+
+  <script src="/public/app.js"></script>
+  <script>
+    // Also show raw JSON output
+    fetch('/api/tasks').then(r => r.json()).then(d => {
+      document.getElementById('raw-api').textContent = JSON.stringify(d, null, 2);
+    });
+  </script>
+</body>
+</html>

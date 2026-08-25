@@ -1,0 +1,594 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# app.dz — Kasbah Showcase Web Application
+# ═══════════════════════════════════════════════════════════════════════════════
+# Comprehensive, production-ready web application showcasing all Kasbah features:
+#   - Routing: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+#   - Dynamic route parameters (:id), query strings, req.input/inputs/only/except
+#   - Middlewares: global pipeline, route groups (/admin), CORS, Helmet security
+#   - BodyParser: multi-format JSON, URL-encoded forms, and multipart file uploads
+#   - Cryptographic Sessions (file-backed, signed HMAC-SHA256 tokens)
+#   - CookieJar: reading, setting with RFC 6265 directives, and clearing
+#   - Static assets serving (public/)
+#   - Qalam View & SSR template rendering (views/)
+#   - File streaming & downloads with RFC 5987 Unicode support
+#   - Centralized error (onError) and 404 (onNotFound) dispatchers
+#   - Inspection predicates: req.isAjax(), req.isJson(), req.isSecure(), req.accepts()
+
+use kasbah
+use datetime
+use process
+use path
+use file
+use dir
+
+let PORT = 8080
+let APP_DIR = process.scriptDir()
+
+# ── In-memory data stores ─────────────────────────────────────────────────────
+
+let tasks = []   # [{ id, title, author, priority, done, createdAt }]
+let nextId = 1
+let reqCount = 0
+let startTime = datetime.timestamp()
+
+# ── App configuration ─────────────────────────────────────────────────────────
+
+let app = new kasbah.app({
+    "port":          PORT,
+    "logger":        True,
+    "bodyParser":    True,
+    "maxBodySize":   10,
+    "session": {
+        "secret":   "kasbah-showcase-session-secret-2026-secure-at-least-32-chars!",
+        "maxAge":   86400,
+        "sameSite": "Lax"
+    },
+    "static":        "${APP_DIR}/public",
+    "views":         "${APP_DIR}/views",
+    "keepAlive":     False
+})
+
+# ── Global Middlewares & Security Stack ───────────────────────────────────────
+
+# 1. Helmet Security Headers (Clickjacking, nosniff, CSP, XSS Protection)
+app.middleware(kasbah.helmet({
+    "xFrameOptions":  "SAMEORIGIN",
+    "referrerPolicy": "strict-origin-when-cross-origin"
+}))
+
+# 2. CORS Middleware with Credentials support
+app.middleware(kasbah.cors({
+    "origin":            "*",
+    "methods":           ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    "allowedHeaders":    ["Content-Type", "Authorization", "X-Admin-Key", "X-Requested-With"],
+    "credentials":       True,
+    "maxAge":            86400,
+    "preflightContinue": False
+}))
+
+# 3. Request Metrics & Diagnostics Middleware
+app.middleware(fn(req, res)
+    reqCount = reqCount + 1
+    req.set("startTime", datetime.ticks())
+    req.set("reqNum", reqCount)
+end)
+
+# ── Centralized Error Handlers ────────────────────────────────────────────────
+
+app.onNotFound(fn(req, res)
+    if req.isJson()
+        res.notFound("Resource '${req.path}' was not found on this server")
+    else
+        res.status(404).html("<h1>404 Not Found</h1><p>Requested resource: ${req.path}</p>")
+    end
+end)
+
+app.onError(fn(err, req, res)
+    print("[ERROR] ${req.method} ${req.path} -> ${str(err)}")
+
+    if res.sentFlag
+        return
+    end
+
+    res.status(500).json({
+        "error":   "Internal Server Error",
+        "message": str(err),
+        "path":    req.path,
+        "reqNum":  req.get("reqNum")
+    })
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 1 — HTML Pages (Server-Side Qalam View Rendering)
+# ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/", fn(req, res)
+    let visits = req.session.get("visits", 0) + 1
+    req.session.set("visits", visits)
+    res.view("index", {
+        "title":      "Home",
+        "activePage": "home",
+        "visits":     visits
+    })
+end)
+
+app.get("/tasks", fn(req, res)
+    res.view("tasks", {
+        "title":      "Task Manager",
+        "activePage": "tasks"
+    })
+end)
+
+app.get("/session-page", fn(req, res)
+    res.view("session", {
+        "title":      "Session Inspector",
+        "activePage": "session"
+    })
+end)
+
+app.get("/cookies-page", fn(req, res)
+    res.view("cookies", {
+        "title":      "Cookie Jar",
+        "activePage": "cookies"
+    })
+end)
+
+app.get("/upload-page", fn(req, res)
+    res.view("upload", {
+        "title":      "File Uploads",
+        "activePage": "upload"
+    })
+end)
+
+app.get("/inspector", fn(req, res)
+    res.view("inspector", {
+        "title":      "Route Inspector",
+        "activePage": "inspector"
+    })
+end)
+
+# Gallery Viewer with dynamic filesystem scanning
+app.get("/gallery", fn(req, res)
+    let uploadDir = path.join(APP_DIR, "uploads")
+    if not dir.exists(uploadDir)
+        dir.create(uploadDir)
+    end
+
+    let entries = dir.list(uploadDir)
+    let filesData = []
+
+    for entry in entries
+        let fpath = path.join(uploadDir, entry)
+        let ext = path.extname(entry).lower()
+        let isImg = ext == ".png" or ext == ".jpg" or ext == ".jpeg" or ext == ".gif" or ext == ".webp"
+        let fsize = if file.exists(fpath) ? file.size(fpath) else 0
+
+        filesData.append({
+            "name":    entry,
+            "ext":     ext,
+            "size":    fsize,
+            "isImage": isImg
+        })
+    end
+
+    res.view("gallery", {
+        "title":      "Gallery Viewer",
+        "activePage": "gallery",
+        "files":      filesData
+    })
+end)
+
+# Stream uploaded files safely
+app.get("/uploads/:filename", fn(req, res)
+    let fname = req.param("filename")
+    let fpath = path.join(APP_DIR, "uploads", fname)
+    if not file.exists(fpath)
+        return res.notFound("Uploaded file not found")
+    end
+    res.file(fpath)
+end)
+
+# Redirect demo
+app.get("/old-home", fn(req, res)
+    res.redirect("/", 301)
+end)
+
+# Error testing demo
+app.get("/error-demo", fn(req, res)
+    throw "This is a demo error thrown intentionally to test onError dispatcher!"
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 2 — Tasks API (Full CRUD with Input Validation DSL)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# GET /api/tasks?status=open&priority=urgent&author=Riad
+app.get("/api/tasks", fn(req, res)
+    let status = req.query("status")
+    let priority = req.query("priority")
+    let author = req.query("author")
+
+    let filtered = []
+    for t in tasks
+        if not isNull(status) and status != ""
+            if status == "done" and not t["done"]
+                continue
+            end
+            if status == "open" and t["done"]
+                continue
+            end
+        end
+        if not isNull(priority) and priority != "" and t["priority"] != priority
+            continue
+        end
+        if not isNull(author) and author != "" and t["author"] != author
+            continue
+        end
+        filtered.append(t)
+    end
+
+    res.ok({
+        "total":   filtered.length(),
+        "filters": { "status": status, "priority": priority, "author": author },
+        "tasks":   filtered
+    })
+end)
+
+# GET /api/tasks/:id
+app.get("/api/tasks/:id", fn(req, res)
+    let id = req.param("id")
+    let found = Null
+    for t in tasks
+        if str(t["id"]) == str(id)
+            found = t
+            break
+        end
+    end
+    if isNull(found)
+        return res.notFound("Task with ID ${id} not found")
+    end
+    res.ok(found)
+end)
+
+# POST /api/tasks — JSON / Form body with fluent Validator DSL
+app.post("/api/tasks", fn(req, res)
+    let v = req.validate()
+    v.field("title").required().string().minLength(2).maxLength(200)
+    v.field("author").optional().string().maxLength(50)
+    v.field("priority").optional().string().oneOf(["normal", "urgent", "low"])
+
+    if v.fails()
+        return res.validationError(v.errors())
+    end
+
+    let clean = v.validated()
+    let authorName = if clean.has("author") and str(clean["author"]).strip() != "" ? str(clean["author"]).strip() else "Anonymous"
+    let priorityLevel = if clean.has("priority") and str(clean["priority"]).strip() != "" ? str(clean["priority"]).strip() else "normal"
+
+    let task = {
+        "id":        nextId,
+        "title":     str(clean["title"]).strip(),
+        "author":    authorName,
+        "priority":  priorityLevel,
+        "done":      False,
+        "createdAt": datetime.timestamp()
+    }
+    tasks.append(task)
+    nextId = nextId + 1
+
+    res.created({ "created": task })
+end)
+
+# PUT /api/tasks/:id — Full update
+app.put("/api/tasks/:id", fn(req, res)
+    let id = req.param("id")
+    for i in 0 .. tasks.length() - 1
+        if str(tasks[i]["id"]) == str(id)
+            if not isNull(req.input("title")) and str(req.input("title")).strip() != ""
+                tasks[i]["title"] = str(req.input("title")).strip()
+            end
+            if not isNull(req.input("author"))
+                tasks[i]["author"] = str(req.input("author")).strip()
+            end
+            if not isNull(req.input("priority"))
+                tasks[i]["priority"] = req.input("priority")
+            end
+            if not isNull(req.input("done"))
+                tasks[i]["done"] = req.input("done") == True or req.input("done") == "true"
+            end
+            return res.ok({ "updated": tasks[i] })
+        end
+    end
+    res.notFound("Task with ID ${id} not found")
+end)
+
+# PATCH /api/tasks/:id/toggle — Toggle done status
+app.patch("/api/tasks/:id/toggle", fn(req, res)
+    let id = req.param("id")
+    for i in 0 .. tasks.length() - 1
+        if str(tasks[i]["id"]) == str(id)
+            tasks[i]["done"] = not tasks[i]["done"]
+            return res.ok({ "updated": tasks[i] })
+        end
+    end
+    res.notFound("Task with ID ${id} not found")
+end)
+
+# DELETE /api/tasks/:id
+app.delete("/api/tasks/:id", fn(req, res)
+    let id = req.param("id")
+    let newTasks = []
+    let deleted = False
+    for t in tasks
+        if str(t["id"]) == str(id)
+            deleted = True
+        else
+            newTasks.append(t)
+        end
+    end
+    if not deleted
+        return res.notFound("Task with ID ${id} not found")
+    end
+    tasks = newTasks
+    res.noContent()
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 3 — Session API (SessionManager with Anti-Fixation Protection)
+# ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/api/session", fn(req, res)
+    let visits = req.session.get("visits", 0) + 1
+    req.session.set("visits", visits)
+    res.ok({
+        "sessionId": req.session.id(),
+        "isNew":     req.session.isNew(),
+        "session":   req.session.all()
+    })
+end)
+
+app.post("/api/session", fn(req, res)
+    let key = req.input("key")
+    let val = req.input("value", "")
+    if isNull(key) or str(key).strip() == ""
+        return res.badRequest("Property 'key' is required")
+    end
+    req.session.set(str(key).strip(), val)
+    res.ok({ "set": key, "value": val, "session": req.session.all() })
+end)
+
+app.delete("/api/session", fn(req, res)
+    req.session.clear()
+    res.ok({ "cleared": True })
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 4 — Cookies API (CookieJar via req.cookies & res.cookies)
+# ══════════════════════════════════════════════════════════════════════════════
+
+app.get("/api/cookies", fn(req, res)
+    let allCookies = req.cookies.all()
+    let result = {}
+    for k, v in allCookies
+        if k.startsWith("app_")
+            result[k] = v
+        end
+    end
+    res.ok({ "cookies": result, "count": result.keys().length() })
+end)
+
+app.post("/api/cookies", fn(req, res)
+    let name = req.input("name")
+    let val = req.input("value", "")
+    if isNull(name) or str(name).strip() == ""
+        return res.badRequest("Property 'name' is required")
+    end
+    let cookieName = "app_${name}"
+    res.cookie(cookieName, val, {
+        "httpOnly": False,
+        "path":     "/",
+        "maxAge":   3600,
+        "sameSite": "Lax"
+    })
+    res.ok({ "set": cookieName, "value": val })
+end)
+
+app.delete("/api/cookies", fn(req, res)
+    let allCookies = req.cookies.all()
+    for k, v in allCookies
+        if k.startsWith("app_")
+            res.clearCookie(k)
+        end
+    end
+    res.ok({ "cleared": True })
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 5 — File Upload & Download (req.uploader / FileManager)
+# ══════════════════════════════════════════════════════════════════════════════
+
+app.post("/api/upload", fn(req, res)
+    let upload = req.uploader({
+        "dest":             "${APP_DIR}/uploads",
+        "maxSize":          10,
+        "allowedTypes":     ["image/*", "text/*", "application/pdf"],
+        "keepOriginalName": False,
+        "prefix":           "upload_"
+    })
+
+    let upResult = upload.single("file")
+    if not upResult["ok"]
+        return res.badRequest(upResult["error"])
+    end
+
+    let f = upResult["file"]
+    res.ok({
+        "ok":           True,
+        "originalName": f["originalname"],
+        "savedName":    f["filename"],
+        "mimeType":     f["mimetype"],
+        "size":         f["size"],
+        "savedPath":    f["path"]
+    })
+end)
+
+# GET /download/:filename — Streams a file from public/ as a download
+app.get("/download/:filename", fn(req, res)
+    let fname = req.param("filename")
+    let fpath = path.join(APP_DIR, "public", fname)
+    if not file.exists(fpath)
+        return res.notFound("Downloadable file not found")
+    end
+    res.download(fpath, fname)
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 6 — Diagnostic & Echo Endpoints
+# ══════════════════════════════════════════════════════════════════════════════
+
+# GET /api/echo
+app.get("/api/echo", fn(req, res)
+    res.ok({
+        "method":   req.method,
+        "path":     req.path,
+        "query":    req.query(),
+        "headers":  req.rawHeaders,
+        "ip":       req.ip,
+        "isAjax":   req.isAjax(),
+        "isSecure": req.isSecure()
+    })
+end)
+
+# GET /api/info — Server + Request metadata
+app.get("/api/info", fn(req, res)
+    let uptime = datetime.timestamp() - startTime
+    let acceptHeader = req.header("accept")
+    let safeAccept = if isNull(acceptHeader) or acceptHeader == "" ? "*/*" else acceptHeader
+
+    res.ok({
+        "server": {
+            "framework": "Kasbah",
+            "version":   "0.2.0",
+            "language":  "Djazair",
+            "port":      PORT,
+            "uptime":    uptime,
+            "requests":  reqCount
+        },
+        "request": {
+            "method":     req.method,
+            "path":       req.path,
+            "ip":         req.ip,
+            "isAjax":     req.isAjax(),
+            "accepts":    safeAccept,
+            "reqNum":     req.get("reqNum")
+        }
+    })
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 7 — Admin Route Group with Scoped Auth Middleware
+# ══════════════════════════════════════════════════════════════════════════════
+
+let authMiddleware = fn(req, res)
+    let key = req.header("x-admin-key")
+    let bypass = req.cookie("admin_bypass")
+
+    if key == "secret123" or bypass == "secret123"
+        return
+    end
+
+    # For browser visits to admin page, set cookie bypass
+    if req.accepts("html") and not req.isAjax()
+        res.cookie("admin_bypass", "secret123", {
+            "httpOnly": True,
+            "path":     "/admin",
+            "maxAge":   3600
+        })
+        return
+    end
+
+    res.forbidden("Forbidden — set header 'X-Admin-Key: secret123'")
+end
+
+app.group("/admin", [authMiddleware], fn(r)
+    r.get("/", fn(req, res)
+        res.view("admin", {
+            "title":      "Admin Panel",
+            "activePage": "admin"
+        })
+    end)
+
+    r.get("/stats", fn(req, res)
+        let doneTasks = 0
+        let urgentTasks = 0
+        for t in tasks
+            if t["done"]
+                doneTasks = doneTasks + 1
+            end
+            if t["priority"] == "urgent"
+                urgentTasks = urgentTasks + 1
+            end
+        end
+        let uptime = datetime.timestamp() - startTime
+
+        res.ok({
+            "tasks": {
+                "total":  tasks.length(),
+                "done":   doneTasks,
+                "open":   tasks.length() - doneTasks,
+                "urgent": urgentTasks
+            },
+            "server": {
+                "uptime":   uptime,
+                "requests": reqCount,
+                "port":     PORT
+            }
+        })
+    end)
+
+    r.delete("/tasks", fn(req, res)
+        tasks = []
+        nextId = 1
+        res.ok({ "cleared": True })
+    end)
+end)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Seed initial demo tasks
+# ══════════════════════════════════════════════════════════════════════════════
+
+fn addTask(title, author, priority, isDone = False)
+    tasks.append({
+        "id":        nextId,
+        "title":     title,
+        "author":    author,
+        "priority":  priority,
+        "done":      isDone,
+        "createdAt": datetime.timestamp()
+    })
+    nextId = nextId + 1
+end
+
+addTask("Build Kasbah web framework", "Riad", "urgent", True)
+addTask("Write comprehensive tests", "Riad", "normal", True)
+addTask("Add Keep-Alive support to http lib", "Riad", "normal", True)
+addTask("Add CORS & Helmet security middlewares", "Riad", "urgent", True)
+addTask("Upgrade documentation to world-class standards", "Riad", "normal", True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Start Server
+# ══════════════════════════════════════════════════════════════════════════════
+
+print("")
+print("╔══════════════════════════════════════════════════╗")
+print("║        ⚡  KASBAH SHOWCASE v0.2.0 — Djazair       ║")
+print("╚══════════════════════════════════════════════════╝")
+print("")
+print("  → Web Interface:  http://localhost:${PORT}")
+print("  → Task Manager:   http://localhost:${PORT}/tasks")
+print("  → Gallery Viewer: http://localhost:${PORT}/gallery")
+print("  → Admin Panel:    http://localhost:${PORT}/admin")
+print("  → Inspector:      http://localhost:${PORT}/inspector")
+print("")
+
+app.listen(PORT)

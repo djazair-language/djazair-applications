@@ -1,0 +1,41 @@
+use json
+use file
+
+let SETTINGS_FILE = "settings.json"
+let DEVICES_FILE = "children.json"
+
+let currentSettings = {
+    "auto_start": True
+}
+
+let AGENT_TCP_PORT = 8888
+
+fn loadSettingsData()
+    try
+        if file.isFile(SETTINGS_FILE)
+            let s = file.read(SETTINGS_FILE)
+            let d = json.decode(s)
+            if type(d) == "Map"
+                for k in d.keys()
+                    currentSettings[k] = d[k]
+                end
+            end
+        end
+        
+        return currentSettings
+    catch e
+        return currentSettings
+    end
+end
+
+fn saveSettingsData(payload)
+    try
+        for k in payload.keys()
+            currentSettings[k] = payload[k]
+        end
+        file.write(SETTINGS_FILE, json.encode(currentSettings))
+        return True
+    catch e
+        return False
+    end
+end

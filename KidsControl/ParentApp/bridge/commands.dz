@@ -1,0 +1,55 @@
+use net
+import "../core/config.dz" as config
+
+/**
+ * Registers the commands IPC handlers for the UI.
+ * @param {App} app - The WebView application instance.
+ */
+fn register(app)
+    # Event: agentCommand
+    # Sends a command to a specific agent and waits for a response.
+    app.bridge.on("agentCommand", fn(payload)
+        let ip = payload["ip"]
+        let command = "KIDS_CTRL_2026|||" + payload["command"]
+        
+        try
+            let client = new net.tcpClient()
+            let connected = client.connect(ip, config.AGENT_TCP_PORT)
+
+            if not connected
+                return {"ok": False, "data": "Cannot connect to " + ip}
+            end
+
+            client.send(command)
+            
+            let response = ""
+            if payload["command"] == "SCREENSHOT"
+                # Receive in chunks for large payloads like screenshots
+                while True
+                    let chunk = ""
+                    try 
+                        chunk = client.receive(131072) 
+                    catch e 
+                        break 
+                    end
+                    if isNull(chunk) or chunk == "" 
+                        break 
+                    end
+                    response = response + chunk
+                end
+            else
+                # Receive smaller payloads directly
+                try
+                    response = client.receive(1024 * 1024)
+                catch e
+                    response = ""
+                end
+            end
+            
+            client.close()
+            return {"ok": True, "data": response}
+        catch e
+            return {"ok": False, "data": "Network error: " + str(e)}
+        end
+    end)
+end

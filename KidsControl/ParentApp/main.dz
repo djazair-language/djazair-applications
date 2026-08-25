@@ -1,0 +1,36 @@
+# =============================================================================
+# ParentApp/main.dz — Kids Control Dashboard (Parent-Side)
+# Modular Architecture Refactoring
+# =============================================================================
+
+use webview
+import "core/config.dz" as config
+import "bridge/settings.dz" as settingsBridge
+import "bridge/network.dz" as networkBridge
+import "bridge/commands.dz" as commandsBridge
+import "ui/template.dz" as ui
+
+# 1. Initialize Settings
+config.loadSettingsData()
+
+# 2. Create Webview App
+let app = webview.createWindow({
+    "title":  "Kids Control Center",
+    "width":  1280.0,
+    "height": 800.0,
+    "debug":  True
+})
+
+# 4. On Ready Handler
+app.onReady(fn()
+    # Register IPC Handlers
+    settingsBridge.register(app)
+    networkBridge.register(app)
+    commandsBridge.register(app)
+
+    # Render UI
+    app.window.setHtml(ui.getHtml())
+end)
+
+# 5. Start Application
+app.run()

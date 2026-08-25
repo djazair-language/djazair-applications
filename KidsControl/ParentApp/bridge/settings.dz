@@ -1,0 +1,24 @@
+use net
+import "../core/config.dz" as config
+
+fn register(app)
+    app.bridge.on("getSettings", fn(payload)
+        return {"ok": True, "data": config.loadSettingsData()}
+    end)
+
+    app.bridge.on("saveSettings", fn(payload)
+        let ok = config.saveSettingsData(payload)
+        return {"ok": ok}
+    end)
+
+    app.bridge.on("checkPort", fn(payload)
+        let p = num(payload["port"])
+        let c = new net.tcpClient()
+        if c.connect("127.0.0.1", p)
+            c.close()
+            return {"ok": True, "in_use": True, "msg": "Port " + str(p) + " is active / in use."}
+        else
+            return {"ok": True, "in_use": False, "msg": "Port " + str(p) + " is free and available."}
+        end
+    end)
+end

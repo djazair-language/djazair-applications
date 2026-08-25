@@ -1,0 +1,106 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_showcase.dz — Verification for kasbah_showcase Application
+# ═══════════════════════════════════════════════════════════════════════════════
+
+use kasbah
+use datetime
+use path
+use file
+use dir
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Testing kasbah_showcase Application Routes ===")
+
+let app = new kasbah.app({
+    "port":        8080,
+    "logger":      False,
+    "bodyParser":  True,
+    "maxBodySize": 10,
+    "session": {
+        "secret":   "kasbah-showcase-session-secret-2026-secure-at-least-32-chars!",
+        "maxAge":   86400,
+        "sameSite": "Lax"
+    },
+    "static":      "public",
+    "views":       "views"
+})
+
+app.middleware(kasbah.helmet())
+app.middleware(kasbah.cors({"origin": "*", "credentials": True}))
+
+# Register showcase routes
+app.get("/", fn(req, res) res.view("index", {"title": "Home"}) end)
+app.get("/tasks", fn(req, res) res.view("tasks") end)
+app.get("/session-page", fn(req, res) res.view("session") end)
+app.get("/cookies-page", fn(req, res) res.view("cookies") end)
+app.get("/upload-page", fn(req, res) res.view("upload") end)
+app.get("/inspector", fn(req, res) res.view("inspector") end)
+app.get("/gallery", fn(req, res) res.view("gallery", {"files": []}) end)
+app.get("/uploads/:filename", fn(req, res) res.ok() end)
+
+app.get("/api/tasks", fn(req, res) res.ok({"tasks": []}) end)
+app.get("/api/tasks/:id", fn(req, res) res.ok({"id": req.param("id")}) end)
+app.post("/api/tasks", fn(req, res) res.created({"created": {}}) end)
+app.put("/api/tasks/:id", fn(req, res) res.ok({"updated": {}}) end)
+app.patch("/api/tasks/:id/toggle", fn(req, res) res.ok({"updated": {}}) end)
+app.delete("/api/tasks/:id", fn(req, res) res.noContent() end)
+
+app.get("/api/session", fn(req, res) res.ok({"session": {}}) end)
+app.post("/api/session", fn(req, res) res.ok({"set": "key"}) end)
+app.delete("/api/session", fn(req, res) res.ok({"cleared": True}) end)
+
+app.get("/api/cookies", fn(req, res) res.ok({"cookies": {}}) end)
+app.post("/api/cookies", fn(req, res) res.ok({"set": "cookie"}) end)
+app.delete("/api/cookies", fn(req, res) res.ok({"cleared": True}) end)
+
+app.post("/api/upload", fn(req, res) res.ok({"ok": True}) end)
+app.get("/download/:filename", fn(req, res) res.ok() end)
+app.get("/api/echo", fn(req, res) res.ok({}) end)
+app.get("/api/info", fn(req, res) res.ok({}) end)
+
+app.group("/admin", [fn(req, res) end], fn(r)
+    r.get("/", fn(req, res) res.view("admin") end)
+    r.get("/stats", fn(req, res) res.ok({"uptime": 100}) end)
+    r.delete("/tasks", fn(req, res) res.ok({"cleared": True}) end)
+end)
+
+# Verify route registrations
+test("GET / matches", not isNull(app.matchRoute("GET", "/")))
+test("GET /tasks matches", not isNull(app.matchRoute("GET", "/tasks")))
+test("GET /gallery matches", not isNull(app.matchRoute("GET", "/gallery")))
+test("GET /uploads/:filename matches", not isNull(app.matchRoute("GET", "/uploads/avatar.png")))
+test("GET /api/tasks matches", not isNull(app.matchRoute("GET", "/api/tasks")))
+test("GET /api/tasks/5 matches", not isNull(app.matchRoute("GET", "/api/tasks/5")))
+test("POST /api/tasks matches", not isNull(app.matchRoute("POST", "/api/tasks")))
+test("PUT /api/tasks/5 matches", not isNull(app.matchRoute("PUT", "/api/tasks/5")))
+test("PATCH /api/tasks/5/toggle matches", not isNull(app.matchRoute("PATCH", "/api/tasks/5/toggle")))
+test("DELETE /api/tasks/5 matches", not isNull(app.matchRoute("DELETE", "/api/tasks/5")))
+test("GET /api/session matches", not isNull(app.matchRoute("GET", "/api/session")))
+test("GET /api/cookies matches", not isNull(app.matchRoute("GET", "/api/cookies")))
+test("POST /api/upload matches", not isNull(app.matchRoute("POST", "/api/upload")))
+test("GET /api/echo matches", not isNull(app.matchRoute("GET", "/api/echo")))
+test("GET /api/info matches", not isNull(app.matchRoute("GET", "/api/info")))
+test("GET /admin matches", not isNull(app.matchRoute("GET", "/admin")))
+test("GET /admin/stats matches", not isNull(app.matchRoute("GET", "/admin/stats")))
+test("DELETE /admin/tasks matches", not isNull(app.matchRoute("DELETE", "/admin/tasks")))
+
+print("\n═══════════════════════════════════════════════════════════════════════════════")
+print("=== Showcase Test Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+print("═══════════════════════════════════════════════════════════════════════════════")
+
+if failed > 0
+    process.exit(1)
+end

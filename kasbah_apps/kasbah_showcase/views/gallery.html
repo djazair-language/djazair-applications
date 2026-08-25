@@ -1,0 +1,45 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container">
+  <div class="hero fade-in">
+    <h1>🖼️ Kasbah Gallery Viewer</h1>
+    <p>A stunning viewer powered by Kasbah's new AST Template Engine with Loops and Conditionals!</p>
+  </div>
+
+  {% if files.length == 0 %}
+    <div class="alert alert-info" style="text-align: center; margin-top: 2rem;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">📂</div>
+      No files uploaded yet! Go to the <a href="/upload-page" style="color: var(--accent);">Upload</a> page to add some files.
+    </div>
+  {% else %}
+    <div class="grid">
+      {% for file in files %}
+        <div class="card fade-in" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+          
+          {% if file.isImage %}
+            <div style="height: 200px; overflow: hidden; background: #000;">
+              <img src="/uploads/{{ file.name }}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" />
+            </div>
+          {% else %}
+            <div style="height: 200px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 4rem; color: var(--border);">
+              📄
+            </div>
+          {% endif %}
+          
+          <div style="padding: 1rem;">
+            <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0.5rem;" title="{{ file.name }}">
+              {{ file.name }}
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="badge badge-get">{{ file.ext }}</span>
+              <span style="font-size: 0.8rem; color: var(--muted);">{{ file.size }} bytes</span>
+            </div>
+            <a href="/uploads/{{ file.name }}" target="_blank" class="btn btn-ghost" style="width: 100%; justify-content: center; margin-top: 1rem;">View File</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
