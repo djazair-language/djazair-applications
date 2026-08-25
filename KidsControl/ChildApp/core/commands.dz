@@ -3,12 +3,10 @@ import "system.dz" as system
 
 let SECRET = "KIDS_CTRL_2026"
 
-/**
- * Dispatches the raw payload to the appropriate system command.
- * @param {string} raw - The raw command payload received from network.
- * @param {string} systemHostname - The hostname of this machine.
- * @return {string} The result of the command execution.
- */
+# Dispatches the raw payload to the appropriate system command.
+# @param {string} raw - The raw command payload received from network.
+# @param {string} systemHostname - The hostname of this machine.
+# @return {string} The result of the command execution.
 fn dispatch(raw, systemHostname)
     let parts = raw.split("|||")
     if parts.length() < 2 or parts[0] != SECRET

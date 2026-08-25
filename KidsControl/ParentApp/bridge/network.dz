@@ -8,10 +8,8 @@ import "../core/config.dz" as config
 
 let knownOnline = {}
 
-/**
- * Notifies the user via a Windows Balloon Tip when a device comes online.
- * @param {string} hostname - The hostname of the device.
- */
+# Notifies the user via a Windows Balloon Tip when a device comes online.
+# @param {string} hostname - The hostname of the device.
 fn notifyOnline(hostname)
     let code = `
 use file
@@ -35,12 +33,10 @@ try file.delete("__kc_notify.ps1") catch e end
     thread.spawnCode(code)
 end
 
-/**
- * Pings a list of candidate IPs and returns the online devices.
- * @param {Array} candidates - A list of IP addresses to scan.
- * @param {number} waitTime - The amount of time (in seconds) to wait for responses.
- * @return {Array} List of dictionaries containing device info (ip, hostname, port).
- */
+# Pings a list of candidate IPs and returns the online devices.
+# @param {Array} candidates - A list of IP addresses to scan.
+# @param {number} waitTime - The amount of time (in seconds) to wait for responses.
+# @return {Array} List of dictionaries containing device info (ip, hostname, port).
 fn scanIps(candidates, waitTime)
     let found = []
     if candidates.length() == 0
@@ -127,10 +123,8 @@ end
     return found
 end
 
-/**
- * Registers the network IPC handlers for the UI.
- * @param {App} app - The WebView application instance.
- */
+# Registers the network IPC handlers for the UI.
+# @param {App} app - The WebView application instance.
 fn register(app)
     # Event: scanNetwork
     # Discovers new devices in the local network via ARP.

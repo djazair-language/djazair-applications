@@ -26,10 +26,8 @@ catch e
     print("[Agent] Failed to retrieve hostname: " + str(e))
 end
 
-/**
- * Starts the schedule monitoring thread.
- * Checks the configured schedule and locks the workstation if limits are exceeded.
- */
+# Starts the schedule monitoring thread.
+# Checks the configured schedule and locks the workstation if limits are exceeded.
 fn startScheduleMonitor()
     let monitorCode = `
 use file
