@@ -1,0 +1,94 @@
+use net
+use thread
+use process
+use json
+use datetime
+
+print("================================================")
+print("  KidsControl Chaos Network Tester")
+print("================================================")
+
+let TARGET_HOST = "127.0.0.1"
+let TARGET_PORT = 9999
+
+fn testMalformedJson()
+    print("[Test 1] Sending Malformed JSON...")
+    let client = new net.tcpClient()
+    if client.connect(TARGET_HOST, TARGET_PORT)
+        client.send("{ invalid json data ")
+        client.shutdown(net.SD_SEND)
+        client.close()
+        print("  -> Malformed JSON sent.")
+    else
+        print("  -> Failed to connect.")
+    end
+end
+
+fn testSuddenDisconnect()
+    print("[Test 2] Sending partial data and abrupt disconnect...")
+    let client = new net.tcpClient()
+    if client.connect(TARGET_HOST, TARGET_PORT)
+        client.send(json.encode({"secret": "KIDS_CTRL_2026", "id": "chaos-test"}))
+        # Abruptly close without shutdown
+        client.close()
+        print("  -> Abrupt disconnect sent.")
+    end
+end
+
+fn testWrongSecret()
+    print("[Test 3] Sending Wrong Secret Key...")
+    let client = new net.tcpClient()
+    if client.connect(TARGET_HOST, TARGET_PORT)
+        client.send(json.encode({
+            "secret": "WRONG_KEY_123", 
+            "id": "hacker-pc",
+            "hostname": "Hacker",
+            "ip": "1.1.1.1"
+        }))
+        client.shutdown(net.SD_SEND)
+        client.close()
+        print("  -> Wrong secret sent.")
+    end
+end
+
+fn testConcurrentSpam()
+    print("[Test 4] Simulating 50 concurrent child devices checking in at the exact same millisecond...")
+    for i in 1..50
+        thread.spawnCode(`
+            use net
+            use json
+            let client = new net.tcpClient()
+            if client.connect("127.0.0.1", 9999)
+                client.send(json.encode({
+                    "secret": "KIDS_CTRL_2026", 
+                    "id": "spam-bot-" + str(` + str(i) + `),
+                    "hostname": "SpamBot-" + str(` + str(i) + `),
+                    "ip": "10.0.0." + str(` + str(i) + `)
+                }))
+                client.shutdown(1) # SD_SEND
+                client.receiveAll()
+                client.close()
+            end
+        `)
+    end
+    print("  -> 50 connections fired!")
+    process.sleep(2.0)
+end
+
+testMalformedJson()
+process.sleep(0.5)
+
+testSuddenDisconnect()
+process.sleep(0.5)
+
+testWrongSecret()
+process.sleep(0.5)
+
+testConcurrentSpam()
+
+print("================================================")
+print(" Chaos tests finished!")
+print(" Go check your ParentApp. If it didn't crash and")
+print(" is still running perfectly, the TCP server is")
+print(" bulletproof! 🛡️")
+print("================================================")
