@@ -36,7 +36,7 @@
     <div class='sidebar-list' id='deviceList'></div>
 
     <div class='sidebar-footer'>
-      <button class='btn-kc primary w-100' onclick='startScan()' id='scanBtn'>
+      <button class='kc-btn primary w-100' onclick='startScan()' id='scanBtn'>
         <i class='fa-solid fa-radar'></i> Scan Network
       </button>
       <div style='display:flex; gap:6px;'>
@@ -61,13 +61,13 @@
       </div>
       <span id='topbarBadge'></span>
       <div style='margin-left:auto; display:flex; gap:8px; align-items:center;'>
-        <button class='btn-kc primary' onclick='openExportModal()' title='Export standalone ChildApp.exe'>
+        <button class='kc-btn primary' onclick='openExportModal()' title='Export standalone ChildApp.exe'>
           <i class='fa-solid fa-file-export'></i> Export Child App
         </button>
-        <button class='btn-kc success' id='pingBtn' onclick='doPing()' style='display:none;'>
+        <button class='kc-btn success' id='pingBtn' onclick='doPing()' style='display:none;'>
           <i class='fa-solid fa-wifi'></i> Ping
         </button>
-        <button class='btn-kc secondary' onclick='openSettingsModal()'>
+        <button class='kc-btn secondary' onclick='openSettingsModal()'>
           <i class='fa-solid fa-gear'></i> Settings
         </button>
       </div>
@@ -134,56 +134,54 @@
             <span><strong>Device Offline:</strong> This computer is not reachable. Live controls are disabled; browsing cached data.</span>
           </div>
 
-          <div class='action-grid'>
-            <div class='action-card info live-action' onclick='doActiveWindow()'>
-              <div class='ac-icon' style='color:#0dcaf0;'><i class='fa-solid fa-window-maximize'></i></div>
-              <div class='ac-label'>Active Window</div>
-              <div class='ac-sub'>See current app/window</div>
+          <!-- Dashboard Widgets -->
+          <div class='kc-dashboard-grid'>
+            <div class='kc-widget primary'>
+              <div class='kc-widget-title'><i class='fa-solid fa-desktop'></i> Active Window</div>
+              <div class='kc-widget-value' id='dashActiveWindow'>Unknown</div>
+              <div class='kc-widget-sub'>Currently focused application</div>
             </div>
-            <div class='action-card warning live-action' onclick='doCmd("LOCK")'>
-              <div class='ac-icon' style='color:var(--warning);'><i class='fa-solid fa-lock'></i></div>
-              <div class='ac-label'>Lock Screen</div>
-              <div class='ac-sub'>Block access now</div>
-            </div>
-            <div class='action-card danger live-action' onclick='confirmAction("Shutdown", "This will turn off the computer in 5 seconds.", function(){doCmd("SHUTDOWN");})'>
-              <div class='ac-icon' style='color:var(--danger);'><i class='fa-solid fa-power-off'></i></div>
-              <div class='ac-label'>Shutdown</div>
-              <div class='ac-sub'>Power off computer</div>
-            </div>
-            <div class='action-card primary live-action' onclick='confirmAction("Restart", "This will restart the computer in 5 seconds.", function(){doCmd("RESTART");})'>
-              <div class='ac-icon' style='color:var(--accent);'><i class='fa-solid fa-rotate-right'></i></div>
-              <div class='ac-label'>Restart</div>
-              <div class='ac-sub'>Reboot computer</div>
-            </div>
-            <div class='action-card live-action' style='background:#1e1e2e; border-color:#6c757d; cursor:pointer;' onclick='doSetSchedule()'>
-              <div class='ac-icon' style='color:#6c757d;'><i class='fa-solid fa-clock'></i></div>
-              <div class='ac-label'>Set Bedtime</div>
-              <div class='ac-sub'>Offline time limit</div>
-            </div>
-            <div class='action-card success' onclick='switchTab("tab-screenshot"); doScreenshot();'>
-              <div class='ac-icon' style='color:var(--success);'><i class='fa-solid fa-camera-retro'></i></div>
-              <div class='ac-label'>Screenshot</div>
-              <div class='ac-sub'>View / Capture screen</div>
-            </div>
-            <div class='action-card live-action' style='border-color:#0dcaf0;' onclick='switchTab("tab-webcam"); doWebcam();'>
-              <div class='ac-icon' style='color:#0dcaf0;'><i class='fa-solid fa-video'></i></div>
-              <div class='ac-label'>Webcam</div>
-              <div class='ac-sub'>View / Snap webcam</div>
-            </div>
-            <div class='action-card danger live-action' style='border-color: #8B0000;' onclick='confirmAction("Stop Agent", "This will completely close the KidsControl program on the child computer. You will lose connection until you restart it manually. Proceed?", function(){doCmd("EXIT");})'>
-              <div class='ac-icon' style='color:#8B0000;'><i class='fa-solid fa-skull-crossbones'></i></div>
-              <div class='ac-label'>Stop Agent</div>
-              <div class='ac-sub'>Kill remote app</div>
+            
+            <div class='kc-widget success'>
+              <div class='kc-widget-title'><i class='fa-solid fa-signal'></i> Status</div>
+              <div class='kc-widget-value' id='dashStatus'>Online</div>
+              <div class='kc-widget-sub' id='dashIp'>127.0.0.1</div>
             </div>
           </div>
 
-          <div class='kc-card'>
-            <div style='font-size:13px; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px;'>
+          <!-- Quick Actions -->
+          <div class='kc-title' style='margin-top:24px;'><i class='fa-solid fa-bolt'></i> Quick Actions</div>
+          <div class='kc-action-grid'>
+            <div class='kc-action-card primary live-action' onclick='doActiveWindow()'>
+              <i class='fa-solid fa-window-maximize'></i>
+              <span>Refresh Window</span>
+            </div>
+            <div class='kc-action-card warning live-action' onclick='doCmd("LOCK")'>
+              <i class='fa-solid fa-lock'></i>
+              <span>Lock Screen</span>
+            </div>
+            <div class='kc-action-card danger live-action' onclick='confirmAction("Shutdown", "This will turn off the computer in 5 seconds.", function(){doCmd("SHUTDOWN");})'>
+              <i class='fa-solid fa-power-off'></i>
+              <span>Shutdown</span>
+            </div>
+            <div class='kc-action-card primary live-action' onclick='confirmAction("Restart", "This will restart the computer in 5 seconds.", function(){doCmd("RESTART");})'>
+              <i class='fa-solid fa-rotate-right'></i>
+              <span>Restart</span>
+            </div>
+            <div class='kc-action-card danger live-action' onclick='confirmAction("Stop Agent", "This will completely close the KidsControl program on the child computer. You will lose connection until you restart it manually. Proceed?", function(){doCmd("EXIT");})'>
+              <i class='fa-solid fa-skull-crossbones'></i>
+              <span>Stop Agent</span>
+            </div>
+          </div>
+
+          <!-- Message Card -->
+          <div class='kc-card' style='margin-top:24px;'>
+            <div class='kc-card-header'>
               <i class='fa-solid fa-comment-dots' style='color:var(--accent);'></i> Send Alert Message
             </div>
-            <div style='display:flex; gap:8px;'>
-              <input class='kc-input' id='msgInput' placeholder='Type a message to display on the child computer...' style='flex:1;'>
-              <button class='btn-kc primary live-btn' id='msgSendBtn' onclick='doMsg()'>
+            <div class='kc-input-group'>
+              <input class='kc-input' id='msgInput' placeholder='Type a message to display on the child computer...'>
+              <button class='kc-btn primary live-btn' id='msgSendBtn' onclick='doMsg()'>
                 <i class='fa-solid fa-paper-plane'></i> Send
               </button>
             </div>
@@ -193,22 +191,22 @@
         <!-- ─── PROCESSES ─── -->
         <div class='tab-pane fade' id='tab-processes'>
           <div style='display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;'>
-            <button class='btn-kc primary live-btn' onclick='doLoadProcesses(true)' id='refreshProcBtn'>
+            <button class='kc-btn primary live-btn' onclick='doLoadProcesses(true)' id='refreshProcBtn'>
               <i class='fa-solid fa-rotate-right'></i> Refresh
             </button>
             <input class='kc-input' id='procSearch' placeholder='Filter by name...' oninput='filterProcs()' style='width:200px;'>
             <span id='procCount' style='font-size:12px; color:var(--text-muted); margin-left:auto;'></span>
           </div>
           <div class='kc-card' style='padding:0; overflow:hidden;'>
-            <table class='proc-table'>
+            <table class='kc-table'>
               <thead>
                 <tr>
-                  <th>#</th>
+                  <th style='width:40px;'>#</th>
                   <th>Process Name</th>
-                  <th>PID</th>
-                  <th>Session Name</th>
-                  <th>Memory</th>
-                  <th></th>
+                  <th style='width:80px;'>PID</th>
+                  <th style='width:120px;'>Session Name</th>
+                  <th style='width:120px;'>Memory</th>
+                  <th style='width:50px;'></th>
                 </tr>
               </thead>
               <tbody id='procBody'>
@@ -222,19 +220,19 @@
             </table>
           </div>
           <div class='pager'>
-            <button class='btn-kc' id='prevBtn' onclick='prevPage()'><i class='fa-solid fa-chevron-left'></i></button>
+            <button class='kc-btn' id='prevBtn' onclick='prevPage()'><i class='fa-solid fa-chevron-left'></i></button>
             <span class='pager-info' id='pageInfo'>Page 1 of 1</span>
-            <button class='btn-kc' id='nextBtn' onclick='nextPage()'><i class='fa-solid fa-chevron-right'></i></button>
+            <button class='kc-btn' id='nextBtn' onclick='nextPage()'><i class='fa-solid fa-chevron-right'></i></button>
           </div>
         </div>
 
         <!-- ─── SCREENSHOT (GALLERY & SLIDESHOW) ─── -->
         <div class='tab-pane fade' id='tab-screenshot'>
           <div style='display:flex; gap:8px; margin-bottom:16px; align-items:center;'>
-            <button class='btn-kc success live-btn' id='ssBtn' onclick='doScreenshot()'>
+            <button class='kc-btn success live-btn' id='ssBtn' onclick='doScreenshot()'>
               <i class='fa-solid fa-camera-retro'></i> Capture New Screenshot
             </button>
-            <button class='btn-kc' onclick='loadScreenshotHistory()' title='Reload screenshot gallery'>
+            <button class='kc-btn' onclick='loadScreenshotHistory()' title='Reload screenshot gallery'>
               <i class='fa-solid fa-rotate-right'></i> Refresh Gallery
             </button>
           </div>
@@ -249,7 +247,7 @@
               <i class='fa-solid fa-chevron-right'></i>
             </button>
             <div class='gallery-controls'>
-              <button class='btn-kc danger' id='deleteSsBtn' onclick='deleteActiveScreenshot()' title='Delete this screenshot'>
+              <button class='kc-btn danger' id='deleteSsBtn' onclick='deleteActiveScreenshot()' title='Delete this screenshot'>
                 <i class='fa-solid fa-trash'></i>
               </button>
             </div>
@@ -277,10 +275,10 @@
         <!-- ─── WEBCAM (GALLERY & SLIDESHOW) ─── -->
         <div class='tab-pane fade' id='tab-webcam'>
           <div style='display:flex; gap:8px; margin-bottom:16px; align-items:center;'>
-            <button class='btn-kc primary live-btn' style='background:#0dcaf0; color:#000; border-color:#0dcaf0;' id='camBtn' onclick='doWebcam()'>
+            <button class='kc-btn primary live-btn' style='background:#0dcaf0; color:#000; border-color:#0dcaf0;' id='camBtn' onclick='doWebcam()'>
               <i class='fa-solid fa-video'></i> Capture Webcam Snapshot
             </button>
-            <button class='btn-kc' onclick='loadWebcamHistory()' title='Reload webcam gallery'>
+            <button class='kc-btn' onclick='loadWebcamHistory()' title='Reload webcam gallery'>
               <i class='fa-solid fa-rotate-right'></i> Refresh Gallery
             </button>
           </div>
@@ -295,7 +293,7 @@
               <i class='fa-solid fa-chevron-right'></i>
             </button>
             <div class='gallery-controls'>
-              <button class='btn-kc danger' id='deleteCamBtn' onclick='deleteActiveWebcam()' title='Delete this webcam snapshot'>
+              <button class='kc-btn danger' id='deleteCamBtn' onclick='deleteActiveWebcam()' title='Delete this webcam snapshot'>
                 <i class='fa-solid fa-trash'></i>
               </button>
             </div>
@@ -332,8 +330,8 @@
             </div>
             <div style='display:flex; gap:8px;'>
               <input class='kc-input' id='domainInput' placeholder='e.g. youtube.com' style='flex:1;'>
-              <button class='btn-kc danger live-btn'  onclick='doBlock()'>  <i class='fa-solid fa-ban'></i> Block   </button>
-              <button class='btn-kc success live-btn' onclick='doUnblock()'><i class='fa-solid fa-circle-check'></i> Unblock</button>
+              <button class='kc-btn danger live-btn'  onclick='doBlock()'>  <i class='fa-solid fa-ban'></i> Block   </button>
+              <button class='kc-btn success live-btn' onclick='doUnblock()'><i class='fa-solid fa-circle-check'></i> Unblock</button>
             </div>
           </div>
         </div>
@@ -371,7 +369,7 @@
         <div class='tab-pane fade' id='tab-sysinfo'>
           <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;'>
             <span style='font-size:15px; font-weight:700;'>System Information</span>
-            <button class='btn-kc live-btn' id='refreshSysinfoBtn' onclick='doSysinfo(true)'><i class='fa-solid fa-rotate-right'></i> Refresh</button>
+            <button class='kc-btn live-btn' id='refreshSysinfoBtn' onclick='doSysinfo(true)'><i class='fa-solid fa-rotate-right'></i> Refresh</button>
           </div>
           <div class='sysinfo-grid' id='sysinfoGrid'>
             <div class='empty-state' style='grid-column:1/-1; padding:40px;'>
@@ -396,8 +394,8 @@
       </div>
       <div class='modal-body' id='confirmBody' style='font-size:13px; color:var(--text-muted);'></div>
       <div class='modal-footer border-0 pt-0'>
-        <button class='btn-kc' data-bs-dismiss='modal'>Cancel</button>
-        <button class='btn-kc danger' id='confirmOk'>Confirm</button>
+        <button class='kc-btn' data-bs-dismiss='modal'>Cancel</button>
+        <button class='kc-btn danger' id='confirmOk'>Confirm</button>
       </div>
     </div>
   </div>
@@ -417,7 +415,7 @@
       </div>
       <div class='modal-footer' style='border-top:1px solid #30363d; padding:10px 16px;'>
         <button class='btn btn-outline-secondary btn-sm' data-bs-dismiss='modal'>Cancel</button>
-        <button class='btn-kc primary' onclick='saveDeviceNickname()'>Save</button>
+        <button class='kc-btn primary' onclick='saveDeviceNickname()'>Save</button>
       </div>
     </div>
   </div>
@@ -451,7 +449,7 @@
       </div>
       <div class='modal-footer' style='border-top:1px solid #30363d; padding:12px 20px; display:flex; justify-content:space-between;'>
         <button type='button' class='btn btn-outline-secondary' data-bs-dismiss='modal'>Close</button>
-        <button type='button' class='btn-kc primary' onclick='saveSettings()'>
+        <button type='button' class='kc-btn primary' onclick='saveSettings()'>
           <i class='fa-solid fa-floppy-disk'></i> Save Settings
         </button>
       </div>
@@ -501,7 +499,7 @@
             <label class='form-label' style='font-weight:600;'>Export Destination Folder (مكان حفظ الملف):</label>
             <div style='display:flex; gap:8px;'>
               <input class='kc-input form-control' id='expExportFolder' value='exports' placeholder='Select or type output folder...'>
-              <button type='button' class='btn-kc secondary' onclick='doBrowseExportFolder()' style='white-space:nowrap;'>
+              <button type='button' class='kc-btn secondary' onclick='doBrowseExportFolder()' style='white-space:nowrap;'>
                 <i class='fa-solid fa-folder-open'></i> Browse...
               </button>
             </div>
@@ -515,10 +513,10 @@
       <div class='modal-footer' style='border-top:1px solid #30363d; padding:12px 20px; display:flex; justify-content:space-between;'>
         <button type='button' class='btn btn-outline-secondary' data-bs-dismiss='modal'>Close</button>
         <div style='display:flex; gap:8px;'>
-          <button type='button' class='btn-kc' id='openExpFolderBtn' onclick='doOpenExportFolder()' style='display:none;'>
+          <button type='button' class='kc-btn' id='openExpFolderBtn' onclick='doOpenExportFolder()' style='display:none;'>
             <i class='fa-solid fa-folder-open'></i> Open Folder
           </button>
-          <button type='button' class='btn-kc primary' id='btnBuildAgent' onclick='doExportChildAgent()'>
+          <button type='button' class='kc-btn primary' id='btnBuildAgent' onclick='doExportChildAgent()'>
             <i class='fa-solid fa-hammer'></i> Build Executable (.exe)
           </button>
         </div>

@@ -210,22 +210,33 @@ function hydrateUiFromCache(cache, isOnline) {
 }
 
 function setDeviceLiveState(isOnline) {
+    if (selectedDev) {
+        $('#dashIp').text(selectedDev.ip + (selectedDev.hostname ? ' - ' + selectedDev.hostname : ''));
+    }
+    
     if (isOnline) {
         $('#topbarBadge').html(
-            '<span class="badge-online"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Online</span> ' +
-            '<span class="badge-id" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 14) + '...</span>'
+            '<span class="kc-badge success"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Online</span> ' +
+            '<span class="kc-id-badge" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 14) + '...</span>'
         );
+        $('#dashStatus').text('Online').parent().removeClass('danger warning').addClass('success');
         $('#pingBtn').show();
         $('#overviewOfflineBanner').hide();
         $('.live-action').removeClass('live-locked');
         $('.live-btn').prop('disabled', false);
         $('#msgInput').prop('disabled', false);
         $('#termIn').prop('disabled', false);
+        
+        // Auto-fetch active window when coming online or switching
+        if ($('#dashActiveWindow').text() === 'Unknown') doActiveWindow();
+        
     } else {
         $('#topbarBadge').html(
-            '<span class="badge-offline"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Offline</span> ' +
-            '<span class="badge-id" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 14) + '...</span>'
+            '<span class="kc-badge danger"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Offline</span> ' +
+            '<span class="kc-id-badge" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 14) + '...</span>'
         );
+        $('#dashStatus').text('Offline').parent().removeClass('success warning').addClass('danger');
+        $('#dashActiveWindow').text('Unavailable');
         $('#pingBtn').hide();
         $('#overviewOfflineBanner').show();
         $('.live-action').addClass('live-locked');
@@ -360,6 +371,20 @@ function startScan() {
 // ═════════════════════════════════════════════════════════════════════════════
 
 window.isCmdRunning = false;
+window.activeCmdBtn = null;
+window.lastClickedElement = null;
+
+$(document).on('click', '.kc-btn, .kc-action-card', function(e) {
+    window.lastClickedElement = e.currentTarget;
+});
+
+function clearLoadingState() {
+    window.isCmdRunning = false;
+    if (window.activeCmdBtn) {
+        $(window.activeCmdBtn).removeClass('is-loading');
+        window.activeCmdBtn = null;
+    }
+}
 
 function sendCmd(command, successCb, failCb, retryCount) {
     if (window.isCmdRunning) {
@@ -374,7 +399,15 @@ function sendCmd(command, successCb, failCb, retryCount) {
     }
     retryCount = retryCount || 0;
     
-    window.isCmdRunning = true;
+    if (!retryCount) {
+        window.isCmdRunning = true;
+        if (window.lastClickedElement) {
+            $(window.lastClickedElement).addClass('is-loading');
+            window.activeCmdBtn = window.lastClickedElement;
+            window.lastClickedElement = null; // Reset for next click
+        }
+    }
+
     var reqPayload = {
         id: selectedDev.id || ('KC-' + selectedDev.ip),
         ip: selectedDev.ip,
@@ -384,7 +417,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
 
     window.djazair.invoke('agentCommand', reqPayload).then(function(res) {
         if (!res.ok) {
-            window.isCmdRunning = false;
+            clearLoadingState();
             toast('Failed to send command: ' + res.data, 'danger');
             if (failCb) failCb(res.data);
             return;
@@ -402,11 +435,11 @@ function sendCmd(command, successCb, failCb, retryCount) {
                     waited += 100;
                     if (waited >= maxWaitMs) {
                         clearInterval(pollInterval);
-                        window.isCmdRunning = false;
                         
                         if (retryCount < 1 && selectedDev.is_online) {
                             sendCmd(command, successCb, failCb, retryCount + 1);
                         } else {
+                            clearLoadingState();
                             toast('Command timed out waiting for child response.', 'danger');
                             if (failCb) failCb('timeout');
                         }
@@ -416,7 +449,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
                 
                 // Result found or error!
                 clearInterval(pollInterval);
-                window.isCmdRunning = false;
+                clearLoadingState();
 
                 if (pollRes.status === 'error') {
                     toast('Error checking result: ' + pollRes.data, 'danger');
@@ -974,11 +1007,11 @@ function termKeydown(e) {
 
 function doActiveWindow() {
     if(!selectedDev) return;
-    toast("Requesting active window...", "info");
     sendCmd('ACTIVE_WINDOW', function(res) {
         var text = res;
         if(text.startsWith("ACTIVE_WINDOW:")) text = text.substring(14);
-        alert("Currently Active Window:\n\n" + text);
+        if(!text || text.trim() === "") text = "Desktop / Background";
+        $('#dashActiveWindow').text(text);
     });
 }
 
