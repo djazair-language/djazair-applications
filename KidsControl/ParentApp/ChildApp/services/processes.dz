@@ -1,0 +1,24 @@
+use process
+
+# =============================================================================
+# ProcessService — Manages process monitoring and termination.
+# =============================================================================
+class ProcessService
+    init()
+    end
+
+    # Retrieves a list of running tasks in CSV format.
+    # @return {string} CSV formatted task list prefixed with TASKS:
+    getTasks()
+        let r = process.exec("tasklist /FO CSV /NH")
+        return "TASKS:" + r["stdout"]
+    end
+
+    # Force-terminates a specific process by its executable name.
+    # @param {string} name - Executable name (e.g. chrome.exe).
+    # @return {string} Status of the command.
+    killTask(name)
+        process.exec("taskkill /F /IM " + name)
+        return "OK:KILL:" + name
+    end
+end

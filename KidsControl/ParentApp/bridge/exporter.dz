@@ -77,10 +77,15 @@ fn register(app)
             # Ensure export output directory exists
             try dir.createAll(exportDir) catch e end
             let absExportDir = path.resolve(exportDir)
+            let absChildDir  = path.resolve(childDir)
             let finalExePath = path.join(absExportDir, appName)
 
             # Update / customize constants.dz in ChildApp before packaging
             let constantsFile = path.join(childDir, "core", "constants.dz")
+            let consoleModeStr = "False"
+            if consoleMode
+                consoleModeStr = "True"
+            end
             let constantsCode = `# Custom generated ChildApp configuration (Reverse Connection)
 let SECRET_KEY = "` + secretKey + `"
 let PARENT_HOST = "` + parentHost + `"
@@ -89,18 +94,29 @@ let CHECKIN_INTERVAL_SECONDS = 1.0
 `
             file.write(constantsFile, constantsCode)
 
-            # Invoke dpack to compile standalone executable
-            let childMain = path.join(childDir, "main.dz")
-            let nativeExe = path.join(childDir, "KidsControlNative.exe")
-            let coreDir = path.join(childDir, "core")
-            let servicesDir = path.join(childDir, "services")
+            # Write a temp build script INSIDE ChildApp dir so dpack paths are correct
+            # (same as build.dz: entry=main.dz, assets=core/ services/ KidsControlNative.exe)
+            let safeOut = finalExePath.replace("\\", "\\\\")
+            let tempBuildCode = `use dpack
+dpack.pack("main.dz", "` + safeOut + `", {
+    "console": ` + consoleModeStr + `,
+    "portable": True,
+    "assets": ["core/", "services/", "KidsControlNative.exe"],
+    "quiet": True
+})
+`
+            let tempBuildFile = path.join(absChildDir, "_export_build_tmp.dz")
+            file.write(tempBuildFile, tempBuildCode)
 
-            dpack.pack(childMain, finalExePath, {
-                "console": consoleMode,
-                "portable": True,
-                "assets": [coreDir, servicesDir, nativeExe],
-                "quiet": True
-            })
+            # Execute from ChildApp directory so relative imports are resolved correctly
+            process.exec("cmd /c cd /d \"" + absChildDir + "\" && djazair _export_build_tmp.dz")
+
+            # Cleanup temp build script
+            try file.delete(tempBuildFile) catch e end
+
+            if !file.isFile(finalExePath)
+                return {"ok": False, "error": "Build completed but output file not found: " + finalExePath}
+            end
 
             let size = file.size(finalExePath)
             let sizeStr = str(math.floor(size / 1048576.0)) + " MB"

@@ -1,0 +1,136 @@
+use file
+use process
+
+let NATIVE_EXE = "KidsControlNative.exe"
+
+# Compiles the high-performance C# helper on startup if missing.
+fn setupNativeHelper()
+    if file.isFile(NATIVE_EXE) return end
+    let csCode = `using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+using System.Threading;
+
+class KidsControlNative {
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    [DllImport("avicap32.dll")] static extern IntPtr capCreateCaptureWindowA(string lpszWindowName, int dwStyle, int X, int Y, int nWidth, int nHeight, IntPtr hwndParent, int nID);
+    [DllImport("avicap32.dll")] static extern bool capGetDriverDescriptionA(short wDriverIndex, StringBuilder lpszName, int cbName, StringBuilder lpszVer, int cbVer);
+    [DllImport("user32", EntryPoint="SendMessage")] static extern int SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
+
+    [STAThread]
+    static void Main(string[] args) {
+        if (args.Length == 0) return;
+        string cmd = args[0].ToLower();
+        try {
+            if (cmd == "window") {
+                IntPtr hwnd = GetForegroundWindow();
+                StringBuilder sb = new StringBuilder(256);
+                if (GetWindowText(hwnd, sb, 256) > 0) Console.WriteLine(sb.ToString());
+                else Console.WriteLine("None/Desktop");
+            } else if (cmd == "screenshot") {
+                Rectangle bounds = Screen.PrimaryScreen.Bounds;
+                using (Bitmap bmp = new Bitmap(bounds.Width, bounds.Height)) {
+                    using (Graphics g = Graphics.FromImage(bmp)) {
+                        g.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+                    }
+                    using (Image thumb = bmp.GetThumbnailImage(bounds.Width / 2, bounds.Height / 2, null, IntPtr.Zero)) {
+                        using (MemoryStream ms = new MemoryStream()) {
+                            thumb.Save(ms, ImageFormat.Jpeg);
+                            byte[] bytes = ms.ToArray();
+                            if (bytes.Length > 0) {
+                                Console.WriteLine(Convert.ToBase64String(bytes));
+                            } else {
+                                Console.WriteLine("ERROR:EMPTY_IMAGE");
+                            }
+                        }
+                    }
+                }
+            } else if (cmd == "webcam") {
+                StringBuilder name = new StringBuilder(128);
+                StringBuilder ver = new StringBuilder(128);
+                bool hasDriver = capGetDriverDescriptionA(0, name, 128, ver, 128);
+                if (!hasDriver) {
+                    Console.WriteLine("NO_WEBCAM");
+                    return;
+                }
+
+                IntPtr hwnd = capCreateCaptureWindowA("Webcam", 0, 0, 0, 640, 480, IntPtr.Zero, 0);
+                int connected = SendMessage(hwnd, 1034, 0, 0); // WM_CAP_DRIVER_CONNECT
+                if (connected == 0) {
+                    Console.WriteLine("NO_WEBCAM");
+                    return;
+                }
+
+                Thread.Sleep(800);
+                SendMessage(hwnd, 1084, 0, 0); // WM_CAP_GRAB_FRAME
+                SendMessage(hwnd, 1054, 0, 0); // WM_CAP_EDIT_COPY
+                SendMessage(hwnd, 1035, 0, 0); // WM_CAP_DRIVER_DISCONNECT
+
+                if (Clipboard.ContainsImage()) {
+                    using (Image img = Clipboard.GetImage()) {
+                        using (MemoryStream ms = new MemoryStream()) {
+                            img.Save(ms, ImageFormat.Jpeg);
+                            byte[] bytes = ms.ToArray();
+                            if (bytes.Length > 0) {
+                                Console.WriteLine(Convert.ToBase64String(bytes));
+                            } else {
+                                Console.WriteLine("NO_WEBCAM");
+                            }
+                        }
+                    }
+                    Clipboard.Clear();
+                } else {
+                    Console.WriteLine("NO_WEBCAM");
+                }
+            }
+        } catch (Exception ex) {
+            Console.WriteLine("ERROR:" + ex.Message);
+        }
+    }
+}
+`
+    let csFile = "NativeHelper.cs"
+    file.write(csFile, csCode)
+    let csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe"
+    process.exec(csc + " /out:" + NATIVE_EXE + " /r:System.Windows.Forms.dll /r:System.Drawing.dll " + csFile)
+    try file.delete(csFile) catch e end
+end
+
+# Captures a desktop screenshot with verification.
+# @return {string} Base64 image data prefixed with SCREENSHOT: or ERR:
+fn takeScreenshot()
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " screenshot")
+    let out = r["stdout"].strip()
+    if out == "" or out.startsWith("ERROR:")
+        return "ERR:SCREENSHOT_FAILED"
+    end
+    return "SCREENSHOT:" + out
+end
+
+# Captures a webcam image with device validation.
+# @return {string} Base64 image data prefixed with WEBCAM: or ERR:
+fn takeWebcamSnapshot()
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " webcam")
+    let out = r["stdout"].strip()
+    if out == "NO_WEBCAM"
+        return "ERR:NO_WEBCAM"
+    elif out == "" or out.startsWith("ERROR:")
+        return "ERR:WEBCAM_FAILED"
+    end
+    return "WEBCAM:" + out
+end
+
+# Gets the title of the currently active window on the machine.
+# @return {string} Window title prefixed with ACTIVE_WINDOW:
+fn getActiveWindow()
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " window")
+    return "ACTIVE_WINDOW:" + r["stdout"].strip()
+end

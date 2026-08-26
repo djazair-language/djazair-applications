@@ -1,0 +1,5 @@
+# Custom generated ChildApp configuration (Reverse Connection)
+let SECRET_KEY = "KIDS_CTRL_2026"
+let PARENT_HOST = "192.168.100.3"
+let PARENT_PORT = 9999
+let CHECKIN_INTERVAL_SECONDS = 1.0

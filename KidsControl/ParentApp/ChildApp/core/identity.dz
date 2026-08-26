@@ -1,0 +1,74 @@
+use process
+use file
+use uuid
+
+# =============================================================================
+# IdentityService — Manages Unique Machine Identification
+# Provides a permanent, hardware-bound Machine GUID with UUID fallback.
+# =============================================================================
+class IdentityService
+    init()
+        self.deviceId = self._resolveDeviceId()
+        self.hostname = self._resolveHostname()
+    end
+
+    # Resolves the unique device ID from Windows Registry or fallback UUID file.
+    _resolveDeviceId()
+        let guid = ""
+        try
+            let r = process.exec("reg query \"HKLM\\SOFTWARE\\Microsoft\\Cryptography\" /v MachineGuid")
+            let out = r["stdout"]
+            if out.contains("REG_SZ")
+                let parts = out.split("REG_SZ")
+                if parts.length() > 1
+                    guid = parts[1].strip()
+                end
+            end
+        catch e
+        end
+
+        if guid != ""
+            return "KC-" + guid
+        end
+
+        # Fallback to local persistent UUID file
+        let fallbackFile = "C:\\Users\\Public\\kc_device_id.txt"
+        try
+            if file.isFile(fallbackFile)
+                let saved = file.read(fallbackFile).strip()
+                if saved != ""
+                    return saved
+                end
+            end
+        catch e
+        end
+
+        # Generate new UUID v4 and persist it
+        let newId = "KC-" + uuid.v4()
+        try
+            file.write(fallbackFile, newId)
+        catch e
+        end
+        return newId
+    end
+
+    # Resolves the system hostname.
+    _resolveHostname()
+        let name = "Unknown"
+        try
+            name = process.exec("hostname")["stdout"].strip()
+        catch e
+        end
+        return name
+    end
+
+    # Returns the permanent Device ID.
+    getDeviceId()
+        return self.deviceId
+    end
+
+    # Returns the system hostname.
+    getHostname()
+        return self.hostname
+    end
+end
