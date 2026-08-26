@@ -56,6 +56,7 @@ let localIp = getLocalIp()
 # 2. Main Agent Connection & Command Execution Loop
 let pendingResult = Null
 let pendingResultCmdId = Null
+let shouldExit = False
 
 while True
     try
@@ -85,6 +86,10 @@ while True
             let respRaw = client.receiveAll()
             client.close()
 
+            if shouldExit
+                process.exit(0)
+            end
+
             if !isNull(respRaw) and respRaw != ""
                 let resp = json.decode(respRaw)
                 if type(resp) == "Map" and resp.has("action") and resp["action"] == "EXEC"
@@ -95,6 +100,10 @@ while True
                     let output = router.dispatch(cmd)
                     pendingResult = output
                     pendingResultCmdId = cmdId
+                    
+                    if cmd == "EXIT"
+                        shouldExit = True
+                    end
 
                     # Immediately loop to deliver result without waiting
                     continue
@@ -102,6 +111,9 @@ while True
             end
         end
     catch e
+        if shouldExit
+            process.exit(0)
+        end
         # Silently handle connection retries
     end
 

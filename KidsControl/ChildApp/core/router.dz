@@ -39,11 +39,6 @@ class CommandRouter
             return "PONG:" + self.identity.getDeviceId() + ":" + self.identity.getHostname()
 
         elif cmd == "EXIT"
-            thread.spawnCode(`
-use process
-process.sleep(1.0)
-process.exit(0)
-`)
             return "OK:EXIT"
 
         elif cmd == "SYSINFO"
