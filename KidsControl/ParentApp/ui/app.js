@@ -359,7 +359,14 @@ function startScan() {
 // IPC Command Dispatcher
 // ═════════════════════════════════════════════════════════════════════════════
 
+window.isCmdRunning = false;
+
 function sendCmd(command, successCb, failCb, retryCount) {
+    if (window.isCmdRunning) {
+        toast('Please wait for the previous action to finish...', 'warning');
+        return;
+    }
+    
     if (!selectedDev) { toast('No device selected.', 'warning'); return; }
     if (!selectedDev.is_online && command !== 'SYSINFO' && command !== 'TASKS') {
         toast('Cannot send command: Device is offline.', 'warning');
@@ -367,6 +374,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
     }
     retryCount = retryCount || 0;
     
+    window.isCmdRunning = true;
     var reqPayload = {
         id: selectedDev.id || ('KC-' + selectedDev.ip),
         ip: selectedDev.ip,
@@ -375,6 +383,8 @@ function sendCmd(command, successCb, failCb, retryCount) {
     };
 
     window.djazair.invoke('agentCommand', reqPayload).then(function(res) {
+        window.isCmdRunning = false;
+        
         if (!res.ok) {
             if (retryCount < 1 && selectedDev.is_online) {
                 setTimeout(function() { sendCmd(command, successCb, failCb, retryCount + 1); }, 300);
@@ -400,6 +410,10 @@ function sendCmd(command, successCb, failCb, retryCount) {
         }
         
         if (successCb) successCb(res.data, res.latency);
+    }).catch(function(e) {
+        window.isCmdRunning = false;
+        toast('System error: ' + e, 'danger');
+        if (failCb) failCb(e);
     });
 }
 
