@@ -185,31 +185,39 @@ fn register(app)
 
             file.write(PENDING_CMDS_FILE, json.encode(pMap))
 
-            # Wait for response in storage/results/<cmdId>.json
-            let resFile = path.join(RESULTS_DIR, cmdId + ".json")
-            let maxWaitMs = 10000
-            let waited = 0
-            let startTime = datetime.now().timestamp()
+            # Enqueue the command
+            file.write(PENDING_CMDS_FILE, json.encode(pMap))
 
-            while waited < maxWaitMs
-                if file.isFile(resFile)
-                    let rContent = file.read(resFile)
-                    try file.delete(resFile) catch e end
-                    let resObj = json.decode(rContent)
-                    let rData = ""
-                    if type(resObj) == "Map" and resObj.has("data")
-                        rData = resObj["data"]
-                    end
-                    let latency = int((datetime.now().timestamp() - startTime) * 1000.0)
-                    return {"ok": True, "data": rData, "latency": latency}
-                end
-                process.sleep(0.06)
-                waited += 60
-            end
-
-            return {"ok": False, "data": "Command timed out waiting for child response."}
+            # Return immediately so we don't block the UI thread!
+            return {"ok": True, "cmd_id": cmdId, "start_time": now}
         catch e
             return {"ok": False, "data": "Internal error: " + str(e)}
+        end
+    end)
+
+    # IPC: checkCommandResult
+    # Polled by Javascript to check if a command has finished without blocking Djazair
+    app.bridge.on("checkCommandResult", fn(payload)
+        try
+            let cmdId = payload["cmd_id"]
+            let startTime = payload["start_time"]
+            let resFile = path.join(RESULTS_DIR, cmdId + ".json")
+
+            if file.isFile(resFile)
+                let rContent = file.read(resFile)
+                try file.delete(resFile) catch e end
+                let resObj = json.decode(rContent)
+                let rData = ""
+                if type(resObj) == "Map" and resObj.has("data")
+                    rData = resObj["data"]
+                end
+                let latency = int((datetime.now().timestamp() - startTime) * 1000.0)
+                return {"status": "done", "data": rData, "latency": latency}
+            end
+
+            return {"status": "pending"}
+        catch e
+            return {"status": "error", "data": str(e)}
         end
     end)
 end

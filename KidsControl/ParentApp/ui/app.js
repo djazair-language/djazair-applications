@@ -383,33 +383,71 @@ function sendCmd(command, successCb, failCb, retryCount) {
     };
 
     window.djazair.invoke('agentCommand', reqPayload).then(function(res) {
-        window.isCmdRunning = false;
-        
         if (!res.ok) {
-            if (retryCount < 1 && selectedDev.is_online) {
-                setTimeout(function() { sendCmd(command, successCb, failCb, retryCount + 1); }, 300);
-                return;
-            }
-            toast('Connection error: ' + res.data, 'danger');
+            window.isCmdRunning = false;
+            toast('Failed to send command: ' + res.data, 'danger');
             if (failCb) failCb(res.data);
             return;
         }
 
-        if (res.data && typeof res.data === 'string' && (res.data.indexOf('ERR:') === 0 || res.data.indexOf('ERROR:') === 0)) {
-            toast(res.data, 'danger');
-            if (failCb) failCb(res.data);
-            return;
-        }
-        
-        if (res.latency !== undefined) {
-            var color = res.latency < 50 ? '#2ea043' : (res.latency < 200 ? '#d29922' : '#f85149');
-            $('#topbarBadge').html(
-                '<span class="badge" style="background: ' + color + '">' + res.latency + ' ms</span> ' +
-                '<span class="badge-id">' + (selectedDev.id || selectedDev.ip).slice(0, 14) + '...</span>'
-            );
-        }
-        
-        if (successCb) successCb(res.data, res.latency);
+        // We got a cmd_id immediately, now we poll for the result
+        var cmdId = res.cmd_id;
+        var startTime = res.start_time;
+        var maxWaitMs = 10000;
+        var waited = 0;
+
+        var pollInterval = setInterval(function() {
+            window.djazair.invoke('checkCommandResult', { cmd_id: cmdId, start_time: startTime }).then(function(pollRes) {
+                if (pollRes.status === 'pending') {
+                    waited += 100;
+                    if (waited >= maxWaitMs) {
+                        clearInterval(pollInterval);
+                        window.isCmdRunning = false;
+                        
+                        if (retryCount < 1 && selectedDev.is_online) {
+                            sendCmd(command, successCb, failCb, retryCount + 1);
+                        } else {
+                            toast('Command timed out waiting for child response.', 'danger');
+                            if (failCb) failCb('timeout');
+                        }
+                    }
+                    return; // Keep waiting
+                }
+                
+                // Result found or error!
+                clearInterval(pollInterval);
+                window.isCmdRunning = false;
+
+                if (pollRes.status === 'error') {
+                    toast('Error checking result: ' + pollRes.data, 'danger');
+                    if (failCb) failCb(pollRes.data);
+                    return;
+                }
+
+                var rData = pollRes.data;
+                if (rData && typeof rData === 'string' && (rData.indexOf('ERR:') === 0 || rData.indexOf('ERROR:') === 0)) {
+                    toast(rData, 'danger');
+                    if (failCb) failCb(rData);
+                    return;
+                }
+                
+                if (pollRes.latency !== undefined) {
+                    var color = pollRes.latency < 50 ? '#2ea043' : (pollRes.latency < 200 ? '#d29922' : '#f85149');
+                    $('#topbarBadge').html(
+                        '<span class="badge" style="background: ' + color + '">' + pollRes.latency + ' ms</span> ' +
+                        '<span class="badge-id">' + (selectedDev.id || selectedDev.ip).slice(0, 14) + '...</span>'
+                    );
+                }
+                
+                if (successCb) successCb(rData, pollRes.latency);
+            }).catch(function(e) {
+                clearInterval(pollInterval);
+                window.isCmdRunning = false;
+                toast('System error during poll: ' + e, 'danger');
+                if (failCb) failCb(e);
+            });
+        }, 100);
+
     }).catch(function(e) {
         window.isCmdRunning = false;
         toast('System error: ' + e, 'danger');
