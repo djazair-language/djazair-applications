@@ -45,17 +45,20 @@ fn autoArchive(deviceId, rawData)
     end
 
     let now = datetime.now()
-    let ts = str(int(now.year())) + "-" + str(int(now.month())) + "-" + str(int(now.day())) + "_" + str(int(now.hour())) + "-" + str(int(now.minute())) + "-" + str(int(now.second()))
+    let ts = str(int(now.year())) + "-" + str(int(now.month())).zFill(2) + "-" + str(int(now.day())).zFill(2) + "_" + str(int(now.hour())).zFill(2) + "-" + str(int(now.minute())).zFill(2) + "-" + str(int(now.second())).zFill(2)
     let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
 
     if rawData.startsWith("SCREENSHOT:")
         let b64 = rawData.slice(11).strip()
         if b64 != "" and !b64.startsWith("ERR:")
             let sDir = getSsDir(safeId)
-            let filePath = path.join(sDir, ts + ".b64")
-            try 
-                file.write(filePath, b64)
-                print("[AutoArchive] Saved screenshot to " + filePath)
+            let filePath = path.join(sDir, ts + ".jpg")
+            try
+                # Decode Base64 to binary and save as real JPEG (33% smaller than .b64)
+                use crypto
+                let imgData = crypto.base64Decode(b64)
+                file.write(filePath, imgData)
+                print("[AutoArchive] Saved screenshot: " + filePath)
             catch e
                 print("[AutoArchive] ERROR saving screenshot: " + str(e))
             end
@@ -64,11 +67,16 @@ fn autoArchive(deviceId, rawData)
         let b64 = rawData.slice(7).strip()
         if b64 != "" and b64 != "NO_WEBCAM" and !b64.startsWith("ERR:")
             let wDir = getWcDir(safeId)
-            let filePath = path.join(wDir, ts + ".b64")
-            try file.write(filePath, b64) catch e end
+            let filePath = path.join(wDir, ts + ".jpg")
+            try
+                use crypto
+                let imgData = crypto.base64Decode(b64)
+                file.write(filePath, imgData)
+            catch e end
         end
     end
 end
+
 
 # In-memory session tracking
 let sessions = {}

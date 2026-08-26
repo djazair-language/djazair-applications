@@ -18,106 +18,73 @@ using System.Threading;
 class KidsControlNative {
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-    [DllImport("avicap32.dll")] static extern IntPtr capCreateCaptureWindowA(string lpszWindowName, int dwStyle, int X, int Y, int nWidth, int nHeight, IntPtr hwndParent, int nID);
-    [DllImport("avicap32.dll")] static extern bool capGetDriverDescriptionA(short wDriverIndex, StringBuilder lpszName, int cbName, StringBuilder lpszVer, int cbVer);
-    [DllImport("user32", EntryPoint="SendMessage")] static extern int SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
+    [DllImport("avicap32.dll")] static extern IntPtr capCreateCaptureWindowA(string n, int s, int x, int y, int w, int h, IntPtr p, int id);
+    [DllImport("avicap32.dll")] static extern bool capGetDriverDescriptionA(short idx, StringBuilder name, int cn, StringBuilder ver, int cv);
+    [DllImport("user32", EntryPoint="SendMessage")] static extern int SendMessage(IntPtr h, uint m, int w, int l);
 
     [STAThread]
     static void Main(string[] args) {
-        if (args.Length == 0) return;
-        string cmd = args[0].ToLower();
-        try {
-            if (cmd == "window") {
-                IntPtr hwnd = GetForegroundWindow();
-                StringBuilder sb = new StringBuilder(256);
-                if (GetWindowText(hwnd, sb, 256) > 0) Console.WriteLine(sb.ToString());
-                else Console.WriteLine("None/Desktop");
-            } else if (cmd == "screenshot") {
-                Rectangle bounds = Screen.PrimaryScreen.Bounds;
-                using (Bitmap bmp = new Bitmap(bounds.Width, bounds.Height)) {
-                    using (Graphics g = Graphics.FromImage(bmp)) {
-                        g.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
-                    }
-                    using (Image thumb = bmp.GetThumbnailImage(bounds.Width / 2, bounds.Height / 2, null, IntPtr.Zero)) {
+        // DAEMON MODE: read commands line by line from stdin
+        string line;
+        while ((line = Console.ReadLine()) != null) {
+            string cmd = line.Trim().ToLower();
+            if (cmd == "exit") break;
+            try {
+                if (cmd == "window") {
+                    IntPtr hwnd = GetForegroundWindow();
+                    StringBuilder sb = new StringBuilder(256);
+                    Console.WriteLine(GetWindowText(hwnd, sb, 256) > 0 ? sb.ToString() : "None/Desktop");
+                } else if (cmd == "screenshot") {
+                    Rectangle bounds = Screen.PrimaryScreen.Bounds;
+                    using (Bitmap bmp = new Bitmap(bounds.Width, bounds.Height)) {
+                        using (Graphics g = Graphics.FromImage(bmp)) {
+                            g.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+                        }
+                        using (Image thumb = bmp.GetThumbnailImage(bounds.Width / 2, bounds.Height / 2, null, IntPtr.Zero))
                         using (MemoryStream ms = new MemoryStream()) {
                             thumb.Save(ms, ImageFormat.Jpeg);
                             byte[] bytes = ms.ToArray();
-                            if (bytes.Length > 0) {
-                                Console.WriteLine(Convert.ToBase64String(bytes));
-                            } else {
-                                Console.WriteLine("ERROR:EMPTY_IMAGE");
+                            Console.WriteLine(bytes.Length > 0 ? Convert.ToBase64String(bytes) : "ERROR:EMPTY_IMAGE");
+                        }
+                    }
+                } else if (cmd == "webcam") {
+                    short realIdx = -1;
+                    for (short i = 0; i < 10; i++) {
+                        var name = new StringBuilder(128); var ver = new StringBuilder(128);
+                        if (!capGetDriverDescriptionA(i, name, 128, ver, 128)) break;
+                        string n = name.ToString().ToLower();
+                        if (n.Contains("screen") || n.Contains("virtual") || n.Contains("obs") ||
+                            n.Contains("split") || n.Contains("desktop") || n.Contains("game") || n.Contains("display")) continue;
+                        realIdx = i; break;
+                    }
+                    if (realIdx < 0) { Console.WriteLine("NO_WEBCAM"); continue; }
+                    IntPtr hw = capCreateCaptureWindowA("Webcam", 0, 0, 0, 640, 480, IntPtr.Zero, 0);
+                    if (SendMessage(hw, 1034, realIdx, 0) == 0) { Console.WriteLine("NO_WEBCAM"); continue; }
+                    Thread.Sleep(1000);
+                    SendMessage(hw, 1084, 0, 0);
+                    SendMessage(hw, 1054, 0, 0);
+                    SendMessage(hw, 1035, 0, 0);
+                    if (Clipboard.ContainsImage()) {
+                        using (Image img = Clipboard.GetImage()) {
+                            Rectangle sc = Screen.PrimaryScreen.Bounds;
+                            if (img.Width >= sc.Width * 0.85 || img.Height >= sc.Height * 0.85) {
+                                Clipboard.Clear(); Console.WriteLine("NO_WEBCAM"); continue;
+                            }
+                            using (MemoryStream ms = new MemoryStream()) {
+                                img.Save(ms, ImageFormat.Jpeg);
+                                byte[] bytes = ms.ToArray();
+                                Console.WriteLine(bytes.Length > 0 ? Convert.ToBase64String(bytes) : "NO_WEBCAM");
                             }
                         }
-                    }
-                }
-            } else if (cmd == "webcam") {
-                StringBuilder name = new StringBuilder(128);
-                StringBuilder ver  = new StringBuilder(128);
-
-                // Search for a real physical camera — skip virtual/screen capture devices
-                bool found = false;
-                short realDriverIdx = 0;
-                for (short i = 0; i < 10; i++) {
-                    name = new StringBuilder(128);
-                    ver  = new StringBuilder(128);
-                    bool exists = capGetDriverDescriptionA(i, name, 128, ver, 128);
-                    if (!exists) break;
-                    string drvName = name.ToString().ToLower();
-                    // Reject known virtual / screen-capture devices
-                    if (drvName.Contains("screen") || drvName.Contains("virtual") ||
-                        drvName.Contains("obs")    || drvName.Contains("split")   ||
-                        drvName.Contains("desktop")|| drvName.Contains("game")    ||
-                        drvName.Contains("display")) {
-                        continue;
-                    }
-                    found = true;
-                    realDriverIdx = i;
-                    break;
-                }
-
-                if (!found) {
-                    Console.WriteLine("NO_WEBCAM");
-                    return;
-                }
-
-                IntPtr hwnd = capCreateCaptureWindowA("Webcam", 0, 0, 0, 640, 480, IntPtr.Zero, 0);
-                int connected = SendMessage(hwnd, 1034, realDriverIdx, 0); // WM_CAP_DRIVER_CONNECT
-                if (connected == 0) {
-                    Console.WriteLine("NO_WEBCAM");
-                    return;
-                }
-
-                Thread.Sleep(1000);
-                SendMessage(hwnd, 1084, 0, 0); // WM_CAP_GRAB_FRAME
-                SendMessage(hwnd, 1054, 0, 0); // WM_CAP_EDIT_COPY
-                SendMessage(hwnd, 1035, 0, 0); // WM_CAP_DRIVER_DISCONNECT
-
-                if (Clipboard.ContainsImage()) {
-                    using (Image img = Clipboard.GetImage()) {
-                        // Reject if image size matches the screen (it's a screen capture device)
-                        Rectangle screen = Screen.PrimaryScreen.Bounds;
-                        if (img.Width >= screen.Width * 0.85 || img.Height >= screen.Height * 0.85) {
-                            Clipboard.Clear();
-                            Console.WriteLine("NO_WEBCAM");
-                            return;
-                        }
-                        using (MemoryStream ms = new MemoryStream()) {
-                            img.Save(ms, ImageFormat.Jpeg);
-                            byte[] bytes = ms.ToArray();
-                            if (bytes.Length > 0) {
-                                Console.WriteLine(Convert.ToBase64String(bytes));
-                            } else {
-                                Console.WriteLine("NO_WEBCAM");
-                            }
-                        }
-                    }
-                    Clipboard.Clear();
+                        Clipboard.Clear();
+                    } else { Console.WriteLine("NO_WEBCAM"); }
                 } else {
-                    Console.WriteLine("NO_WEBCAM");
+                    Console.WriteLine("ERROR:UNKNOWN_CMD");
                 }
+            } catch (Exception ex) {
+                Console.WriteLine("ERROR:" + ex.Message.Replace("\n", " "));
             }
-        } catch (Exception ex) {
-            Console.WriteLine("ERROR:" + ex.Message);
+            Console.Out.Flush();
         }
     }
 }
@@ -129,24 +96,62 @@ class KidsControlNative {
     try file.delete(csFile) catch e end
 end
 
-# Captures a desktop screenshot with verification.
+# Global daemon handle — started once, reused for all calls.
+let _daemonProc = Null
+
+# Ensures the native daemon process is alive, restarting it if needed.
+fn ensureDaemon()
+    # If we already have a live daemon handle, return it immediately.
+    if !isNull(_daemonProc)
+        return _daemonProc
+    end
+
+    # Build the binary if it doesn't exist yet.
+    setupNativeHelper()
+
+    # Spawn the daemon process. It will wait for stdin commands in a loop.
+    _daemonProc = process.spawn(NATIVE_EXE)
+    process.sleep(0.2)
+    return _daemonProc
+end
+
+# Sends a single command to the persistent native daemon and reads one line back.
+# @param {string} cmd - The command to send (window | screenshot | webcam).
+# @return {string} The response line from the daemon, or an error string.
+fn callDaemon(cmd)
+    try
+        let p = ensureDaemon()
+        process.write(p["write"], cmd + "\n")
+        process.sleep(0.1)
+        let out = process.read(p["read"])
+        if isNull(out)
+            # Daemon may have died — reset and signal error
+            _daemonProc = Null
+            return "ERROR:DAEMON_DIED"
+        end
+        return out.strip()
+    catch e
+        _daemonProc = Null
+        return "ERROR:" + str(e)
+    end
+end
+
+# Captures a desktop screenshot using the persistent native daemon.
 # @return {string} Base64 image data prefixed with SCREENSHOT: or ERR:
 fn takeScreenshot()
     setupNativeHelper()
-    let r = process.exec(NATIVE_EXE + " screenshot")
-    let out = r["stdout"].strip()
+    let out = callDaemon("screenshot")
     if out == "" or out.startsWith("ERROR:")
         return "ERR:SCREENSHOT_FAILED"
     end
     return "SCREENSHOT:" + out
 end
 
-# Captures a webcam image with device validation.
+# Captures a webcam image using the persistent native daemon.
 # @return {string} Base64 image data prefixed with WEBCAM: or ERR:
 fn takeWebcamSnapshot()
     setupNativeHelper()
-    let r = process.exec(NATIVE_EXE + " webcam")
-    let out = r["stdout"].strip()
+    let out = callDaemon("webcam")
     if out == "NO_WEBCAM"
         return "ERR:NO_WEBCAM"
     elif out == "" or out.startsWith("ERROR:")
@@ -155,10 +160,10 @@ fn takeWebcamSnapshot()
     return "WEBCAM:" + out
 end
 
-# Gets the title of the currently active window on the machine.
+# Gets the title of the currently active window using the persistent native daemon.
 # @return {string} Window title prefixed with ACTIVE_WINDOW:
 fn getActiveWindow()
     setupNativeHelper()
-    let r = process.exec(NATIVE_EXE + " window")
-    return "ACTIVE_WINDOW:" + r["stdout"].strip()
+    let out = callDaemon("window")
+    return "ACTIVE_WINDOW:" + out
 end

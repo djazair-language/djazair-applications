@@ -44,6 +44,7 @@ fn register(app)
         let result = []
         try
             let files = dir.list(dirPath)
+            # Sort newest first (bubble sort, guarded against single-item range crash)
             if files.length() > 1
                 for i in 0..(files.length() - 2)
                     for j in (i+1)..(files.length() - 1)
@@ -55,22 +56,33 @@ fn register(app)
                     end
                 end
             end
-                for f in files
-                    if f.endsWith(".b64")
-                        let fPath = path.join(dirPath, f)
-                        try
-                            let b64 = file.read(fPath)
-                            let timeLabel = f.replace(".b64", "").replace("_", " ").replace("-", ":")
-                            result.append({
-                                "filename": f,
-                                "time": timeLabel,
-                                "b64": b64
-                            })
-                        catch e
-                            print("[Bridge] ERROR reading screenshot " + f + ": " + str(e))
+            for f in files
+                let isJpg = f.endsWith(".jpg")
+                let isB64 = f.endsWith(".b64")
+                if isJpg or isB64
+                    let fPath = path.join(dirPath, f)
+                    try
+                        let b64 = ""
+                        if isJpg
+                            # Read binary JPEG and encode to Base64 for the UI
+                            use crypto
+                            let imgData = file.read(fPath)
+                            b64 = crypto.base64Encode(imgData)
+                        else
+                            # Legacy .b64 support
+                            b64 = file.read(fPath)
                         end
+                        let timeLabel = f.replace(".jpg", "").replace(".b64", "").replace("_", " ").replace("-", ":")
+                        result.append({
+                            "filename": f,
+                            "time": timeLabel,
+                            "b64": b64
+                        })
+                    catch e
+                        print("[Bridge] ERROR reading screenshot " + f + ": " + str(e))
                     end
                 end
+            end
             return result
         catch e
             print("[Bridge] ERROR in getScreenshotHistory: " + str(e))
@@ -104,6 +116,7 @@ fn register(app)
         let result = []
         try
             let files = dir.list(dirPath)
+            # Sort newest first
             if files.length() > 1
                 for i in 0..(files.length() - 2)
                     for j in (i+1)..(files.length() - 1)
@@ -115,22 +128,31 @@ fn register(app)
                     end
                 end
             end
-                for f in files
-                    if f.endsWith(".b64")
-                        let fPath = path.join(dirPath, f)
-                        try
-                            let b64 = file.read(fPath)
-                            let timeLabel = f.replace(".b64", "").replace("_", " ").replace("-", ":")
-                            result.append({
-                                "filename": f,
-                                "time": timeLabel,
-                                "b64": b64
-                            })
-                        catch e
-                            print("[Bridge] ERROR reading webcam " + f + ": " + str(e))
+            for f in files
+                let isJpg = f.endsWith(".jpg")
+                let isB64 = f.endsWith(".b64")
+                if isJpg or isB64
+                    let fPath = path.join(dirPath, f)
+                    try
+                        let b64 = ""
+                        if isJpg
+                            use crypto
+                            let imgData = file.read(fPath)
+                            b64 = crypto.base64Encode(imgData)
+                        else
+                            b64 = file.read(fPath)
                         end
+                        let timeLabel = f.replace(".jpg", "").replace(".b64", "").replace("_", " ").replace("-", ":")
+                        result.append({
+                            "filename": f,
+                            "time": timeLabel,
+                            "b64": b64
+                        })
+                    catch e
+                        print("[Bridge] ERROR reading webcam " + f + ": " + str(e))
                     end
                 end
+            end
             return result
         catch e
             return []
