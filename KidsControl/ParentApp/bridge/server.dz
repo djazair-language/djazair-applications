@@ -9,7 +9,6 @@ use dir
 use path
 use json
 use datetime
-use math
 import "../core/config.dz" as config
 import "../core/constants.dz" as constants
 
@@ -56,6 +55,8 @@ fn detectParentLocalIp()
         return "127.0.0.1"
     end
 end
+
+let commandSequence = 1000
 
 # Registers all IPC handlers with ParentApp WebView
 fn register(app)
@@ -161,7 +162,8 @@ fn register(app)
             let devId = payload["id"]
             let cmd = payload["command"]
             let now = datetime.now().timestamp()
-            let cmdId = "CMD_" + str(now).replace(".", "") + "_" + str(math.floor(math.random() * 10000.0))
+            commandSequence += 1
+            let cmdId = "CMD_" + str(now).replace(".", "") + "_" + str(commandSequence)
 
             # Read current pending commands map
             let pMap = {}
@@ -198,7 +200,7 @@ fn register(app)
                     if type(resObj) == "Map" and resObj.has("data")
                         rData = resObj["data"]
                     end
-                    let latency = math.floor((datetime.now().timestamp() - startTime) * 1000.0)
+                    let latency = int((datetime.now().timestamp() - startTime) * 1000.0)
                     return {"ok": True, "data": rData, "latency": latency}
                 end
                 process.sleep(0.06)
