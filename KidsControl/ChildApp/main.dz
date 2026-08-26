@@ -71,11 +71,11 @@ while True
                 "ip":       localIp
             }
 
+            let sentCmdId = Null
             if !isNull(pendingResult)
                 req["result_cmd_id"] = pendingResultCmdId
                 req["result"]        = pendingResult
-                pendingResult        = Null
-                pendingResultCmdId   = Null
+                sentCmdId            = pendingResultCmdId
             end
 
             # Send payload to Parent
@@ -85,6 +85,12 @@ while True
             # Receive instructions from Parent
             let respRaw = client.receiveAll()
             client.close()
+            
+            # Successfully communicated with parent! We can clear pendingResult now.
+            if !isNull(sentCmdId) and pendingResultCmdId == sentCmdId
+                pendingResult = Null
+                pendingResultCmdId = Null
+            end
 
             if shouldExit
                 process.exit(0)

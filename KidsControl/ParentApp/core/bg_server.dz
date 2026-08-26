@@ -88,125 +88,129 @@ catch e end
 
 # Master TCP Server Instance
 let srv = new net.tcpServer(fn(client, clientIp, clientPort)
-    let raw = client.receiveAll()
-    if isNull(raw) or raw == ""
-        client.close()
-        return
-    end
-
-    let req = Null
-    try req = json.decode(raw) catch e client.close() return end
-    if type(req) != "Map" or !req.has("id") or !req.has("secret")
-        client.close()
-        return
-    end
-
-    if req["secret"] != SECRET_KEY
-        client.close()
-        return
-    end
-
-    let devId = req["id"]
-    let hostname = clientIp
-    if req.has("hostname") and req["hostname"] != ""
-        hostname = req["hostname"]
-    end
-    let reportedIp = clientIp
-    if req.has("ip") and req["ip"] != ""
-        reportedIp = req["ip"]
-    end
-    let nowTs = datetime.now().timestamp()
-
-    # Update or create session
-    if !sessions.has(devId)
-        sessions[devId] = {
-            "id": devId,
-            "hostname": hostname,
-            "custom_name": "",
-            "ip": reportedIp,
-            "is_online": True,
-            "last_seen": nowTs
-        }
-    else
-        let s = sessions[devId]
-        s["hostname"] = hostname
-        s["ip"] = reportedIp
-        s["is_online"] = True
-        s["last_seen"] = nowTs
-    end
-
-    # Sync sessions map to children.json
     try
-        let listToSave = []
-        for k in sessions.keys()
-            listToSave.append(sessions[k])
+        let raw = client.receiveAll()
+        if isNull(raw) or raw == ""
+            client.close()
+            return
         end
-        file.write(DEVICES_FILE, json.encode(listToSave))
-    catch e end
 
-    # Handle returned command output
-    if req.has("result_cmd_id") and req["result_cmd_id"] != ""
-        let cId = req["result_cmd_id"]
-        let resData = ""
-        if req.has("result")
-            resData = req["result"]
+        let req = Null
+        try req = json.decode(raw) catch e client.close() return end
+        if type(req) != "Map" or !req.has("id") or !req.has("secret")
+            client.close()
+            return
         end
-        let resFile = path.join(RESULTS_DIR, cId + ".json")
-        try file.write(resFile, json.encode({"data": resData})) catch e end
-        autoArchive(devId, resData)
-    end
 
-    # Check for pending commands to dispatch to child
-    let replyPayload = {"status": "OK", "action": "IDLE"}
-    try
-        if file.isFile(PENDING_CMDS_FILE)
-            let pData = file.read(PENDING_CMDS_FILE)
-            let pMap = json.decode(pData)
-            if type(pMap) == "Map" and pMap.has(devId)
-                let q = pMap[devId]
-                if type(q) == "Array"
-                    let nextCmd = Null
-                    let modified = False
-                    let now = datetime.now().timestamp()
-                    
-                    # Pop from queue until we find a valid (non-expired) command
-                    while q.length() > 0
-                        let candidate = q.pop(0)
-                        modified = True
-                        let cmdTs = now
-                        if type(candidate) == "Map" and candidate.has("timestamp")
-                            cmdTs = num(candidate["timestamp"])
+        if req["secret"] != SECRET_KEY
+            client.close()
+            return
+        end
+
+        let devId = req["id"]
+        let hostname = clientIp
+        if req.has("hostname") and req["hostname"] != ""
+            hostname = req["hostname"]
+        end
+        let reportedIp = clientIp
+        if req.has("ip") and req["ip"] != ""
+            reportedIp = req["ip"]
+        end
+        let nowTs = datetime.now().timestamp()
+
+        # Update or create session
+        if !sessions.has(devId)
+            sessions[devId] = {
+                "id": devId,
+                "hostname": hostname,
+                "custom_name": "",
+                "ip": reportedIp,
+                "is_online": True,
+                "last_seen": nowTs
+            }
+        else
+            let s = sessions[devId]
+            s["hostname"] = hostname
+            s["ip"] = reportedIp
+            s["is_online"] = True
+            s["last_seen"] = nowTs
+        end
+
+        # Sync sessions map to children.json
+        try
+            let listToSave = []
+            for k in sessions.keys()
+                listToSave.append(sessions[k])
+            end
+            file.write(DEVICES_FILE, json.encode(listToSave))
+        catch e end
+
+        # Handle returned command output
+        if req.has("result_cmd_id") and req["result_cmd_id"] != ""
+            let cId = req["result_cmd_id"]
+            let resData = ""
+            if req.has("result")
+                resData = req["result"]
+            end
+            let resFile = path.join(RESULTS_DIR, cId + ".json")
+            try file.write(resFile, json.encode({"data": resData})) catch e end
+            autoArchive(devId, resData)
+        end
+
+        # Check for pending commands to dispatch to child
+        let replyPayload = {"status": "OK", "action": "IDLE"}
+        try
+            if file.isFile(PENDING_CMDS_FILE)
+                let pData = file.read(PENDING_CMDS_FILE)
+                let pMap = json.decode(pData)
+                if type(pMap) == "Map" and pMap.has(devId)
+                    let q = pMap[devId]
+                    if type(q) == "Array"
+                        let nextCmd = Null
+                        let modified = False
+                        let now = datetime.now().timestamp()
+                        
+                        # Pop from queue until we find a valid (non-expired) command
+                        while q.length() > 0
+                            let candidate = q.pop(0)
+                            modified = True
+                            let cmdTs = now
+                            if type(candidate) == "Map" and candidate.has("timestamp")
+                                cmdTs = num(candidate["timestamp"])
+                            end
+                            
+                            # If command is older than 15 seconds, it's expired! Skip it.
+                            if (now - cmdTs) > 15.0
+                                continue
+                            end
+                            
+                            nextCmd = candidate
+                            break
                         end
                         
-                        # If command is older than 15 seconds, it's expired! Skip it.
-                        if (now - cmdTs) > 15.0
-                            continue
+                        if !isNull(nextCmd)
+                            replyPayload = {
+                                "status": "OK",
+                                "action": "EXEC",
+                                "cmd_id": nextCmd["cmd_id"],
+                                "command": nextCmd["command"]
+                            }
                         end
                         
-                        nextCmd = candidate
-                        break
-                    end
-                    
-                    if !isNull(nextCmd)
-                        replyPayload = {
-                            "status": "OK",
-                            "action": "EXEC",
-                            "cmd_id": nextCmd["cmd_id"],
-                            "command": nextCmd["command"]
-                        }
-                    end
-                    
-                    if modified
-                        file.write(PENDING_CMDS_FILE, json.encode(pMap))
+                        if modified
+                            file.write(PENDING_CMDS_FILE, json.encode(pMap))
+                        end
                     end
                 end
             end
-        end
-    catch e end
+        catch e end
 
-    client.send(json.encode(replyPayload))
-    client.shutdown(net.SD_SEND)
-    client.close()
+        client.send(json.encode(replyPayload))
+        client.shutdown(net.SD_SEND)
+        client.close()
+    catch err
+        try client.close() catch e end
+    end
 end)
 
 # Start listening
