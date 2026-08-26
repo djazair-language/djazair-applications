@@ -1,4 +1,5 @@
 use dpack
+use webview
 use file
 use dir
 use path
@@ -10,6 +11,22 @@ import "../core/constants.dz" as constants
 # Registers the Child Agent Exporter IPC handlers.
 # @param {App} app - The WebView application instance.
 fn register(app)
+    # Event: selectExportFolder
+    # Opens native Windows folder browser dialog.
+    app.bridge.on("selectExportFolder", fn(payload)
+        try
+            let chosen = webview.showOpenFolderDialog({
+                "title": "Select Export Destination Folder"
+            })
+            if isNull(chosen) or chosen == ""
+                return ""
+            end
+            return chosen
+        catch e
+            return ""
+        end
+    end)
+
     # Event: exportChildAgent
     # Packages a customized, standalone ChildApp executable on demand.
     app.bridge.on("exportChildAgent", fn(payload)
@@ -42,6 +59,12 @@ fn register(app)
                 consoleMode = bool(payload["consoleMode"])
             end
 
+            # Custom export destination folder
+            let exportDir = "exports"
+            if payload.has("exportFolder") and payload["exportFolder"] != ""
+                exportDir = payload["exportFolder"]
+            end
+
             # Locate ChildApp template directory
             let childDir = "ChildApp"
             if !file.exists(childDir + "/main.dz")
@@ -52,7 +75,6 @@ fn register(app)
             end
 
             # Ensure export output directory exists
-            let exportDir = "exports"
             try dir.createAll(exportDir) catch e end
             let absExportDir = path.resolve(exportDir)
             let finalExePath = path.join(absExportDir, appName)

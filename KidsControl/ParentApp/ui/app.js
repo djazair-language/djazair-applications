@@ -1031,12 +1031,21 @@ function openExportModal() {
     new bootstrap.Modal('#exportModal').show();
 }
 
+function doBrowseExportFolder() {
+    window.djazair.invoke('selectExportFolder').then(function(folder) {
+        if (folder && typeof folder === 'string' && folder !== '') {
+            $('#expExportFolder').val(folder);
+        }
+    });
+}
+
 function doExportChildAgent() {
     var appName = $('#expAppName').val().trim() || 'KidsControlAgent.exe';
     var parentHost = $('#expParentHost').val().trim() || '127.0.0.1';
     var parentPort = parseInt($('#expParentPort').val(), 10) || 9999;
     var secretKey = $('#expSecretKey').val().trim() || 'KIDS_CTRL_2026';
     var consoleMode = $('#expConsoleMode').val() === 'true';
+    var exportFolder = $('#expExportFolder').val().trim() || 'exports';
 
     var btn = $('#btnBuildAgent');
     var statusBox = $('#exportStatusBox');
@@ -1051,14 +1060,15 @@ function doExportChildAgent() {
         parentHost: parentHost,
         parentPort: parentPort,
         secretKey: secretKey,
-        consoleMode: consoleMode
+        consoleMode: consoleMode,
+        exportFolder: exportFolder
     };
 
     window.djazair.invoke('exportChildAgent', payload).then(function(res) {
         btn.prop('disabled', false).html('<i class="fa-solid fa-hammer"></i> Build Executable (.exe)');
         var data = extractData(res);
         if (data && data.ok) {
-            lastExportFolder = data.folder || 'exports';
+            lastExportFolder = data.folder || exportFolder;
             statusBox.css({ 'border-color': 'var(--success)', 'color': 'var(--success)' });
             statusMsg.html(
                 '<i class="fa-solid fa-circle-check"></i> <strong>' + data.filename + '</strong> built successfully! (' + data.size + ')<br>' +

@@ -497,6 +497,15 @@
               <option value='true'>Console Window (طرفية للتتبع)</option>
             </select>
           </div>
+          <div class='col-12'>
+            <label class='form-label' style='font-weight:600;'>Export Destination Folder (مكان حفظ الملف):</label>
+            <div style='display:flex; gap:8px;'>
+              <input class='kc-input form-control' id='expExportFolder' value='exports' placeholder='Select or type output folder...'>
+              <button type='button' class='btn-kc secondary' onclick='doBrowseExportFolder()' style='white-space:nowrap;'>
+                <i class='fa-solid fa-folder-open'></i> Browse...
+              </button>
+            </div>
+          </div>
         </div>
 
         <div id='exportStatusBox' style='display:none; margin-top:16px; padding:12px; border-radius:6px; background:#0d1117; border:1px solid var(--border); font-size:12px;'>
