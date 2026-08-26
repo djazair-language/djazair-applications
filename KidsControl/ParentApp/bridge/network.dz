@@ -5,7 +5,7 @@ use datetime
 use file
 use json
 import "../core/config.dz" as config
-import "../../Shared/constants.dz" as constants
+import "../core/constants.dz" as constants
 
 let SCAN_RESULTS_FILE = "__kc_scan_results.json"
 let knownOnline = {}

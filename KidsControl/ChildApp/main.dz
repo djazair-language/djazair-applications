@@ -10,7 +10,7 @@ use process
 import "core/identity.dz" as idModule
 import "core/router.dz" as routerModule
 import "services/system.dz" as sysModule
-import "../Shared/constants.dz" as constants
+import "core/constants.dz" as constants
 
 # 1. Initialize Machine Identity
 let identity = new idModule.IdentityService()

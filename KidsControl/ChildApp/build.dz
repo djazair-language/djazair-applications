@@ -1,0 +1,11 @@
+use dpack
+
+print("[Build] Packaging ChildApp into a portable standalone executable...")
+
+dpack.pack("main.dz", "KidsControlChild.exe", {
+    "console": True,
+    "portable": True,
+    "assets": ["core/", "services/", "KidsControlNative.exe"]
+})
+
+print("[Build] ChildApp packaged successfully into KidsControlChild.exe!")

@@ -5,7 +5,7 @@ use dir
 use path
 use json
 import "../core/config.dz" as config
-import "../../Shared/constants.dz" as constants
+import "../core/constants.dz" as constants
 
 # Helpers for storage directories
 fn getScreenshotDir(deviceId)
