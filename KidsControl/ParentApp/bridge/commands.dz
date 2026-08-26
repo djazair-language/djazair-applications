@@ -57,11 +57,23 @@ fn register(app)
                 end
             end
             for f in files
-                if f.endsWith(".b64")
+                let isJpg = f.endsWith(".jpg")
+                let isB64 = f.endsWith(".b64")
+                if isJpg or isB64
                     let fPath = path.join(dirPath, f)
                     try
-                        let b64 = file.read(fPath)
-                        let timeLabel = f.replace(".b64", "").replace("_", " ").replace("-", ":")
+                        let b64 = ""
+                        if isJpg
+                            # Read binary JPEG → bytes array → String → Base64 for the UI
+                            use bytes
+                            use crypto
+                            let imgBytes = file.readBytes(fPath)
+                            b64 = crypto.base64Encode(bytes.toString(imgBytes))
+                        else
+                            # Legacy .b64 text file support
+                            b64 = file.read(fPath)
+                        end
+                        let timeLabel = f.replace(".jpg", "").replace(".b64", "").replace("_", " ").replace("-", ":")
                         result.append({
                             "filename": f,
                             "time": timeLabel,
@@ -118,11 +130,21 @@ fn register(app)
                 end
             end
             for f in files
-                if f.endsWith(".b64")
+                let isJpg = f.endsWith(".jpg")
+                let isB64 = f.endsWith(".b64")
+                if isJpg or isB64
                     let fPath = path.join(dirPath, f)
                     try
-                        let b64 = file.read(fPath)
-                        let timeLabel = f.replace(".b64", "").replace("_", " ").replace("-", ":")
+                        let b64 = ""
+                        if isJpg
+                            use bytes
+                            use crypto
+                            let imgBytes = file.readBytes(fPath)
+                            b64 = crypto.base64Encode(bytes.toString(imgBytes))
+                        else
+                            b64 = file.read(fPath)
+                        end
+                        let timeLabel = f.replace(".jpg", "").replace(".b64", "").replace("_", " ").replace("-", ":")
                         result.append({
                             "filename": f,
                             "time": timeLabel,
