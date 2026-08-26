@@ -1,14 +1,18 @@
 use json
 use file
+use path
 
-let SETTINGS_FILE = "settings.json"
-let DEVICES_FILE = "children.json"
+let BASE_DIR = "."
+if file.exists("ParentApp/main.dz")
+    BASE_DIR = "ParentApp"
+end
+
+let SETTINGS_FILE = path.join(BASE_DIR, "settings.json")
+let DEVICES_FILE = path.join(BASE_DIR, "children.json")
 
 let currentSettings = {
     "auto_start": True
 }
-
-let AGENT_TCP_PORT = 8888
 
 fn loadSettingsData()
     try
