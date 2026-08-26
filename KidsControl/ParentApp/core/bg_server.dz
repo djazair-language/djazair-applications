@@ -45,7 +45,7 @@ fn autoArchive(deviceId, rawData)
     end
 
     let now = datetime.now()
-    let ts = str(now.year()) + "-" + str(now.month()) + "-" + str(now.day()) + "_" + str(now.hour()) + "-" + str(now.minute()) + "-" + str(now.second())
+    let ts = str(int(now.year())) + "-" + str(int(now.month())) + "-" + str(int(now.day())) + "_" + str(int(now.hour())) + "-" + str(int(now.minute())) + "-" + str(int(now.second()))
     let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
 
     if rawData.startsWith("SCREENSHOT:")
@@ -53,7 +53,12 @@ fn autoArchive(deviceId, rawData)
         if b64 != "" and !b64.startsWith("ERR:")
             let sDir = getSsDir(safeId)
             let filePath = path.join(sDir, ts + ".b64")
-            try file.write(filePath, b64) catch e end
+            try 
+                file.write(filePath, b64)
+                print("[AutoArchive] Saved screenshot to " + filePath)
+            catch e
+                print("[AutoArchive] ERROR saving screenshot: " + str(e))
+            end
         end
     elif rawData.startsWith("WEBCAM:")
         let b64 = rawData.substring(7).strip()

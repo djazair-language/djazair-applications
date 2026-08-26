@@ -527,12 +527,10 @@ function loadScreenshotHistory() {
     window.djazair.invoke('getScreenshotHistory', { id: devId }).then(function(res) {
         var list = extractData(res);
         if (!Array.isArray(list)) list = [];
-        if (list.length > 0) {
-            var cache = getDevCache(devId);
-            cache.screenshots = list;
-            cache.activeScreenshotIdx = 0;
-            renderScreenshotGallery();
-        }
+        var cache = getDevCache(devId);
+        cache.screenshots = list;
+        cache.activeScreenshotIdx = 0;
+        renderScreenshotGallery();
     });
 }
 
@@ -684,10 +682,9 @@ function loadWebcamHistory() {
         var list = extractData(res);
         if (!Array.isArray(list)) list = [];
         var cache = getDevCache(devId);
-        if (list.length > 0) {
-            cache.webcam = list;
-            renderWebcamGallery();
-        }
+        cache.webcam = list;
+        cache.activeWebcamIdx = 0;
+        renderWebcamGallery();
     });
 }
 

@@ -58,18 +58,23 @@ fn register(app)
                 for f in files
                     if f.endsWith(".b64")
                         let fPath = path.join(dirPath, f)
-                        let b64 = file.read(fPath)
-                        let timeLabel = f.replace(".b64", "").replace("_", " ").replace("-", ":")
-                        result.append({
-                            "filename": f,
-                            "time": timeLabel,
-                            "b64": b64
-                        })
+                        try
+                            let b64 = file.read(fPath)
+                            let timeLabel = f.replace(".b64", "").replace("_", " ").replace("-", ":")
+                            result.append({
+                                "filename": f,
+                                "time": timeLabel,
+                                "b64": b64
+                            })
+                        catch e
+                            print("[Bridge] ERROR reading screenshot " + f + ": " + str(e))
+                        end
                     end
                 end
             end
             return result
         catch e
+            print("[Bridge] ERROR in getScreenshotHistory: " + str(e))
             return []
         end
     end)
