@@ -25,27 +25,17 @@ fn register(app)
             client.send(command)
             
             let response = ""
-            if payload["command"] == "SCREENSHOT"
-                # Receive in chunks for large payloads like screenshots
-                while True
-                    let chunk = ""
-                    try 
-                        chunk = client.receive(131072) 
-                    catch e 
-                        break 
-                    end
-                    if isNull(chunk) or chunk == "" 
-                        break 
-                    end
-                    response = response + chunk
+            while True
+                let chunk = ""
+                try 
+                    chunk = client.receive(131072) 
+                catch e 
+                    break 
                 end
-            else
-                # Receive smaller payloads directly
-                try
-                    response = client.receive(1024 * 1024)
-                catch e
-                    response = ""
+                if isNull(chunk) or chunk == "" 
+                    break 
                 end
+                response = response + chunk
             end
             let t2 = datetime.ticks()
             let latencyMs = int(t2 - t1)
