@@ -18,8 +18,14 @@ var isScanning    = false;
 
 function extractData(res) {
     if (!res) return null;
+    if (typeof res === 'string') {
+        try { res = JSON.parse(res); } catch (e) {}
+    }
     if (Array.isArray(res)) return res;
-    if (res.data !== undefined) {
+    if (res && res.data !== undefined) {
+        if (typeof res.data === 'string') {
+            try { res.data = JSON.parse(res.data); } catch (e) {}
+        }
         if (Array.isArray(res.data)) return res.data;
         return res.data;
     }
@@ -50,8 +56,8 @@ var ICONS = { success: 'fa-circle-check', danger: 'fa-circle-xmark', warning: 'f
 
 function toast(msg, type) {
     type = type || 'info';
-    var el = $('<div class=\"toast-item ' + type + '\"></div>');
-    el.html('<i class=\"fa-solid ' + (ICONS[type] || ICONS.info) + '\" style=\"color:var(--' + (type === 'info' ? 'accent' : type === 'warning' ? 'warning' : type) + ');\"></i><span>' + msg + '</span>');
+    var el = $('<div class="toast-item ' + type + '"></div>');
+    el.html('<i class="fa-solid ' + (ICONS[type] || ICONS.info) + '" style="color:var(--' + (type === 'info' ? 'accent' : type === 'warning' ? 'warning' : type) + ');"></i><span>' + msg + '</span>');
     $('#toastWrap').append(el);
     setTimeout(function() { el.fadeOut(300, function() { el.remove(); }); }, 3500);
 }
@@ -74,21 +80,21 @@ function renderDevices() {
     var list = $('#deviceList');
     list.empty();
     if (devices.length === 0) {
-        list.html('<div class=\"empty-state\" style=\"padding:24px 12px; font-size:12px;\"><i class=\"fa-solid fa-magnifying-glass-location\" style=\"font-size:26px; margin-bottom:10px;\"></i><br>No devices found. Scan your network or add an IP manually.</div>');
+        list.html('<div class="empty-state" style="padding:24px 12px; font-size:12px;"><i class="fa-solid fa-magnifying-glass-location" style="font-size:26px; margin-bottom:10px;"></i><br>No devices found. Scan your network or add an IP manually.</div>');
         return;
     }
     devices.forEach(function(dev, idx) {
         var active = (selectedDev && selectedDev.ip === dev.ip) ? 'active' : '';
         var name   = dev.hostname || dev.ip;
-        var item   = $('<div class=\"dev-item ' + active + '\"></div>');
+        var item   = $('<div class="dev-item ' + active + '"></div>');
         item.html(
-            '<div class=\"dev-avatar\"><i class=\"fa-solid fa-laptop\"></i></div>' +
-            '<div class=\"dev-info\">' +
-                '<div class=\"dev-name\">' + name + '</div>' +
-                '<div class=\"dev-ip\">' + dev.ip + '</div>' +
+            '<div class="dev-avatar"><i class="fa-solid fa-laptop"></i></div>' +
+            '<div class="dev-info">' +
+                '<div class="dev-name">' + name + '</div>' +
+                '<div class="dev-ip">' + dev.ip + '</div>' +
             '</div>' +
-            '<div class=\"dev-dot\" title=\"Agent running\"></div>' +
-            '<button class=\"dev-remove\" title=\"Remove device\"><i class=\"fa-solid fa-xmark\"></i></button>'
+            '<div class="dev-dot" title="Agent running"></div>' +
+            '<button class="dev-remove" title="Remove device"><i class="fa-solid fa-xmark"></i></button>'
         );
         item.on('click', function() { selectDevice(idx); });
         item.find('.dev-remove').on('click', function(e) { e.stopPropagation(); removeDevice(idx); });
@@ -100,7 +106,7 @@ function selectDevice(idx) {
     selectedDev = devices[idx];
     renderDevices();
     $('#topbarTitle').text(selectedDev.hostname || selectedDev.ip);
-    $('#topbarBadge').html('<span class=\"badge-online\"><i class=\"fa-solid fa-circle\" style=\"font-size:6px;\"></i> Online</span>');
+    $('#topbarBadge').html('<span class="badge-online"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Online</span>');
     $('#pingBtn').show();
     $('#welcomeScreen').hide();
     $('#controlPanel').css('display', 'flex');
@@ -140,7 +146,7 @@ function performScan(isManual) {
 
     if (isManual) {
         var btn = $('#scanBtn');
-        btn.html('<span class=\"spin\"></span> Scanning (4s)...');
+        btn.html('<span class="spin"></span> Scanning (4s)...');
         btn.prop('disabled', true);
         toast('Scanning network for agents...', 'info');
     }
@@ -154,7 +160,7 @@ function performScan(isManual) {
         
         if (isManual) {
             var btn = $('#scanBtn');
-            btn.html('<i class=\"fa-solid fa-radar\"></i> Scan Network');
+            btn.html('<i class="fa-solid fa-radar"></i> Scan Network');
             btn.prop('disabled', false);
         }
         var found = extractData(res);
@@ -268,7 +274,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
         // Show latency indicator
         if (res.latency !== undefined) {
             var color = res.latency < 50 ? '#2ea043' : (res.latency < 200 ? '#d29922' : '#f85149');
-            $('#topbarBadge').html('<span class=\"badge\" style=\"background: ' + color + '\">' + res.latency + ' ms</span>');
+            $('#topbarBadge').html('<span class="badge" style="background: ' + color + '">' + res.latency + ' ms</span>');
         }
         
         if (successCb) successCb(res.data, res.latency);
@@ -277,7 +283,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
 
 
 function switchTab(id) {
-    var btn = document.querySelector('[data-bs-target=\"#' + id + '\"]');
+    var btn = document.querySelector('[data-bs-target="#' + id + '"]');
     if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
 }
 
@@ -304,10 +310,10 @@ function doMsg() {
 
 function doScreenshot() {
     var btn = $('#ssBtn');
-    btn.html('<span class=\"spin\"></span> Capturing...');
+    btn.html('<span class="spin"></span> Capturing...');
     btn.prop('disabled', true);
     sendCmd('SCREENSHOT', function(raw) {
-        btn.html('<i class=\"fa-solid fa-camera\"></i> Capture Now');
+        btn.html('<i class="fa-solid fa-camera"></i> Capture Now');
         btn.prop('disabled', false);
         if (!raw.startsWith('SCREENSHOT:')) { toast('Screenshot failed.', 'danger'); return; }
         var b64 = raw.substring(11).trim();
@@ -316,20 +322,20 @@ function doScreenshot() {
         $('#ssTime').text('Captured at ' + new Date().toLocaleTimeString());
         toast('Screenshot captured!', 'success');
     }, function() {
-        btn.html('<i class=\"fa-solid fa-camera\"></i> Capture Now');
+        btn.html('<i class="fa-solid fa-camera"></i> Capture Now');
         btn.prop('disabled', false);
     });
 }
 
 function doWebcam() {
     var btn = $('#camBtn');
-    btn.prop('disabled', true).html('<span class=\"spin\"></span> Capturing...');
+    btn.prop('disabled', true).html('<span class="spin"></span> Capturing...');
     sendCmd('WEBCAM', function(raw) {
-        btn.prop('disabled', false).html('<i class=\"fa-solid fa-camera\"></i> Capture Webcam');
-        if(raw.startsWith(\"WEBCAM:\")) {
+        btn.prop('disabled', false).html('<i class="fa-solid fa-camera"></i> Capture Webcam');
+        if(raw.startsWith("WEBCAM:")) {
             var b64 = raw.substring(7);
-            if(b64.trim() === \"NO_WEBCAM\" || b64.trim() === \"\") {
-                toast(\"No webcam detected on the target computer.\", \"danger\");
+            if(b64.trim() === "NO_WEBCAM" || b64.trim() === "") {
+                toast("No webcam detected on the target computer.", "danger");
                 return;
             }
             $('#ssCard').show();
@@ -337,7 +343,7 @@ function doWebcam() {
             var d = new Date();
             $('#ssTime').text('Captured at ' + d.toLocaleTimeString());
         } else {
-            toast(\"Failed to capture webcam.\", \"danger\");
+            toast("Failed to capture webcam.", "danger");
         }
     });
 }
@@ -351,11 +357,11 @@ function closeLightbox() { $('#lightbox').hide(); }
 
 function doLoadProcesses() {
     var btn = $('#refreshProcBtn');
-    btn.html('<span class=\"spin\"></span> Loading...');
+    btn.html('<span class="spin"></span> Loading...');
     btn.prop('disabled', true);
-    $('#procBody').html('<tr><td colspan=\"6\"><div class=\"empty-state\" style=\"padding:20px;\"><span class=\"spin\"></span> Fetching process list...</div></td></tr>');
+    $('#procBody').html('<tr><td colspan="6"><div class="empty-state" style="padding:20px;"><span class="spin"></span> Fetching process list...</div></td></tr>');
     sendCmd('TASKS', function(raw) {
-        btn.html('<i class=\"fa-solid fa-rotate-right\"></i> Refresh');
+        btn.html('<i class="fa-solid fa-rotate-right"></i> Refresh');
         btn.prop('disabled', false);
         var csv  = raw.startsWith('TASKS:') ? raw.substring(6) : raw;
         allProcs = parseCSV(csv);
@@ -365,24 +371,24 @@ function doLoadProcesses() {
         $('#procCount').text(allProcs.length + ' processes');
         toast('Loaded ' + allProcs.length + ' processes.', 'success');
     }, function() {
-        btn.html('<i class=\"fa-solid fa-rotate-right\"></i> Refresh');
+        btn.html('<i class="fa-solid fa-rotate-right"></i> Refresh');
         btn.prop('disabled', false);
     });
 }
 
 function parseCSV(csv) {
     var rows = [];
-    var lines = csv.split('\\n');
+    var lines = csv.split('\n');
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (!line) continue;
-        var parts = line.split('\",\"');
+        var parts = line.split('","');
         if (parts.length >= 5) {
             rows.push({
-                name:    parts[0].replace(/\"/g, '').trim(),
-                pid:     parts[1].replace(/\"/g, '').trim(),
-                session: parts[2].replace(/\"/g, '').trim(),
-                mem:     parts[4].replace(/\"/g, '').trim()
+                name:    parts[0].replace(/"/g, '').trim(),
+                pid:     parts[1].replace(/"/g, '').trim(),
+                session: parts[2].replace(/"/g, '').trim(),
+                mem:     parts[4].replace(/"/g, '').trim()
             });
         }
     }
@@ -410,7 +416,7 @@ function renderProcs() {
     body.empty();
 
     if (slice.length === 0) {
-        body.html('<tr><td colspan=\"6\"><div class=\"empty-state\" style=\"padding:20px;\">No processes found.</div></td></tr>');
+        body.html('<tr><td colspan="6"><div class="empty-state" style="padding:20px;">No processes found.</div></td></tr>');
         return;
     }
 
@@ -419,12 +425,12 @@ function renderProcs() {
         var rowNum = start + i + 1;
         var procName = p.name;
         row.html(
-            '<td style=\"color:var(--text-muted); font-size:11px;\">' + rowNum + '</td>' +
-            '<td class=\"proc-name\">' + procName + '</td>' +
-            '<td class=\"proc-pid\">' + p.pid + '</td>' +
-            '<td class=\"proc-mem\" style=\"color:var(--text-muted);\">' + p.session + '</td>' +
-            '<td class=\"proc-mem\">' + p.mem + '</td>' +
-            '<td><button class=\"btn-icon danger kill-btn\" title=\"Terminate process\"><i class=\"fa-solid fa-skull\" style=\"font-size:11px;\"></i></button></td>'
+            '<td style="color:var(--text-muted); font-size:11px;">' + rowNum + '</td>' +
+            '<td class="proc-name">' + procName + '</td>' +
+            '<td class="proc-pid">' + p.pid + '</td>' +
+            '<td class="proc-mem" style="color:var(--text-muted);">' + p.session + '</td>' +
+            '<td class="proc-mem">' + p.mem + '</td>' +
+            '<td><button class="btn-icon danger kill-btn" title="Terminate process"><i class="fa-solid fa-skull" style="font-size:11px;"></i></button></td>'
         );
         row.find('.kill-btn').on('click', function() { doKillProc(procName); });
         body.append(row);
@@ -432,7 +438,7 @@ function renderProcs() {
 }
 
 function doKillProc(name) {
-    confirmAction('Terminate Process', 'Force-kill \"' + name + '\" on the remote device?', function() {
+    confirmAction('Terminate Process', 'Force-kill "' + name + '" on the remote device?', function() {
         sendCmd('KILL:' + name, function() {
             toast('Terminated: ' + name, 'success');
             setTimeout(doLoadProcesses, 600);
@@ -450,12 +456,12 @@ function doUnblock() { var d = $('#domainInput').val().trim(); if (d) sendCmd('U
 
 function termPrint(cls, text) {
     var out = $('#termOut');
-    out.append('<span class=\"' + cls + '\">' + text + '</span>');
+    out.append('<span class="' + cls + '">' + text + '</span>');
     out.scrollTop(out[0].scrollHeight);
 }
 
 function clearTerm() {
-    $('#termOut').html('<span class=\"t-sys\">// Terminal cleared.\\n\\n</span>');
+    $('#termOut').html('<span class="t-sys">// Terminal cleared.\n\n</span>');
 }
 
 function runTerm() {
@@ -465,12 +471,12 @@ function runTerm() {
     termHistory.unshift(cmd);
     termHistIdx = -1;
     inp.val('');
-    termPrint('t-cmd', 'C:\\> ' + cmd + '\\n');
+    termPrint('t-cmd', 'C:\\> ' + cmd + '\n');
     sendCmd('EXEC:' + cmd, function(raw) {
         var out = raw.startsWith('EXEC_RESULT:') ? raw.substring(12) : raw;
-        termPrint('t-out', out.trim() + '\\n\\n');
+        termPrint('t-out', out.trim() + '\n\n');
     }, function(err) {
-        termPrint('t-err', 'Error: ' + err + '\\n\\n');
+        termPrint('t-err', 'Error: ' + err + '\n\n');
     });
 }
 
@@ -491,35 +497,35 @@ function termKeydown(e) {
 
 function doActiveWindow() {
     if(!selectedDev) return;
-    toast(\"Requesting active window...\", \"success\");
+    toast("Requesting active window...", "success");
     sendCmd('ACTIVE_WINDOW', function(res) {
         let text = res;
-        if(text.startsWith(\"ACTIVE_WINDOW:\")) text = text.substring(14);
-        alert(\"Currently Active Window:\\n\\n\" + text);
+        if(text.startsWith("ACTIVE_WINDOW:")) text = text.substring(14);
+        alert("Currently Active Window:\n\n" + text);
     });
 }
 
 function doSetSchedule() {
     if(!selectedDev) return;
-    let limit = prompt(\"Enter bedtime hour (0-23). The computer will automatically lock after this hour every day.\\n\\nEnter 0 to disable:\", \"22\");
+    let limit = prompt("Enter bedtime hour (0-23). The computer will automatically lock after this hour every day.\n\nEnter 0 to disable:", "22");
     if(limit !== null) {
         let h = parseInt(limit);
         if(!isNaN(h) && h >= 0 && h <= 23) {
-            sendCmd(\"SCHEDULE:\" + h, function(res) {
-                if(res.startsWith(\"OK:\")) toast(\"Bedtime schedule saved successfully!\", \"success\");
-                else toast(\"Failed to set schedule\", \"danger\");
+            sendCmd("SCHEDULE:" + h, function(res) {
+                if(res.startsWith("OK:")) toast("Bedtime schedule saved successfully!", "success");
+                else toast("Failed to set schedule", "danger");
             });
         } else {
-            alert(\"Please enter a valid hour (0-23)\");
+            alert("Please enter a valid hour (0-23)");
         }
     }
 }
 
 function doSysinfo() {
     var grid = $('#sysinfoGrid');
-    grid.html('<div class=\"empty-state\" style=\"grid-column:1/-1; padding:30px;\"><span class=\"spin\"></span> Loading...</div>');
+    grid.html('<div class="empty-state" style="grid-column:1/-1; padding:30px;"><span class="spin"></span> Loading...</div>');
     sendCmd('SYSINFO', function(raw) {
-        if (!raw.startsWith('SYSINFO:')) { grid.html('<div class=\"empty-state\" style=\"grid-column:1/-1;\">Failed to parse response.</div>'); return; }
+        if (!raw.startsWith('SYSINFO:')) { grid.html('<div class="empty-state" style="grid-column:1/-1;">Failed to parse response.</div>'); return; }
         var info = {};
         try { info = JSON.parse(raw.substring(8)); } catch(e) { grid.html('<div>Parse error.</div>'); return; }
         var fields = [
@@ -535,9 +541,9 @@ function doSysinfo() {
         grid.empty();
         fields.forEach(function(f) {
             grid.append(
-                '<div class=\"si-card\">' +
-                    '<div class=\"si-label\"><i class=\"fa-solid ' + f.icon + '\"></i>' + f.label + '</div>' +
-                    '<div class=\"si-value\">' + f.value + '</div>' +
+                '<div class="si-card">' +
+                    '<div class="si-label"><i class="fa-solid ' + f.icon + '"></i>' + f.label + '</div>' +
+                    '<div class="si-value">' + f.value + '</div>' +
                 '</div>'
             );
         });
