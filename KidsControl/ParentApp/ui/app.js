@@ -1009,3 +1009,64 @@ function saveSettings() {
         }
     });
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Export Child Agent Modal & Logic
+// ═════════════════════════════════════════════════════════════════════════════
+
+var lastExportFolder = '';
+
+function openExportModal() {
+    $('#exportStatusBox').hide();
+    $('#openExpFolderBtn').hide();
+    $('#btnBuildAgent').prop('disabled', false).html('<i class="fa-solid fa-hammer"></i> Build Executable (.exe)');
+    new bootstrap.Modal('#exportModal').show();
+}
+
+function doExportChildAgent() {
+    var appName = $('#expAppName').val().trim() || 'KidsControlAgent.exe';
+    var secretKey = $('#expSecretKey').val().trim() || 'KIDS_CTRL_2026';
+    var tcpPort = parseInt($('#expTcpPort').val(), 10) || 8888;
+    var udpPort = parseInt($('#expUdpPort').val(), 10) || 8889;
+    var consoleMode = $('#expConsoleMode').val() === 'true';
+
+    var btn = $('#btnBuildAgent');
+    var statusBox = $('#exportStatusBox');
+    var statusMsg = $('#exportStatusMsg');
+
+    btn.prop('disabled', true).html('<span class="spin"></span> Building standalone .exe...');
+    statusBox.show().css({ 'border-color': 'var(--accent)', 'color': 'var(--accent)' });
+    statusMsg.html('<i class="fa-solid fa-gear fa-spin"></i> Packaging child agent with dpack... Please wait.');
+
+    var payload = {
+        appName: appName,
+        secretKey: secretKey,
+        tcpPort: tcpPort,
+        udpPort: udpPort,
+        consoleMode: consoleMode
+    };
+
+    window.djazair.invoke('exportChildAgent', payload).then(function(res) {
+        btn.prop('disabled', false).html('<i class="fa-solid fa-hammer"></i> Build Executable (.exe)');
+        var data = extractData(res);
+        if (data && data.ok) {
+            lastExportFolder = data.folder || 'exports';
+            statusBox.css({ 'border-color': 'var(--success)', 'color': 'var(--success)' });
+            statusMsg.html(
+                '<i class="fa-solid fa-circle-check"></i> <strong>' + data.filename + '</strong> built successfully! (' + data.size + ')<br>' +
+                '<span style="color:var(--text-muted); font-size:11px;">Saved to: ' + data.path + '</span>'
+            );
+            $('#openExpFolderBtn').show();
+            toast('Child agent built successfully: ' + data.filename, 'success');
+        } else {
+            var errMsg = (data && data.error) ? data.error : 'Unknown error during build.';
+            statusBox.css({ 'border-color': 'var(--danger)', 'color': 'var(--danger)' });
+            statusMsg.html('<i class="fa-solid fa-circle-xmark"></i> ' + errMsg);
+            toast('Failed to build child agent: ' + errMsg, 'danger');
+        }
+    });
+}
+
+function doOpenExportFolder() {
+    window.djazair.invoke('openExportFolder', lastExportFolder);
+}

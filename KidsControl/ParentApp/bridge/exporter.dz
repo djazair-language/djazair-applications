@@ -1,0 +1,119 @@
+use dpack
+use file
+use dir
+use path
+use process
+use math
+import "../core/config.dz" as config
+
+# Registers the Child Agent Exporter IPC handlers.
+# @param {App} app - The WebView application instance.
+fn register(app)
+    # Event: exportChildAgent
+    # Packages a customized, standalone ChildApp executable on demand.
+    app.bridge.on("exportChildAgent", fn(payload)
+        try
+            let appName = "KidsControlAgent.exe"
+            if payload.has("appName") and payload["appName"] != ""
+                appName = payload["appName"]
+            end
+            if !appName.endsWith(".exe")
+                appName = appName + ".exe"
+            end
+
+            let secretKey = "KIDS_CTRL_2026"
+            if payload.has("secretKey") and payload["secretKey"] != ""
+                secretKey = payload["secretKey"]
+            end
+
+            let tcpPort = 8888
+            if payload.has("tcpPort") and num(payload["tcpPort"]) > 0
+                tcpPort = num(payload["tcpPort"])
+            end
+
+            let udpPort = 8889
+            if payload.has("udpPort") and num(payload["udpPort"]) > 0
+                udpPort = num(payload["udpPort"])
+            end
+
+            let consoleMode = False
+            if payload.has("consoleMode")
+                consoleMode = bool(payload["consoleMode"])
+            end
+
+            # Locate ChildApp template directory
+            let childDir = "ChildApp"
+            if !file.exists(childDir + "/main.dz")
+                childDir = "../ChildApp"
+            end
+            if !file.exists(childDir + "/main.dz")
+                return {"ok": False, "error": "ChildApp source template not found on disk."}
+            end
+
+            # Ensure export output directory exists
+            let exportDir = "exports"
+            try dir.createAll(exportDir) catch e end
+            let absExportDir = path.resolve(exportDir)
+            let finalExePath = path.join(absExportDir, appName)
+
+            # Update / customize constants.dz in ChildApp before packaging
+            let constantsFile = path.join(childDir, "core", "constants.dz")
+            let constantsCode = `# Custom generated ChildApp configuration
+let SECRET_KEY = "` + secretKey + `"
+let TCP_PORT = ` + str(tcpPort) + `
+let UDP_DISCOVERY_PORT = ` + str(udpPort) + `
+
+# Network configuration
+let DISCOVER_PAYLOAD = SECRET_KEY + "|||DISCOVER"
+let HERE_PREFIX = SECRET_KEY + "|||HERE:"
+let PING_PAYLOAD = SECRET_KEY + "|||PING"
+let PONG_PREFIX = "PONG:"
+`
+            file.write(constantsFile, constantsCode)
+
+            # Invoke dpack to compile standalone executable
+            let childMain = path.join(childDir, "main.dz")
+            let nativeExe = path.join(childDir, "KidsControlNative.exe")
+            let coreDir = path.join(childDir, "core")
+            let servicesDir = path.join(childDir, "services")
+
+            dpack.pack(childMain, finalExePath, {
+                "console": consoleMode,
+                "portable": True,
+                "assets": [coreDir, servicesDir, nativeExe],
+                "quiet": True
+            })
+
+            let size = file.size(finalExePath)
+            let sizeStr = str(math.floor(size / 1048576.0)) + " MB"
+            if size < 1048576
+                sizeStr = str(math.floor(size / 1024.0)) + " KB"
+            end
+
+            return {
+                "ok": True,
+                "path": finalExePath,
+                "folder": absExportDir,
+                "filename": appName,
+                "size": sizeStr
+            }
+        catch e
+            return {"ok": False, "error": "Build failed: " + str(e)}
+        end
+    end)
+
+    # Event: openExportFolder
+    # Opens the export folder in Windows File Explorer.
+    app.bridge.on("openExportFolder", fn(payload)
+        try
+            let folder = "exports"
+            if isString(payload) and payload != ""
+                folder = payload
+            end
+            process.exec("explorer.exe \"" + folder + "\"")
+            return True
+        catch e
+            return False
+        end
+    end)
+end

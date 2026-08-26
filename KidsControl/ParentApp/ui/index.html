@@ -61,6 +61,9 @@
       </div>
       <span id='topbarBadge'></span>
       <div style='margin-left:auto; display:flex; gap:8px; align-items:center;'>
+        <button class='btn-kc primary' onclick='openExportModal()' title='Export standalone ChildApp.exe'>
+          <i class='fa-solid fa-file-export'></i> Export Child App
+        </button>
         <button class='btn-kc success' id='pingBtn' onclick='doPing()' style='display:none;'>
           <i class='fa-solid fa-wifi'></i> Ping
         </button>
@@ -451,6 +454,65 @@
         <button type='button' class='btn-kc primary' onclick='saveSettings()'>
           <i class='fa-solid fa-floppy-disk'></i> Save Settings
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ EXPORT CHILD AGENT MODAL ═══════ -->
+<div class='modal fade' id='exportModal' tabindex='-1'>
+  <div class='modal-dialog modal-dialog-centered modal-md'>
+    <div class='modal-content' style='background:#161b22; border:1px solid #30363d; color:#e6edf3;'>
+      <div class='modal-header' style='border-bottom:1px solid #30363d; padding:16px 20px;'>
+        <h5 class='modal-title' style='font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;'>
+          <i class='fa-solid fa-box-archive' style='color:var(--accent);'></i> Export Child Agent (.exe)
+        </h5>
+        <button type='button' class='btn-close btn-close-white' data-bs-dismiss='modal'></button>
+      </div>
+      <div class='modal-body' style='padding:20px; font-size:13px;'>
+        <p style='color:var(--text-muted); font-size:12px; margin-bottom:16px;'>
+          Generate a standalone, zero-dependency executable file for your children's computers pre-configured to connect to your dashboard.
+        </p>
+        <div class='row g-3'>
+          <div class='col-12'>
+            <label class='form-label' style='font-weight:600;'>Executable Name (اسم الملف):</label>
+            <input class='kc-input form-control' id='expAppName' value='KidsControlAgent.exe' placeholder='e.g. KidsControlAgent.exe'>
+          </div>
+          <div class='col-md-6'>
+            <label class='form-label' style='font-weight:600;'>Security Secret Key (مفتاح الأمان):</label>
+            <input class='kc-input form-control' id='expSecretKey' value='KIDS_CTRL_2026' placeholder='Secret Key'>
+          </div>
+          <div class='col-md-3'>
+            <label class='form-label' style='font-weight:600;'>TCP Port:</label>
+            <input type='number' class='kc-input form-control' id='expTcpPort' value='8888'>
+          </div>
+          <div class='col-md-3'>
+            <label class='form-label' style='font-weight:600;'>UDP Port:</label>
+            <input type='number' class='kc-input form-control' id='expUdpPort' value='8889'>
+          </div>
+          <div class='col-12'>
+            <label class='form-label' style='font-weight:600;'>Execution Mode (طريقة التشغيل):</label>
+            <select class='kc-input form-select' id='expConsoleMode' style='background:#0d1117; color:#e6edf3; border:1px solid #30363d;'>
+              <option value='false' selected>Silent Background Mode (بدون نافذة - مستحسن)</option>
+              <option value='true'>Console Window Mode (مع نافذة سطر أوامر للتتبع)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id='exportStatusBox' style='display:none; margin-top:16px; padding:12px; border-radius:6px; background:#0d1117; border:1px solid var(--border); font-size:12px;'>
+          <div id='exportStatusMsg'></div>
+        </div>
+      </div>
+      <div class='modal-footer' style='border-top:1px solid #30363d; padding:12px 20px; display:flex; justify-content:space-between;'>
+        <button type='button' class='btn btn-outline-secondary' data-bs-dismiss='modal'>Close</button>
+        <div style='display:flex; gap:8px;'>
+          <button type='button' class='btn-kc' id='openExpFolderBtn' onclick='doOpenExportFolder()' style='display:none;'>
+            <i class='fa-solid fa-folder-open'></i> Open Folder
+          </button>
+          <button type='button' class='btn-kc primary' id='btnBuildAgent' onclick='doExportChildAgent()'>
+            <i class='fa-solid fa-hammer'></i> Build Executable (.exe)
+          </button>
+        </div>
       </div>
     </div>
   </div>

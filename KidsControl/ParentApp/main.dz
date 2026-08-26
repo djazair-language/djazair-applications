@@ -8,6 +8,7 @@ import "core/config.dz" as config
 import "bridge/settings.dz" as settings
 import "bridge/network.dz" as network
 import "bridge/commands.dz" as commands
+import "bridge/exporter.dz" as exporter
 import "ui/builder.dz" as ui
 
 # 1. Initialize Settings
@@ -27,6 +28,7 @@ app.onReady(fn()
     settings.register(app)
     network.register(app)
     commands.register(app)
+    exporter.register(app)
 
     # Render UI
     app.window.setHtml(ui.getHtml())
