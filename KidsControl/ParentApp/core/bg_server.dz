@@ -136,11 +136,32 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
             s["last_seen"] = nowTs
         end
 
-        # Sync sessions map to children.json
+        # Sync sessions map to children.json without overwriting UI changes (custom_name)
         try
+            let diskSessions = {}
+            if file.isFile(DEVICES_FILE)
+                let dData = file.read(DEVICES_FILE)
+                let list = json.decode(dData)
+                if type(list) == "Array"
+                    for d in list
+                        if type(d) == "Map" and d.has("id")
+                            diskSessions[d["id"]] = d
+                        end
+                    end
+                end
+            end
+            
             let listToSave = []
             for k in sessions.keys()
-                listToSave.append(sessions[k])
+                let memS = sessions[k]
+                if diskSessions.has(k)
+                    let dS = diskSessions[k]
+                    if dS.has("custom_name") and dS["custom_name"] != ""
+                        memS["custom_name"] = dS["custom_name"]
+                        sessions[k]["custom_name"] = dS["custom_name"]
+                    end
+                end
+                listToSave.append(memS)
             end
             file.write(DEVICES_FILE, json.encode(listToSave))
         catch e end

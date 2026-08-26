@@ -228,7 +228,8 @@ function setDeviceLiveState(isOnline) {
         $('#termIn').prop('disabled', false);
         
         // Auto-fetch active window when coming online or switching
-        if ($('#dashActiveWindow').text() === 'Unknown') doActiveWindow();
+        $('#dashActiveWindow').text('Fetching...');
+        doActiveWindow();
         
     } else {
         $('#topbarBadge').html(
@@ -465,10 +466,10 @@ function sendCmd(command, successCb, failCb, retryCount) {
                 }
                 
                 if (pollRes.latency !== undefined) {
-                    var color = pollRes.latency < 50 ? '#2ea043' : (pollRes.latency < 200 ? '#d29922' : '#f85149');
+                    var color = pollRes.latency < 50 ? 'success' : (pollRes.latency < 200 ? 'warning' : 'danger');
                     $('#topbarBadge').html(
-                        '<span class="badge" style="background: ' + color + '">' + pollRes.latency + ' ms</span> ' +
-                        '<span class="badge-id">' + (selectedDev.id || selectedDev.ip).slice(0, 14) + '...</span>'
+                        '<span class="kc-badge ' + color + '"><i class="fa-solid fa-wifi"></i> ' + pollRes.latency + ' ms</span> ' +
+                        '<span class="kc-id-badge" title="' + (selectedDev.id || selectedDev.ip) + '">' + (selectedDev.id || selectedDev.ip).slice(0, 14) + '...</span>'
                     );
                 }
                 

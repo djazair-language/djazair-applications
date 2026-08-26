@@ -16,7 +16,7 @@ import "core/constants.dz" as constants
 
 # 1. Initialize Machine Identity & Router
 let identity = new idModule.IdentityService()
-let router   = new routerModule.CommandRouter(identity)
+let router = new routerModule.CommandRouter(identity)
 
 let deviceId = identity.getDeviceId()
 let hostname = identity.getHostname()
@@ -74,8 +74,8 @@ while True
             let sentCmdId = Null
             if !isNull(pendingResult)
                 req["result_cmd_id"] = pendingResultCmdId
-                req["result"]        = pendingResult
-                sentCmdId            = pendingResultCmdId
+                req["result"] = pendingResult
+                sentCmdId = pendingResultCmdId
             end
 
             # Send payload to Parent
@@ -85,7 +85,7 @@ while True
             # Receive instructions from Parent
             let respRaw = client.receiveAll()
             client.close()
-            
+
             # Successfully communicated with parent! We can clear pendingResult now.
             if !isNull(sentCmdId) and pendingResultCmdId == sentCmdId
                 pendingResult = Null
@@ -99,14 +99,14 @@ while True
             if !isNull(respRaw) and respRaw != ""
                 let resp = json.decode(respRaw)
                 if type(resp) == "Map" and resp.has("action") and resp["action"] == "EXEC"
-                    let cmd   = resp["command"]
+                    let cmd = resp["command"]
                     let cmdId = resp["cmd_id"]
 
                     # Execute command locally via router
                     let output = router.dispatch(cmd)
                     pendingResult = output
                     pendingResultCmdId = cmdId
-                    
+
                     if cmd == "EXIT"
                         shouldExit = True
                     end
