@@ -13,20 +13,20 @@ import "../core/constants.dz" as constants
 # Helpers for storage directories
 fn getScreenshotDir(deviceId)
     let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
-    let baseDir = "storage/screenshots/" + safeId
+    let baseDir = path.join(config.BASE_DIR, "storage", "screenshots", safeId)
     try dir.createAll(baseDir) catch e end
     return baseDir
 end
 
 fn getWebcamDir(deviceId)
     let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
-    let baseDir = "storage/webcam/" + safeId
+    let baseDir = path.join(config.BASE_DIR, "storage", "webcam", safeId)
     try dir.createAll(baseDir) catch e end
     return baseDir
 end
 
 fn getCacheDir()
-    let baseDir = "storage/cache"
+    let baseDir = path.join(config.BASE_DIR, "storage", "cache")
     try dir.createAll(baseDir) catch e end
     return baseDir
 end
