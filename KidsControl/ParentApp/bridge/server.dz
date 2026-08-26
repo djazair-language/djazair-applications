@@ -180,12 +180,10 @@ fn register(app)
 
             pMap[devId].append({
                 "cmd_id": cmdId,
-                "command": cmd
+                "command": cmd,
+                "timestamp": now
             })
 
-            file.write(PENDING_CMDS_FILE, json.encode(pMap))
-
-            # Enqueue the command
             file.write(PENDING_CMDS_FILE, json.encode(pMap))
 
             # Return immediately so we don't block the UI thread!

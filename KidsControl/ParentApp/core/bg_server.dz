@@ -164,15 +164,41 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
             let pMap = json.decode(pData)
             if type(pMap) == "Map" and pMap.has(devId)
                 let q = pMap[devId]
-                if type(q) == "Array" and q.length() > 0
-                    let nextCmd = q.pop(0)
-                    replyPayload = {
-                        "status": "OK",
-                        "action": "EXEC",
-                        "cmd_id": nextCmd["cmd_id"],
-                        "command": nextCmd["command"]
-                    }
-                    file.write(PENDING_CMDS_FILE, json.encode(pMap))
+                if type(q) == "Array"
+                    let nextCmd = Null
+                    let modified = False
+                    let now = datetime.now().timestamp()
+                    
+                    # Pop from queue until we find a valid (non-expired) command
+                    while q.length() > 0
+                        let candidate = q.pop(0)
+                        modified = True
+                        let cmdTs = now
+                        if type(candidate) == "Map" and candidate.has("timestamp")
+                            cmdTs = num(candidate["timestamp"])
+                        end
+                        
+                        # If command is older than 15 seconds, it's expired! Skip it.
+                        if (now - cmdTs) > 15.0
+                            continue
+                        end
+                        
+                        nextCmd = candidate
+                        break
+                    end
+                    
+                    if !isNull(nextCmd)
+                        replyPayload = {
+                            "status": "OK",
+                            "action": "EXEC",
+                            "cmd_id": nextCmd["cmd_id"],
+                            "command": nextCmd["command"]
+                        }
+                    end
+                    
+                    if modified
+                        file.write(PENDING_CMDS_FILE, json.encode(pMap))
+                    end
                 end
             end
         end
