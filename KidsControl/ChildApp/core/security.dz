@@ -65,7 +65,7 @@ use thread
 let running = True
 while running
     process.sleep(10.0)
-    let p = process.exec("tasklist /FI \"IMAGENAME eq djazair.exe\"")
+    let p = process.exec("tasklist /FI \\"IMAGENAME eq djazair.exe\\"")
     let out = p["stdout"]
     
     let count = 0
@@ -94,8 +94,9 @@ fn setupStartup()
     thread.spawnCode(`
 use process
 try
-    process.exec("netsh advfirewall firewall add rule name=\"KidsControl TCP\" dir=in action=allow protocol=TCP localport=8888")
-    process.exec("netsh advfirewall firewall add rule name=\"KidsControl UDP\" dir=in action=allow protocol=UDP localport=8889")
-catch e end
+    process.exec("netsh advfirewall firewall add rule name=KidsControl_TCP dir=in action=allow protocol=TCP localport=8888")
+    process.exec("netsh advfirewall firewall add rule name=KidsControl_UDP dir=in action=allow protocol=UDP localport=8889")
+catch e
+end
 `)
 end

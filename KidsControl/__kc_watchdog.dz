@@ -4,7 +4,7 @@ use thread
 let running = True
 while running
     process.sleep(10.0)
-    let p = process.exec("tasklist /FI "IMAGENAME eq djazair.exe"")
+    let p = process.exec("tasklist /FI \"IMAGENAME eq djazair.exe\"")
     let out = p["stdout"]
     
     let count = 0
