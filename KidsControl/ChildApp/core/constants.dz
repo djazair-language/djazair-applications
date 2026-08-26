@@ -1,13 +1,8 @@
 # =============================================================================
-# constants.dz — ChildApp Configuration & Security Constants
+# constants.dz — ChildApp Reverse Agent Configuration
 # =============================================================================
 
 let SECRET_KEY = "KIDS_CTRL_2026"
-let TCP_PORT = 8888
-let UDP_DISCOVERY_PORT = 8889
-
-# Network configuration
-let DISCOVER_PAYLOAD = SECRET_KEY + "|||DISCOVER"
-let HERE_PREFIX = SECRET_KEY + "|||HERE:"
-let PING_PAYLOAD = SECRET_KEY + "|||PING"
-let PONG_PREFIX = "PONG:"
+let PARENT_HOST = "127.0.0.1"
+let PARENT_PORT = 9999
+let CHECKIN_INTERVAL_SECONDS = 1.0

@@ -478,23 +478,23 @@
             <label class='form-label' style='font-weight:600;'>Executable Name (اسم الملف):</label>
             <input class='kc-input form-control' id='expAppName' value='KidsControlAgent.exe' placeholder='e.g. KidsControlAgent.exe'>
           </div>
+          <div class='col-md-8'>
+            <label class='form-label' style='font-weight:600;'>Parent Host / IP (عنوان آي بي الأب):</label>
+            <input class='kc-input form-control' id='expParentHost' value='127.0.0.1' placeholder='e.g. 192.168.1.100 or DDNS'>
+          </div>
+          <div class='col-md-4'>
+            <label class='form-label' style='font-weight:600;'>Server Port (المنفذ):</label>
+            <input type='number' class='kc-input form-control' id='expParentPort' value='9999'>
+          </div>
           <div class='col-md-6'>
             <label class='form-label' style='font-weight:600;'>Security Secret Key (مفتاح الأمان):</label>
             <input class='kc-input form-control' id='expSecretKey' value='KIDS_CTRL_2026' placeholder='Secret Key'>
           </div>
-          <div class='col-md-3'>
-            <label class='form-label' style='font-weight:600;'>TCP Port:</label>
-            <input type='number' class='kc-input form-control' id='expTcpPort' value='8888'>
-          </div>
-          <div class='col-md-3'>
-            <label class='form-label' style='font-weight:600;'>UDP Port:</label>
-            <input type='number' class='kc-input form-control' id='expUdpPort' value='8889'>
-          </div>
-          <div class='col-12'>
+          <div class='col-md-6'>
             <label class='form-label' style='font-weight:600;'>Execution Mode (طريقة التشغيل):</label>
             <select class='kc-input form-select' id='expConsoleMode' style='background:#0d1117; color:#e6edf3; border:1px solid #30363d;'>
-              <option value='false' selected>Silent Background Mode (بدون نافذة - مستحسن)</option>
-              <option value='true'>Console Window Mode (مع نافذة سطر أوامر للتتبع)</option>
+              <option value='false' selected>Silent Background (مخفي بدون نافذة)</option>
+              <option value='true'>Console Window (طرفية للتتبع)</option>
             </select>
           </div>
         </div>

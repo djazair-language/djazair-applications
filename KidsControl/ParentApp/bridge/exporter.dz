@@ -5,6 +5,7 @@ use path
 use process
 use math
 import "../core/config.dz" as config
+import "../core/constants.dz" as constants
 
 # Registers the Child Agent Exporter IPC handlers.
 # @param {App} app - The WebView application instance.
@@ -21,19 +22,19 @@ fn register(app)
                 appName = appName + ".exe"
             end
 
-            let secretKey = "KIDS_CTRL_2026"
+            let parentHost = "127.0.0.1"
+            if payload.has("parentHost") and payload["parentHost"] != ""
+                parentHost = payload["parentHost"]
+            end
+
+            let parentPort = constants.MASTER_PORT
+            if payload.has("parentPort") and num(payload["parentPort"]) > 0
+                parentPort = num(payload["parentPort"])
+            end
+
+            let secretKey = constants.SECRET_KEY
             if payload.has("secretKey") and payload["secretKey"] != ""
                 secretKey = payload["secretKey"]
-            end
-
-            let tcpPort = 8888
-            if payload.has("tcpPort") and num(payload["tcpPort"]) > 0
-                tcpPort = num(payload["tcpPort"])
-            end
-
-            let udpPort = 8889
-            if payload.has("udpPort") and num(payload["udpPort"]) > 0
-                udpPort = num(payload["udpPort"])
             end
 
             let consoleMode = False
@@ -58,16 +59,11 @@ fn register(app)
 
             # Update / customize constants.dz in ChildApp before packaging
             let constantsFile = path.join(childDir, "core", "constants.dz")
-            let constantsCode = `# Custom generated ChildApp configuration
+            let constantsCode = `# Custom generated ChildApp configuration (Reverse Connection)
 let SECRET_KEY = "` + secretKey + `"
-let TCP_PORT = ` + str(tcpPort) + `
-let UDP_DISCOVERY_PORT = ` + str(udpPort) + `
-
-# Network configuration
-let DISCOVER_PAYLOAD = SECRET_KEY + "|||DISCOVER"
-let HERE_PREFIX = SECRET_KEY + "|||HERE:"
-let PING_PAYLOAD = SECRET_KEY + "|||PING"
-let PONG_PREFIX = "PONG:"
+let PARENT_HOST = "` + parentHost + `"
+let PARENT_PORT = ` + str(parentPort) + `
+let CHECKIN_INTERVAL_SECONDS = 1.0
 `
             file.write(constantsFile, constantsCode)
 

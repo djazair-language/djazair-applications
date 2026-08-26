@@ -1020,14 +1020,22 @@ function openExportModal() {
     $('#exportStatusBox').hide();
     $('#openExpFolderBtn').hide();
     $('#btnBuildAgent').prop('disabled', false).html('<i class="fa-solid fa-hammer"></i> Build Executable (.exe)');
+    
+    // Auto-detect Parent's local LAN IP to prefill the input
+    window.djazair.invoke('getLocalServerIp').then(function(ip) {
+        if (ip && typeof ip === 'string' && ip !== '127.0.0.1') {
+            $('#expParentHost').val(ip);
+        }
+    });
+
     new bootstrap.Modal('#exportModal').show();
 }
 
 function doExportChildAgent() {
     var appName = $('#expAppName').val().trim() || 'KidsControlAgent.exe';
+    var parentHost = $('#expParentHost').val().trim() || '127.0.0.1';
+    var parentPort = parseInt($('#expParentPort').val(), 10) || 9999;
     var secretKey = $('#expSecretKey').val().trim() || 'KIDS_CTRL_2026';
-    var tcpPort = parseInt($('#expTcpPort').val(), 10) || 8888;
-    var udpPort = parseInt($('#expUdpPort').val(), 10) || 8889;
     var consoleMode = $('#expConsoleMode').val() === 'true';
 
     var btn = $('#btnBuildAgent');
@@ -1036,13 +1044,13 @@ function doExportChildAgent() {
 
     btn.prop('disabled', true).html('<span class="spin"></span> Building standalone .exe...');
     statusBox.show().css({ 'border-color': 'var(--accent)', 'color': 'var(--accent)' });
-    statusMsg.html('<i class="fa-solid fa-gear fa-spin"></i> Packaging child agent with dpack... Please wait.');
+    statusMsg.html('<i class="fa-solid fa-gear fa-spin"></i> Packaging reverse child agent with dpack... Please wait.');
 
     var payload = {
         appName: appName,
+        parentHost: parentHost,
+        parentPort: parentPort,
         secretKey: secretKey,
-        tcpPort: tcpPort,
-        udpPort: udpPort,
         consoleMode: consoleMode
     };
 

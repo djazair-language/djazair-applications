@@ -1,88 +1,109 @@
 # =============================================================================
-# main.dz — Kids Control Agent (Child-Side)
-# Professional Object-Oriented Architecture
+# ChildApp/main.dz — Kids Control Agent (Child-Side Reverse Connection)
+# Connects OUTBOUND to Parent Master Server
 # =============================================================================
 
 use net
 use thread
 use process
+use file
+use json
+use datetime
 
 import "core/identity.dz" as idModule
 import "core/router.dz" as routerModule
-import "services/system.dz" as sysModule
 import "core/constants.dz" as constants
 
-# 1. Initialize Machine Identity
+# 1. Initialize Machine Identity & Router
 let identity = new idModule.IdentityService()
+let router   = new routerModule.CommandRouter()
+
 let deviceId = identity.getDeviceId()
 let hostname = identity.getHostname()
 
 print("================================================")
-print("  Kids Control Agent (Child-Side)")
-print("  Device ID : " + deviceId)
-print("  Hostname  : " + hostname)
-print("  TCP Port  : " + str(constants.TCP_PORT))
-print("  UDP Port  : " + str(constants.UDP_DISCOVERY_PORT))
+print("  Kids Control Reverse Agent (Child-Side)")
+print("  Device ID    : " + deviceId)
+print("  Hostname     : " + hostname)
+print("  Target Parent: " + constants.PARENT_HOST + ":" + str(constants.PARENT_PORT))
 print("================================================")
 
-# 2. Start Background Schedule Monitor
-let systemService = new sysModule.SystemService()
-systemService.startScheduleMonitor()
-
-# 3. Start UDP Discovery Responder
-fn startDiscoveryServer(devId, host)
-    let bcastCode = `
-use net
-use thread
-
-let UDP_PORT = ` + str(constants.UDP_DISCOVERY_PORT) + `
-let DISCOVER_PAYLOAD = "` + constants.DISCOVER_PAYLOAD + `"
-let HERE_PREFIX = "` + constants.HERE_PREFIX + `"
-let devId = "` + devId + `"
-let host = "` + host + `"
-
-let s = new net.udpServer(fn(data, ip, port)
-    if data == DISCOVER_PAYLOAD
-        s.reply(HERE_PREFIX + devId + ":" + host, ip, port)
-    end
-end)
-
-try
-    s.listen(UDP_PORT, "0.0.0.0")
-catch e
-    print("[Discovery] Error starting UDP server: " + str(e))
-end
-`
-    thread.spawnCode(bcastCode)
-end
-
-startDiscoveryServer(deviceId, hostname)
-
-# 4. Initialize Command Router
-let router = new routerModule.CommandRouter(identity)
-
-# 5. Start TCP Server
-let server = new net.tcpServer(fn(client, ip, port)
-    print("[Agent] Connection from " + ip + ":" + str(port))
-    let raw = Null
+# Function to detect local IP address
+fn getLocalIp()
     try
-        raw = client.receive(131072)
-    catch e
-        print("[Agent] Receive error: " + str(e))
-        raw = Null
-    end
-
-    if not isNull(raw) and raw != ""
-        let response = router.dispatch(raw)
-        try
-            client.send(response)
-        catch e
-            print("[Agent] Send error: " + str(e))
+        let out = process.exec("ipconfig")
+        let text = if isMap(out) and out.has("stdout") ? out["stdout"] else str(out)
+        let lines = text.split("\n")
+        for line in lines
+            if line.contains("IPv4") and line.contains(":")
+                let parts = line.split(":")
+                if parts.length() >= 2
+                    let ip = parts[1].strip()
+                    if ip.startsWith("192.168.") or ip.startsWith("10.") or ip.startsWith("172.")
+                        return ip
+                    end
+                end
+            end
         end
+        return "127.0.0.1"
+    catch e
+        return "127.0.0.1"
+    end
+end
+
+let localIp = getLocalIp()
+
+# 2. Main Agent Connection & Command Execution Loop
+let pendingResult = Null
+let pendingResultCmdId = Null
+
+while True
+    try
+        let client = new net.tcpClient()
+        let ok = client.connect(constants.PARENT_HOST, constants.PARENT_PORT)
+        if ok
+            # Build check-in registration payload
+            let req = {
+                "secret":   constants.SECRET_KEY,
+                "id":       deviceId,
+                "hostname": hostname,
+                "ip":       localIp
+            }
+
+            if !isNull(pendingResult)
+                req["result_cmd_id"] = pendingResultCmdId
+                req["result"]        = pendingResult
+                pendingResult        = Null
+                pendingResultCmdId   = Null
+            end
+
+            # Send payload to Parent
+            client.send(json.encode(req))
+            client.shutdown(net.SD_SEND)
+
+            # Receive instructions from Parent
+            let respRaw = client.receiveAll()
+            client.close()
+
+            if !isNull(respRaw) and respRaw != ""
+                let resp = json.decode(respRaw)
+                if type(resp) == "Map" and resp.has("action") and resp["action"] == "EXEC"
+                    let cmd   = resp["command"]
+                    let cmdId = resp["cmd_id"]
+
+                    # Execute command locally via router
+                    let output = router.dispatch(cmd)
+                    pendingResult = output
+                    pendingResultCmdId = cmdId
+
+                    # Immediately loop to deliver result without waiting
+                    continue
+                end
+            end
+        end
+    catch e
+        # Silently handle connection retries
     end
 
-    print("[Agent] Connection closed with " + ip)
-    client.close()
-end, {"timeout": 10})
-
-server.listen(constants.TCP_PORT)
+    process.sleep(constants.CHECKIN_INTERVAL_SECONDS)
+end
