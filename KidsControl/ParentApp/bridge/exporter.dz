@@ -66,9 +66,9 @@ fn register(app)
             end
 
             # Locate ChildApp template directory
-            let childDir = "ChildApp"
+            let childDir = "../ChildApp"
             if !file.exists(childDir + "/main.dz")
-                childDir = "../ChildApp"
+                childDir = "ChildApp"
             end
             if !file.exists(childDir + "/main.dz")
                 return {"ok": False, "error": "ChildApp source template not found on disk."}

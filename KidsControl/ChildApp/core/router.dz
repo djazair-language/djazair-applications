@@ -21,12 +21,17 @@ class CommandRouter
     # @param {string} raw - Raw payload string.
     # @return {string} Command execution response.
     dispatch(raw)
-        let parts = raw.split("|||")
-        if parts.length() < 2 or parts[0] != constants.SECRET_KEY
-            return "ERR:UNAUTHORIZED"
+        let cmd = raw.strip()
+        if raw.contains("|||")
+            let parts = raw.split("|||")
+            if parts.length() >= 2
+                if parts[0] != constants.SECRET_KEY
+                    return "ERR:UNAUTHORIZED"
+                end
+                cmd = parts[1].strip()
+            end
         end
 
-        let cmd = parts[1].strip()
         print("[Agent] Received command: " + cmd.slice(0, 80))
 
         # PING includes permanent DeviceId + Hostname

@@ -16,7 +16,7 @@ import "core/constants.dz" as constants
 
 # 1. Initialize Machine Identity & Router
 let identity = new idModule.IdentityService()
-let router   = new routerModule.CommandRouter()
+let router   = new routerModule.CommandRouter(identity)
 
 let deviceId = identity.getDeviceId()
 let hostname = identity.getHostname()
