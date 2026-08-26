@@ -94,8 +94,8 @@ let CHECKIN_INTERVAL_SECONDS = 1.0
 `
             file.write(constantsFile, constantsCode)
 
-            # Write a temp build script INSIDE ChildApp dir so dpack paths are correct
-            # (same as build.dz: entry=main.dz, assets=core/ services/ KidsControlNative.exe)
+            # Write temp Djazair build script inside ChildApp dir
+            # (paths must be relative to ChildApp/ just like build.dz)
             let safeOut = finalExePath.replace("\\", "\\\\")
             let tempBuildCode = `use dpack
 dpack.pack("main.dz", "` + safeOut + `", {
@@ -108,11 +108,17 @@ dpack.pack("main.dz", "` + safeOut + `", {
             let tempBuildFile = path.join(absChildDir, "_export_build_tmp.dz")
             file.write(tempBuildFile, tempBuildCode)
 
-            # Execute from ChildApp directory so relative imports are resolved correctly
-            process.exec("cmd /c cd /d \"" + absChildDir + "\" && djazair _export_build_tmp.dz")
+            # Write a .bat launcher so cmd reliably changes directory and waits for djazair
+            let tempBatFile = path.join(absChildDir, "_export_build_tmp.bat")
+            let batCode = "@echo off\r\ncd /d \"" + absChildDir + "\"\r\ndjazair _export_build_tmp.dz\r\n"
+            file.write(tempBatFile, batCode)
 
-            # Cleanup temp build script
+            # Execute the batch file (process.exec is synchronous — waits for completion)
+            process.exec("cmd /c \"" + tempBatFile + "\"")
+
+            # Cleanup temp files
             try file.delete(tempBuildFile) catch e end
+            try file.delete(tempBatFile) catch e end
 
             if !file.isFile(finalExePath)
                 return {"ok": False, "error": "Build completed but output file not found: " + finalExePath}
