@@ -365,6 +365,7 @@ function doLoadProcesses() {
         btn.prop('disabled', false);
         var csv  = raw.startsWith('TASKS:') ? raw.substring(6) : raw;
         allProcs = parseCSV(csv);
+        toast('DEBUG: raw.length=' + raw.length + ', lines=' + csv.split('\\n').length + ', csv.indexOf(\\n)=' + csv.indexOf('\\n') + ', csv.indexOf(\\r)=' + csv.indexOf('\\r'), 'warning');
         filteredProcs = allProcs.slice();
         currentPage   = 1;
         renderProcs();
@@ -378,6 +379,8 @@ function doLoadProcesses() {
 
 function parseCSV(csv) {
     var rows = [];
+    // Normalize literal "\\n", "\\r\\n", "\r\n" to just "\n"
+    csv = csv.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
     var lines = csv.split('\n');
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
