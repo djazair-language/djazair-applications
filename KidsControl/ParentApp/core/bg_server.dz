@@ -49,7 +49,7 @@ fn autoArchive(deviceId, rawData)
     let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
 
     if rawData.startsWith("SCREENSHOT:")
-        let b64 = rawData.substring(11).strip()
+        let b64 = rawData.slice(11).strip()
         if b64 != "" and !b64.startsWith("ERR:")
             let sDir = getSsDir(safeId)
             let filePath = path.join(sDir, ts + ".b64")
@@ -61,7 +61,7 @@ fn autoArchive(deviceId, rawData)
             end
         end
     elif rawData.startsWith("WEBCAM:")
-        let b64 = rawData.substring(7).strip()
+        let b64 = rawData.slice(7).strip()
         if b64 != "" and b64 != "NO_WEBCAM" and !b64.startsWith("ERR:")
             let wDir = getWcDir(safeId)
             let filePath = path.join(wDir, ts + ".b64")
