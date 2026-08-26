@@ -365,7 +365,6 @@ function doLoadProcesses() {
         btn.prop('disabled', false);
         var csv  = raw.startsWith('TASKS:') ? raw.substring(6) : raw;
         allProcs = parseCSV(csv);
-        toast('DEBUG: raw.length=' + raw.length + ', lines=' + csv.split('\\n').length + ', csv.indexOf(\\n)=' + csv.indexOf('\\n') + ', csv.indexOf(\\r)=' + csv.indexOf('\\r'), 'warning');
         filteredProcs = allProcs.slice();
         currentPage   = 1;
         renderProcs();
