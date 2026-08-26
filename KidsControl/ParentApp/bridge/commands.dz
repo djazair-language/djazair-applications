@@ -25,22 +25,18 @@ fn register(app)
             client.send(command)
             
             let response = ""
-            while True
-                let chunk = ""
-                try 
-                    chunk = client.receive(131072) 
-                catch e 
-                    break 
-                end
-                if isNull(chunk) or chunk == "" 
-                    break 
-                end
-                response = response + chunk
+            try
+                response = client.receiveAll()
+            catch e
             end
             let t2 = datetime.ticks()
             let latencyMs = int(t2 - t1)
             
             client.close()
+            if payload["command"] == "TASKS"
+                use file
+                file.write("debug_parent_tasks.txt", response)
+            end
             return {"ok": True, "data": response, "latency": latencyMs}
         catch e
             return {"ok": False, "data": "Network error: " + str(e)}

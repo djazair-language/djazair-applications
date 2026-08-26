@@ -379,9 +379,8 @@ function doLoadProcesses() {
 
 function parseCSV(csv) {
     var rows = [];
-    // Normalize literal "\\n", "\\r\\n", "\r\n" to just "\n"
-    csv = csv.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
-    var lines = csv.split('\n');
+    csv = csv.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+    var lines = csv.split(/\r\n|\n|\r/);
     for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (!line) continue;
