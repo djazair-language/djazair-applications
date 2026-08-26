@@ -1,0 +1,26 @@
+use file
+
+# Reads HTML, CSS, and JS from disk and builds the final HTML payload for the WebView.
+# @return {string} The fully assembled HTML string.
+fn getHtml()
+    let html = ""
+    let css = ""
+    let js = ""
+    
+    let basePath = "ParentApp/ui/"
+    
+    try
+        html = file.read(basePath + "index.html")
+        css = file.read(basePath + "styles.css")
+        js = file.read(basePath + "app.js")
+    catch e
+        return "<h1>Error loading UI: " + str(e) + "</h1>"
+    end
+    
+    # Inject CSS and JS into the HTML structure.
+    # We replace placeholder tokens with the actual content.
+    html = html.replace("<!-- INJECT_CSS -->", "<style>\n" + css + "\n</style>")
+    html = html.replace("<!-- INJECT_JS -->", "<script>\n" + js + "\n</script>")
+    
+    return html
+end

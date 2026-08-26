@@ -5,10 +5,10 @@
 
 use webview
 import "core/config.dz" as config
-import "bridge/settings.dz" as settingsBridge
-import "bridge/network.dz" as networkBridge
-import "bridge/commands.dz" as commandsBridge
-import "ui/template.dz" as ui
+import "bridge/settings.dz" as settings
+import "bridge/network.dz" as network
+import "bridge/commands.dz" as commands
+import "ui/builder.dz" as ui
 
 # 1. Initialize Settings
 config.loadSettingsData()
@@ -24,9 +24,9 @@ let app = webview.createWindow({
 # 4. On Ready Handler
 app.onReady(fn()
     # Register IPC Handlers
-    settingsBridge.register(app)
-    networkBridge.register(app)
-    commandsBridge.register(app)
+    settings.register(app)
+    network.register(app)
+    commands.register(app)
 
     # Render UI
     app.window.setHtml(ui.getHtml())

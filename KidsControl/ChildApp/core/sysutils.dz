@@ -1,0 +1,90 @@
+use process
+use file
+
+# Executes a PowerShell script and returns the stdout output.
+# @param {string} script - The PowerShell script to run.
+# @return {string} The trimmed output of the script.
+fn runPowerShell(script)
+    let tmpFile = "__kc_tmp.ps1"
+    file.write(tmpFile, script)
+    let result = process.exec("powershell -ExecutionPolicy Bypass -NoProfile -NonInteractive -File " + tmpFile)
+    try 
+        file.delete(tmpFile) 
+    catch e 
+    end
+    return result["stdout"].strip()
+end
+
+# Retrieves a specific value from a WMIC query.
+# @param {string} query - The WMIC query string.
+# @return {string} The extracted value or an empty string if not found.
+fn wmicValue(query)
+    let r = process.exec(query)
+    let lines = r["stdout"].split("\n")
+    for line in lines
+        let t = line.strip()
+        if t.contains("=") and not t.startsWith("=")
+            let idx = t.index("=")
+            return t.slice(idx + 1, t.length()).strip()
+        end
+    end
+    return ""
+end
+
+# Displays a popup message box to the child user.
+# @param {string} text - The message text.
+# @return {string} Status of the command.
+fn showMessage(text)
+    let escaped = text.replace("\"", "'")
+    let script = `
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.MessageBox]::Show("${escaped}", "Message from Parent") | Out-Null
+`
+    runPowerShell(script)
+    return "OK:MSG"
+end
+
+# Gathers system hardware and OS information.
+# @return {string} JSON encoded system info string prefixed with SYSINFO:
+fn getSysInfo()
+    use json
+    let hostname = ""
+    let osCaption = ""
+    let cpu = ""
+    let ramTotal = ""
+    let ramFree = ""
+    let username = ""
+    let bootTime = ""
+
+    try hostname = process.exec("hostname")["stdout"].strip() catch e end
+    try username = process.exec("whoami")["stdout"].strip()   catch e end
+    try osCaption = wmicValue("wmic os get Caption /value")   catch e end
+    try cpu = wmicValue("wmic cpu get Name /value")           catch e end
+    try
+        let bytes = num(wmicValue("wmic ComputerSystem get TotalPhysicalMemory /value"))
+        ramTotal = str(int(bytes / 1073741824.0)) + " GB"
+    catch e 
+    end
+    
+    try
+        let kb = num(wmicValue("wmic OS get FreePhysicalMemory /value"))
+        ramFree = str(int(kb / 1048576.0)) + " GB"
+    catch e 
+    end
+    
+    try 
+        bootTime = wmicValue("wmic os get LastBootUpTime /value").slice(0, 14) 
+    catch e 
+    end
+
+    let info = {
+        "hostname": hostname,
+        "username": username,
+        "os":       osCaption,
+        "cpu":      cpu,
+        "ram_total": ramTotal,
+        "ram_free":  ramFree,
+        "boot_time": bootTime
+    }
+    return "SYSINFO:" + json.encode(info)
+end

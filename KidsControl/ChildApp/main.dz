@@ -9,14 +9,13 @@ use thread
 use file
 use datetime
 
-import "core/system.dz" as system
+import "core/security.dz" as security
 import "core/commands.dz" as commands
-
-let AGENT_TCP_PORT = 8888
+import "../Shared/constants.dz" as constants
 
 # Initialize system dependencies
-system.setupWatchdog()
-system.setupStartup()
+security.setupWatchdog()
+security.setupStartup()
 
 # Get the hostname to identify the machine
 let systemHostname = "Unknown"
@@ -57,13 +56,15 @@ fn startDiscoveryServer(hostname)
     let bcastCode = `
 use net
 use thread
-let UDP_PORT = 8889
-let SECRET = "KIDS_CTRL_2026"
+
+let UDP_PORT = ` + str(constants.UDP_DISCOVERY_PORT) + `
+let DISCOVER_PAYLOAD = "` + constants.DISCOVER_PAYLOAD + `"
+let HERE_PREFIX = "` + constants.HERE_PREFIX + `"
 let hname = "` + hostname + `"
 
 let s = new net.udpServer(fn(data, ip, port)
-    if data == (SECRET + "|||DISCOVER")
-        s.reply(SECRET + "|||HERE:" + hname, ip, port)
+    if data == DISCOVER_PAYLOAD
+        s.reply(HERE_PREFIX + hname, ip, port)
     end
 end)
 
@@ -106,7 +107,7 @@ end, {"timeout": 10})
 
 # Start Agent
 print("================================================")
-print("  Kids Control Agent — TCP port " + str(AGENT_TCP_PORT))
+print("  Kids Control Agent — TCP port " + str(constants.TCP_PORT))
 print("  Hostname: " + systemHostname)
 print("================================================")
-server.listen(AGENT_TCP_PORT)
+server.listen(constants.TCP_PORT)

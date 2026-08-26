@@ -1,6 +1,7 @@
 use net
 use datetime
 import "../core/config.dz" as config
+import "../../Shared/constants.dz" as constants
 
 # Registers the commands IPC handlers for the UI.
 # @param {App} app - The WebView application instance.
@@ -9,12 +10,12 @@ fn register(app)
     # Sends a command to a specific agent and waits for a response.
     app.bridge.on("agentCommand", fn(payload)
         let ip = payload["ip"]
-        let command = "KIDS_CTRL_2026|||" + payload["command"]
+        let command = constants.SECRET_KEY + "|||" + payload["command"]
         
         try
             let client = new net.tcpClient()
             client.setTimeout(15.0)
-            let connected = client.connect(ip, config.AGENT_TCP_PORT)
+            let connected = client.connect(ip, constants.TCP_PORT)
 
             if not connected
                 return {"ok": False, "data": "Cannot connect to " + ip}

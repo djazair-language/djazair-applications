@@ -1,0 +1,101 @@
+use process
+use file
+use thread
+
+let HOSTS_FILE = "C:\\Windows\\System32\\drivers\\etc\\hosts"
+let SCHEDULE_FILE = "C:\\Users\\Public\\kc_schedule.txt"
+
+# Blocks a specific domain by adding it to the hosts file.
+# @param {string} domain - The domain to block.
+# @return {string} Status of the operation.
+fn blockDomain(domain)
+    try
+        let hosts = file.read(HOSTS_FILE)
+        let entry = "127.0.0.1 " + domain
+        let entryWww = "127.0.0.1 www." + domain
+        if not hosts.contains(entry)
+            file.write(HOSTS_FILE, hosts + "\r\n" + entry + "\r\n" + entryWww)
+            process.exec("ipconfig /flushdns")
+        end
+        return "OK:BLOCK:" + domain
+    catch e
+        return "ERR:ADMIN_REQUIRED"
+    end
+end
+
+# Unblocks a specific domain by removing it from the hosts file.
+# @param {string} domain - The domain to unblock.
+# @return {string} Status of the operation.
+fn unblockDomain(domain)
+    try
+        let hosts = file.read(HOSTS_FILE)
+        let lines = hosts.split("\n")
+        let filtered = []
+        for line in lines
+            let t = line.strip()
+            if not t.contains(domain)
+                filtered.append(line)
+            end
+        end
+        file.write(HOSTS_FILE, filtered.join("\n"))
+        process.exec("ipconfig /flushdns")
+        return "OK:UNBLOCK:" + domain
+    catch e
+        return "ERR:ADMIN_REQUIRED"
+    end
+end
+
+# Sets the computer usage limit schedule.
+# @param {string} limitHour - The hour limit (e.g. "21").
+# @return {string} Status of the command.
+fn setSchedule(limitHour)
+    try
+        file.write(SCHEDULE_FILE, limitHour)
+        return "OK:SCHEDULE"
+    catch e
+        return "ERR:SCHEDULE_FAILED"
+    end
+end
+
+# Sets up a persistent watchdog to restart the agent if killed.
+fn setupWatchdog()
+    let wdCode = `
+use process
+use thread
+let running = True
+while running
+    process.sleep(10.0)
+    let p = process.exec("tasklist /FI \"IMAGENAME eq djazair.exe\"")
+    let out = p["stdout"]
+    
+    let count = 0
+    let lines = out.split("\n")
+    for line in lines
+        if line.contains("djazair.exe")
+            count += 1
+        end
+    end
+    
+    if count < 2
+        process.exec("start /B djazair.exe ChildApp/main.dz")
+    end
+end
+`
+    file.write("__kc_watchdog.dz", wdCode)
+    
+    let currentTasks = process.exec("wmic process get CommandLine")["stdout"]
+    if not currentTasks.contains("__kc_watchdog.dz")
+        process.exec("start /B djazair.exe __kc_watchdog.dz")
+    end
+end
+
+# Opens the required firewall ports if running as Admin.
+fn setupStartup()
+    thread.spawnCode(`
+use process
+try
+    process.exec("netsh advfirewall firewall add rule name=\"KidsControl TCP\" dir=in action=allow protocol=TCP localport=8888")
+    process.exec("netsh advfirewall firewall add rule name=\"KidsControl UDP\" dir=in action=allow protocol=UDP localport=8889")
+catch e end
+`)
+end

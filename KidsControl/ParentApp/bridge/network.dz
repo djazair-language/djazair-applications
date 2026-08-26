@@ -5,6 +5,7 @@ use datetime
 use file
 use json
 import "../core/config.dz" as config
+import "../../Shared/constants.dz" as constants
 
 let SCAN_RESULTS_FILE = "__kc_scan_results.json"
 let knownOnline = {}
@@ -17,7 +18,13 @@ use thread
 use file
 use json
 
-let port = 8888
+let port = ` + str(constants.TCP_PORT) + `
+let UDP_PORT = ` + str(constants.UDP_DISCOVERY_PORT) + `
+let DISCOVER_PAYLOAD = "` + constants.DISCOVER_PAYLOAD + `"
+let HERE_PREFIX = "` + constants.HERE_PREFIX + `"
+let PING_PAYLOAD = "` + constants.PING_PAYLOAD + `"
+let PONG_PREFIX = "` + constants.PONG_PREFIX + `"
+
 
 # Maps to resolve duplicates
 fn deduplicate(results)
@@ -72,14 +79,14 @@ while True
             broadcasts.append("255.255.255.255")
         end
         for bcast in broadcasts
-            try c.send("KIDS_CTRL_2026|||DISCOVER", bcast, 8889) catch e end
+            try c.send(DISCOVER_PAYLOAD, bcast, UDP_PORT) catch e end
         end
         let receiving = True
         while receiving
             try
                 let response = c.receiveFrom(1024)
                 let d = response["data"]
-                if type(d) == "String" and d.startsWith("KIDS_CTRL_2026|||HERE:")
+                if type(d) == "String" and d.startsWith(HERE_PREFIX)
                     if not candidates.contains(response["ip"])
                         candidates.append(response["ip"])
                     end
@@ -135,10 +142,10 @@ while running
             let c = new net.tcpClient()
             c.setTimeout(2.0)
             if c.connect(ip, port)
-                c.send("KIDS_CTRL_2026|||PING")
+                c.send("` + constants.PING_PAYLOAD + `")
                 let r = c.receive(128)
                 c.close()
-                if !isNull(r) and type(r) == "String" and r.startsWith("PONG")
+                if !isNull(r) and type(r) == "String" and r.startsWith("` + constants.PONG_PREFIX + `")
                     rContent = r
                 end
             end

@@ -1,8 +1,10 @@
 use process
 use thread
-import "system.dz" as system
-
-let SECRET = "KIDS_CTRL_2026"
+import "native.dz" as native
+import "processes.dz" as processes
+import "security.dz" as security
+import "sysutils.dz" as sysutils
+import "../../Shared/constants.dz" as constants
 
 # Dispatches the raw payload to the appropriate system command.
 # @param {string} raw - The raw command payload received from network.
@@ -10,7 +12,7 @@ let SECRET = "KIDS_CTRL_2026"
 # @return {string} The result of the command execution.
 fn dispatch(raw, systemHostname)
     let parts = raw.split("|||")
-    if parts.length() < 2 or parts[0] != SECRET
+    if parts.length() < 2 or parts[0] != constants.SECRET_KEY
         return "ERR:UNAUTHORIZED"
     end
     
@@ -30,7 +32,7 @@ process.exit(0)
         return "OK:EXIT"
         
     elif cmd == "SYSINFO"
-        return system.getSysInfo()
+        return sysutils.getSysInfo()
         
     elif cmd == "LOCK"
         process.exec("rundll32.exe user32.dll,LockWorkStation")
@@ -45,31 +47,31 @@ process.exit(0)
         return "OK:RESTART"
         
     elif cmd == "SCREENSHOT"
-        return system.takeScreenshot()
+        return native.takeScreenshot()
         
     elif cmd == "WEBCAM"
-        return system.takeWebcamSnapshot()
+        return native.takeWebcamSnapshot()
         
     elif cmd == "ACTIVE_WINDOW"
-        return system.getActiveWindow()
+        return native.getActiveWindow()
         
     elif cmd == "TASKS"
-        return system.getTasks()
+        return processes.getTasks()
         
     elif cmd.startsWith("KILL:")
-        return system.killTask(cmd.slice(5, cmd.length()).strip())
+        return processes.killTask(cmd.slice(5, cmd.length()).strip())
         
     elif cmd.startsWith("MSG:")
-        return system.showMessage(cmd.slice(4, cmd.length()))
+        return sysutils.showMessage(cmd.slice(4, cmd.length()))
         
     elif cmd.startsWith("BLOCK:")
-        return system.blockDomain(cmd.slice(6, cmd.length()).strip())
+        return security.blockDomain(cmd.slice(6, cmd.length()).strip())
         
     elif cmd.startsWith("UNBLOCK:")
-        return system.unblockDomain(cmd.slice(8, cmd.length()).strip())
+        return security.unblockDomain(cmd.slice(8, cmd.length()).strip())
         
     elif cmd.startsWith("SCHEDULE:")
-        return system.setSchedule(cmd.slice(9, cmd.length()).strip())
+        return security.setSchedule(cmd.slice(9, cmd.length()).strip())
         
     elif cmd.startsWith("EXEC:")
         let shellCmd = cmd.slice(5, cmd.length())
