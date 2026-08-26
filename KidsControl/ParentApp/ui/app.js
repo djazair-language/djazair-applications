@@ -425,6 +425,8 @@ function sendCmd(command, successCb, failCb, retryCount) {
         }
     }
 
+    var jsStartTime = Date.now();
+
     var reqPayload = {
         id: selectedDev.id || ('KC-' + selectedDev.ip),
         ip: selectedDev.ip,
@@ -481,15 +483,14 @@ function sendCmd(command, successCb, failCb, retryCount) {
                     return;
                 }
                 
-                if (pollRes.latency !== undefined) {
-                    var color = pollRes.latency < 50 ? 'success' : (pollRes.latency < 200 ? 'warning' : 'danger');
-                    $('#topbarBadge').html(
-                        '<span class="kc-badge ' + color + '"><i class="fa-solid fa-wifi"></i> ' + pollRes.latency + ' ms</span> ' +
-                        '<span class="kc-id-badge" title="' + (selectedDev.id || selectedDev.ip) + '">' + (selectedDev.id || selectedDev.ip).slice(0, 14) + '...</span>'
-                    );
-                }
+                var actualLatency = Date.now() - jsStartTime;
+                var color = actualLatency < 50 ? 'success' : (actualLatency < 200 ? 'warning' : 'danger');
+                $('#topbarBadge').html(
+                    '<span class="kc-badge ' + color + '"><i class="fa-solid fa-wifi"></i> ' + actualLatency + ' ms</span> ' +
+                    '<span class="kc-id-badge" title="' + (selectedDev.id || selectedDev.ip) + '">' + (selectedDev.id || selectedDev.ip).slice(0, 14) + '...</span>'
+                );
                 
-                if (successCb) successCb(rData, pollRes.latency);
+                if (successCb) successCb(rData, actualLatency);
             }).catch(function(e) {
                 clearInterval(pollInterval);
                 window.isCmdRunning = false;
