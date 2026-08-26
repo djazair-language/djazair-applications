@@ -26,6 +26,13 @@
       <p>Parental monitoring &amp; control</p>
     </div>
 
+    <!-- Filter Bar: All / Online / Offline -->
+    <div class='filter-bar'>
+      <button class='filter-pill active' id='filterAll' onclick='setFilter("all")'>All (0)</button>
+      <button class='filter-pill' id='filterOnline' onclick='setFilter("online")'>Online (0)</button>
+      <button class='filter-pill' id='filterOffline' onclick='setFilter("offline")'>Offline (0)</button>
+    </div>
+
     <div class='sidebar-list' id='deviceList'></div>
 
     <div class='sidebar-footer'>
@@ -88,7 +95,12 @@
           </li>
           <li class='nav-item'>
             <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-screenshot' onclick='onScreenshotTabOpened()'>
-              <i class='fa-solid fa-camera'></i> Screenshot
+              <i class='fa-solid fa-camera-retro'></i> Screenshot
+            </button>
+          </li>
+          <li class='nav-item'>
+            <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-webcam' onclick='onWebcamTabOpened()'>
+              <i class='fa-solid fa-video'></i> Webcam
             </button>
           </li>
           <li class='nav-item'>
@@ -114,28 +126,33 @@
 
         <!-- ─── OVERVIEW ─── -->
         <div class='tab-pane fade show active' id='tab-overview'>
+          <div class='offline-banner' id='overviewOfflineBanner' style='display:none;'>
+            <i class='fa-solid fa-triangle-exclamation'></i>
+            <span><strong>Device Offline:</strong> This computer is not reachable. Live controls are disabled; browsing cached data.</span>
+          </div>
+
           <div class='action-grid'>
-            <div class='action-card info' onclick='doActiveWindow()'>
+            <div class='action-card info live-action' onclick='doActiveWindow()'>
               <div class='ac-icon' style='color:#0dcaf0;'><i class='fa-solid fa-window-maximize'></i></div>
               <div class='ac-label'>Active Window</div>
               <div class='ac-sub'>See current app/window</div>
             </div>
-            <div class='action-card warning' onclick='doCmd("LOCK")'>
+            <div class='action-card warning live-action' onclick='doCmd("LOCK")'>
               <div class='ac-icon' style='color:var(--warning);'><i class='fa-solid fa-lock'></i></div>
               <div class='ac-label'>Lock Screen</div>
               <div class='ac-sub'>Block access now</div>
             </div>
-            <div class='action-card danger' onclick='confirmAction("Shutdown", "This will turn off the computer in 5 seconds.", function(){doCmd("SHUTDOWN");})'>
+            <div class='action-card danger live-action' onclick='confirmAction("Shutdown", "This will turn off the computer in 5 seconds.", function(){doCmd("SHUTDOWN");})'>
               <div class='ac-icon' style='color:var(--danger);'><i class='fa-solid fa-power-off'></i></div>
               <div class='ac-label'>Shutdown</div>
               <div class='ac-sub'>Power off computer</div>
             </div>
-            <div class='action-card primary' onclick='confirmAction("Restart", "This will restart the computer in 5 seconds.", function(){doCmd("RESTART");})'>
+            <div class='action-card primary live-action' onclick='confirmAction("Restart", "This will restart the computer in 5 seconds.", function(){doCmd("RESTART");})'>
               <div class='ac-icon' style='color:var(--accent);'><i class='fa-solid fa-rotate-right'></i></div>
               <div class='ac-label'>Restart</div>
               <div class='ac-sub'>Reboot computer</div>
             </div>
-            <div class='action-card' style='background:#1e1e2e; border-color:#6c757d; cursor:pointer;' onclick='doSetSchedule()'>
+            <div class='action-card live-action' style='background:#1e1e2e; border-color:#6c757d; cursor:pointer;' onclick='doSetSchedule()'>
               <div class='ac-icon' style='color:#6c757d;'><i class='fa-solid fa-clock'></i></div>
               <div class='ac-label'>Set Bedtime</div>
               <div class='ac-sub'>Offline time limit</div>
@@ -143,9 +160,14 @@
             <div class='action-card success' onclick='switchTab("tab-screenshot"); doScreenshot();'>
               <div class='ac-icon' style='color:var(--success);'><i class='fa-solid fa-camera-retro'></i></div>
               <div class='ac-label'>Screenshot</div>
-              <div class='ac-sub'>Capture screen now</div>
+              <div class='ac-sub'>View / Capture screen</div>
             </div>
-            <div class='action-card danger' style='border-color: #8B0000;' onclick='confirmAction("Stop Agent", "This will completely close the KidsControl program on the child computer. You will lose connection until you restart it manually. Proceed?", function(){doCmd("EXIT");})'>
+            <div class='action-card live-action' style='border-color:#0dcaf0;' onclick='switchTab("tab-webcam"); doWebcam();'>
+              <div class='ac-icon' style='color:#0dcaf0;'><i class='fa-solid fa-video'></i></div>
+              <div class='ac-label'>Webcam</div>
+              <div class='ac-sub'>View / Snap webcam</div>
+            </div>
+            <div class='action-card danger live-action' style='border-color: #8B0000;' onclick='confirmAction("Stop Agent", "This will completely close the KidsControl program on the child computer. You will lose connection until you restart it manually. Proceed?", function(){doCmd("EXIT");})'>
               <div class='ac-icon' style='color:#8B0000;'><i class='fa-solid fa-skull-crossbones'></i></div>
               <div class='ac-label'>Stop Agent</div>
               <div class='ac-sub'>Kill remote app</div>
@@ -158,7 +180,7 @@
             </div>
             <div style='display:flex; gap:8px;'>
               <input class='kc-input' id='msgInput' placeholder='Type a message to display on the child computer...' style='flex:1;'>
-              <button class='btn-kc primary' onclick='doMsg()'>
+              <button class='btn-kc primary live-btn' id='msgSendBtn' onclick='doMsg()'>
                 <i class='fa-solid fa-paper-plane'></i> Send
               </button>
             </div>
@@ -168,7 +190,7 @@
         <!-- ─── PROCESSES ─── -->
         <div class='tab-pane fade' id='tab-processes'>
           <div style='display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;'>
-            <button class='btn-kc primary' onclick='doLoadProcesses(true)' id='refreshProcBtn'>
+            <button class='btn-kc primary live-btn' onclick='doLoadProcesses(true)' id='refreshProcBtn'>
               <i class='fa-solid fa-rotate-right'></i> Refresh
             </button>
             <input class='kc-input' id='procSearch' placeholder='Filter by name...' oninput='filterProcs()' style='width:200px;'>
@@ -206,11 +228,8 @@
         <!-- ─── SCREENSHOT (GALLERY & SLIDESHOW) ─── -->
         <div class='tab-pane fade' id='tab-screenshot'>
           <div style='display:flex; gap:8px; margin-bottom:16px; align-items:center;'>
-            <button class='btn-kc success' id='ssBtn' onclick='doScreenshot()'>
+            <button class='btn-kc success live-btn' id='ssBtn' onclick='doScreenshot()'>
               <i class='fa-solid fa-camera-retro'></i> Capture New Screenshot
-            </button>
-            <button class='btn-kc' style='background:#0dcaf0; color:#000;' id='camBtn' onclick='doWebcam()'>
-              <i class='fa-solid fa-camera'></i> Capture Webcam
             </button>
             <button class='btn-kc' onclick='loadScreenshotHistory()' title='Reload screenshot gallery'>
               <i class='fa-solid fa-rotate-right'></i> Refresh Gallery
@@ -252,6 +271,52 @@
           </div>
         </div>
 
+        <!-- ─── WEBCAM (GALLERY & SLIDESHOW) ─── -->
+        <div class='tab-pane fade' id='tab-webcam'>
+          <div style='display:flex; gap:8px; margin-bottom:16px; align-items:center;'>
+            <button class='btn-kc primary live-btn' style='background:#0dcaf0; color:#000; border-color:#0dcaf0;' id='camBtn' onclick='doWebcam()'>
+              <i class='fa-solid fa-video'></i> Capture Webcam Snapshot
+            </button>
+            <button class='btn-kc' onclick='loadWebcamHistory()' title='Reload webcam gallery'>
+              <i class='fa-solid fa-rotate-right'></i> Refresh Gallery
+            </button>
+          </div>
+
+          <!-- Hero Main View for Webcam -->
+          <div class='gallery-hero' id='webcamHero'>
+            <img id='webcam-hero-img' src='' onclick='openLightbox(this.src)' alt='Webcam'>
+            <button class='gallery-nav-btn prev' id='webcamPrevBtn' onclick='prevWebcam()' title='Previous snapshot'>
+              <i class='fa-solid fa-chevron-left'></i>
+            </button>
+            <button class='gallery-nav-btn next' id='webcamNextBtn' onclick='nextWebcam()' title='Next snapshot'>
+              <i class='fa-solid fa-chevron-right'></i>
+            </button>
+            <div class='gallery-controls'>
+              <button class='btn-kc danger' id='deleteCamBtn' onclick='deleteActiveWebcam()' title='Delete this webcam snapshot'>
+                <i class='fa-solid fa-trash'></i>
+              </button>
+            </div>
+            <div class='gallery-info-bar'>
+              <div>
+                <div style='font-size:13px; font-weight:700;' id='webcam-hero-title'>Latest Webcam Snapshot</div>
+                <div style='font-size:11px; color:#aaa;' id='webcam-hero-time'>No webcam snapshots yet</div>
+              </div>
+              <div style='font-size:12px; color:#ccc;' id='webcam-hero-counter'>0 / 0</div>
+            </div>
+          </div>
+
+          <!-- Thumbnail Strip for Webcam -->
+          <div class='kc-card' style='padding:12px;'>
+            <div style='font-size:12px; font-weight:600; margin-bottom:8px; color:var(--text-muted); display:flex; justify-content:space-between;'>
+              <span><i class='fa-solid fa-camera-viewfinder'></i> Webcam Snapshots History</span>
+              <span id='webcamCountBadge' style='font-size:11px;'>0 saved</span>
+            </div>
+            <div class='thumbnail-strip' id='webcamThumbnailStrip'>
+              <div style='color:var(--text-muted); font-size:12px; padding:10px;'>No webcam snapshots saved yet for this child.</div>
+            </div>
+          </div>
+        </div>
+
         <!-- ─── WEB FILTER ─── -->
         <div class='tab-pane fade' id='tab-webfilter'>
           <div class='kc-card mb-3'>
@@ -264,8 +329,8 @@
             </div>
             <div style='display:flex; gap:8px;'>
               <input class='kc-input' id='domainInput' placeholder='e.g. youtube.com' style='flex:1;'>
-              <button class='btn-kc danger'  onclick='doBlock()'>  <i class='fa-solid fa-ban'></i> Block   </button>
-              <button class='btn-kc success' onclick='doUnblock()'><i class='fa-solid fa-circle-check'></i> Unblock</button>
+              <button class='btn-kc danger live-btn'  onclick='doBlock()'>  <i class='fa-solid fa-ban'></i> Block   </button>
+              <button class='btn-kc success live-btn' onclick='doUnblock()'><i class='fa-solid fa-circle-check'></i> Unblock</button>
             </div>
           </div>
         </div>
@@ -292,7 +357,7 @@
             <div class='term-input-row'>
               <span class='term-prompt'>C:\&gt;</span>
               <input class='term-input' id='termIn' placeholder='Enter command...' onkeydown='termKeydown(event)'>
-              <button class='btn-icon' onclick='runTerm()' title='Execute'>
+              <button class='btn-icon live-btn' id='termRunBtn' onclick='runTerm()' title='Execute'>
                 <i class='fa-solid fa-play' style='font-size:11px;'></i>
               </button>
             </div>
@@ -303,7 +368,7 @@
         <div class='tab-pane fade' id='tab-sysinfo'>
           <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;'>
             <span style='font-size:15px; font-weight:700;'>System Information</span>
-            <button class='btn-kc' onclick='doSysinfo(true)'><i class='fa-solid fa-rotate-right'></i> Refresh</button>
+            <button class='btn-kc live-btn' id='refreshSysinfoBtn' onclick='doSysinfo(true)'><i class='fa-solid fa-rotate-right'></i> Refresh</button>
           </div>
           <div class='sysinfo-grid' id='sysinfoGrid'>
             <div class='empty-state' style='grid-column:1/-1; padding:40px;'>

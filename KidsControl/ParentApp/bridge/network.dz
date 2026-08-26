@@ -184,7 +184,7 @@ end
                 if hname == "" or hname == "Unknown"
                     hname = if ip == "127.0.0.1" ? "localhost" else ip
                 end
-                found.append({"id": devId, "ip": ip, "hostname": hname, "port": port})
+                found.append({"id": devId, "ip": ip, "hostname": hname, "port": port, "is_online": True})
             end
         end
     end
@@ -205,7 +205,7 @@ $balloon = New-Object System.Windows.Forms.NotifyIcon
 $balloon.Icon = [System.Drawing.SystemIcons]::Information
 $balloon.BalloonTipIcon = 'Info'
 $balloon.BalloonTipTitle = 'Kids Control Center'
-$balloon.BalloonTipText = 'Device [${hostname}] is now online!'
+$balloon.BalloonTipText = 'Child device [${hostname}] is now online!'
 $balloon.Visible = $true
 $balloon.ShowBalloonTip(3000)
 Start-Sleep -Seconds 4
@@ -239,7 +239,7 @@ fn register(app)
             for dev in found
                 if type(dev) == "Map" and dev.has("id")
                     let did = dev["id"]
-                    let h = if dev.has("hostname") ? dev["hostname"] else did
+                    let h = if dev.has("custom_name") and dev["custom_name"] != "" ? dev["custom_name"] else (if dev.has("hostname") ? dev["hostname"] : did)
                     newOnline[did] = True
                     if not knownOnline.has(did)
                         notifyOnline(h)

@@ -11,17 +11,18 @@ var termHistory   = [];
 var termHistIdx   = -1;
 var confirmCb     = null;
 var isScanning    = false;
+var currentFilter = 'all'; // 'all', 'online', 'offline'
 var currentAppConfig = { max_clients: 10, auto_scan_interval: 5 };
 var autoScanTimer = null;
 
 // Per-Device In-Memory Cache
-// Structure: { [deviceId]: { procs: [], sysinfo: null, screenshots: [], activeScreenshotIdx: 0 } }
+// Structure: { [deviceId]: { procs: [], sysinfo: null, screenshots: [], activeScreenshotIdx: 0, webcam: [], activeWebcamIdx: 0 } }
 var deviceCache = {};
 
 function getDevCache(id) {
     if (!id) return null;
     if (!deviceCache[id]) {
-        deviceCache[id] = { procs: [], sysinfo: null, screenshots: [], activeScreenshotIdx: 0 };
+        deviceCache[id] = { procs: [], sysinfo: null, screenshots: [], activeScreenshotIdx: 0, webcam: [], activeWebcamIdx: 0 };
     }
     return deviceCache[id];
 }
@@ -84,32 +85,65 @@ $('#confirmOk').on('click', function() {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Device Profile & Sidebar Management
+// Sidebar Filtering & Device List
 // ═════════════════════════════════════════════════════════════════════════════
 
+function setFilter(type) {
+    currentFilter = type;
+    $('.filter-pill').removeClass('active online offline');
+    if (type === 'all') $('#filterAll').addClass('active');
+    else if (type === 'online') $('#filterOnline').addClass('active online');
+    else if (type === 'offline') $('#filterOffline').addClass('active offline');
+    renderDevices();
+}
+
 function renderDevices() {
+    var onlineCount = 0;
+    var offlineCount = 0;
+    devices.forEach(function(d) {
+        if (d.is_online) onlineCount++;
+        else offlineCount++;
+    });
+
+    $('#filterAll').text('All (' + devices.length + ')');
+    $('#filterOnline').text('Online (' + onlineCount + ')');
+    $('#filterOffline').text('Offline (' + offlineCount + ')');
+
     var list = $('#deviceList');
     list.empty();
-    if (devices.length === 0) {
-        list.html('<div class="empty-state" style="padding:24px 12px; font-size:12px;"><i class="fa-solid fa-magnifying-glass-location" style="font-size:26px; margin-bottom:10px;"></i><br>No devices found. Scan network or add IP.</div>');
+
+    var visibleDevices = devices.filter(function(d) {
+        if (currentFilter === 'online') return d.is_online;
+        if (currentFilter === 'offline') return !d.is_online;
+        return true;
+    });
+
+    if (visibleDevices.length === 0) {
+        list.html('<div class="empty-state" style="padding:24px 12px; font-size:12px;"><i class="fa-solid fa-magnifying-glass-location" style="font-size:26px; margin-bottom:10px;"></i><br>No devices in this category.</div>');
         return;
     }
-    devices.forEach(function(dev, idx) {
+
+    visibleDevices.forEach(function(dev) {
+        var originalIdx = devices.indexOf(dev);
         var devId = dev.id || ('KC-' + dev.ip);
         var active = (selectedDev && (selectedDev.id === devId || selectedDev.ip === dev.ip)) ? 'active' : '';
+        var isOnline = !!dev.is_online;
+        var offlineClass = isOnline ? '' : 'offline';
         var displayName = dev.custom_name || dev.hostname || dev.ip;
-        var item = $('<div class="dev-item ' + active + '"></div>');
+        var dotTitle = isOnline ? 'Agent Online' : 'Agent Offline';
+
+        var item = $('<div class="dev-item ' + active + ' ' + offlineClass + '"></div>');
         item.html(
             '<div class="dev-avatar"><i class="fa-solid fa-laptop"></i></div>' +
             '<div class="dev-info">' +
                 '<div class="dev-name" title="' + displayName + '">' + displayName + '</div>' +
-                '<div class="dev-id-badge"><i class="fa-solid fa-network-wired"></i> ' + dev.ip + '</div>' +
+                '<div class="dev-id-badge"><i class="fa-solid fa-network-wired"></i> ' + dev.ip + ' &bull; ' + (isOnline ? '<span style="color:var(--success)">Online</span>' : '<span style="color:var(--text-muted)">Offline</span>') + '</div>' +
             '</div>' +
-            '<div class="dev-dot" title="Agent Online"></div>' +
-            '<button class="dev-remove" title="Remove device"><i class="fa-solid fa-xmark"></i></button>'
+            '<div class="dev-dot ' + (isOnline ? '' : 'offline') + '" title="' + dotTitle + '"></div>' +
+            '<button class="dev-remove" title="Remove device from list"><i class="fa-solid fa-xmark"></i></button>'
         );
-        item.on('click', function() { selectDevice(idx); });
-        item.find('.dev-remove').on('click', function(e) { e.stopPropagation(); removeDevice(idx); });
+        item.on('click', function() { selectDevice(originalIdx); });
+        item.find('.dev-remove').on('click', function(e) { e.stopPropagation(); removeDevice(originalIdx); });
         list.append(item);
     });
 }
@@ -117,29 +151,51 @@ function renderDevices() {
 function selectDevice(idx) {
     activeIdx = idx;
     selectedDev = devices[idx];
+    if (!selectedDev) return;
     if (!selectedDev.id) selectedDev.id = 'KC-' + selectedDev.ip;
     renderDevices();
 
+    var isOnline = !!selectedDev.is_online;
     var displayName = selectedDev.custom_name || selectedDev.hostname || selectedDev.ip;
     $('#topbarTitle').text(displayName);
     $('#editNameBtn').show();
-    $('#topbarBadge').html(
-        '<span class="badge-online"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Online</span> ' +
-        '<span class="badge-id" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 15) + '...</span>'
-    );
-    $('#pingBtn').show();
     $('#welcomeScreen').hide();
     $('#controlPanel').css('display', 'flex');
     $('#termLabel').text('Remote Terminal — ' + displayName + ' (' + selectedDev.ip + ')');
 
-    // 0ms Fast Cache Hydration
-    var cache = getDevCache(selectedDev.id);
+    // Update Live/Offline State
+    setDeviceLiveState(isOnline);
+
+    // Fast Cache Hydration
+    var devId = selectedDev.id;
+    var cache = getDevCache(devId);
+
+    // If cache is empty in memory, attempt to load from disk cache
+    if (!cache.procs || cache.procs.length === 0 || !cache.sysinfo) {
+        window.djazair.invoke('loadDiskCache', { id: devId }).then(function(res) {
+            var diskData = extractData(res);
+            if (diskData && typeof diskData === 'object') {
+                if (diskData.procs && (!cache.procs || cache.procs.length === 0)) cache.procs = diskData.procs;
+                if (diskData.sysinfo && !cache.sysinfo) cache.sysinfo = diskData.sysinfo;
+            }
+            hydrateUiFromCache(cache, isOnline);
+        });
+    } else {
+        hydrateUiFromCache(cache, isOnline);
+    }
+
+    // Load Screenshot & Webcam Galleries
+    loadScreenshotHistory();
+    loadWebcamHistory();
+}
+
+function hydrateUiFromCache(cache, isOnline) {
     if (cache.procs && cache.procs.length > 0) {
         allProcs = cache.procs;
         filteredProcs = allProcs.slice();
         currentPage = 1;
         renderProcs();
-        $('#procCount').text(allProcs.length + ' processes (cached)');
+        $('#procCount').text(allProcs.length + ' processes' + (isOnline ? '' : ' (cached)'));
     } else {
         allProcs = [];
         filteredProcs = [];
@@ -149,11 +205,34 @@ function selectDevice(idx) {
     if (cache.sysinfo) {
         renderSysinfo(cache.sysinfo);
     } else {
-        $('#sysinfoGrid').html('<div class="empty-state" style="grid-column:1/-1; padding:40px;"><i class="fa-solid fa-server"></i>Click Refresh to load system info.</div>');
+        $('#sysinfoGrid').html('<div class="empty-state" style="grid-column:1/-1; padding:40px;"><i class="fa-solid fa-server"></i>' + (isOnline ? 'Click Refresh to load system info.' : 'No cached system info available.') + '</div>');
     }
+}
 
-    // Load Screenshot Gallery from archive
-    loadScreenshotHistory();
+function setDeviceLiveState(isOnline) {
+    if (isOnline) {
+        $('#topbarBadge').html(
+            '<span class="badge-online"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Online</span> ' +
+            '<span class="badge-id" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 14) + '...</span>'
+        );
+        $('#pingBtn').show();
+        $('#overviewOfflineBanner').hide();
+        $('.live-action').removeClass('live-locked');
+        $('.live-btn').prop('disabled', false);
+        $('#msgInput').prop('disabled', false);
+        $('#termIn').prop('disabled', false);
+    } else {
+        $('#topbarBadge').html(
+            '<span class="badge-offline"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Offline</span> ' +
+            '<span class="badge-id" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 14) + '...</span>'
+        );
+        $('#pingBtn').hide();
+        $('#overviewOfflineBanner').show();
+        $('.live-action').addClass('live-locked');
+        $('.live-btn').prop('disabled', true);
+        $('#msgInput').prop('disabled', true);
+        $('#termIn').prop('disabled', true);
+    }
 }
 
 function openRenameModal() {
@@ -193,7 +272,7 @@ function addManualDevice() {
     var ip = $('#manualIp').val().trim();
     if (!ip) return;
     if (devices.some(function(d) { return d.ip === ip; })) { toast('Device already in the list.', 'warning'); return; }
-    var newDev = { id: 'KC-' + ip, ip: ip, hostname: ip, custom_name: '' };
+    var newDev = { id: 'KC-' + ip, ip: ip, hostname: ip, custom_name: '', is_online: false };
     devices.push(newDev);
     window.djazair.invoke('saveDevices', devices);
     $('#manualIp').val('');
@@ -230,53 +309,48 @@ function performScan(isManual) {
         var found = extractData(res);
         if (!Array.isArray(found)) found = [];
 
-        // Preserve custom_name and existing metadata across scans
-        var existingMap = {};
+        var onlineIds = {};
+        found.forEach(function(f) {
+            var key = f.id || ('KC-' + f.ip);
+            onlineIds[key] = f;
+        });
+
+        // Update online/offline state on all existing known devices without deleting offline ones!
         devices.forEach(function(d) {
-            var key = d.id || d.ip;
-            existingMap[key] = d;
+            var key = d.id || ('KC-' + d.ip);
+            if (onlineIds[key]) {
+                d.is_online = true;
+                d.ip = onlineIds[key].ip;
+                d.hostname = onlineIds[key].hostname;
+            } else {
+                d.is_online = false;
+            }
         });
 
-        var merged = found.map(function(f) {
-            var key = f.id || f.ip;
-            if (existingMap[key]) {
-                return Object.assign({}, existingMap[key], f);
+        // Add newly discovered devices that weren't in the list
+        found.forEach(function(f) {
+            var key = f.id || ('KC-' + f.ip);
+            var exists = devices.some(function(d) { return (d.id || ('KC-' + d.ip)) === key; });
+            if (!exists) {
+                f.is_online = true;
+                devices.push(f);
             }
-            return f;
         });
 
-        var oldIds = devices.map(function(d) { return d.id || d.ip; });
-        var newIds = merged.map(function(d) { return d.id || d.ip; });
-
-        var listChanged = false;
-        if (oldIds.length !== newIds.length) {
-            listChanged = true;
-        } else {
-            for (var i = 0; i < oldIds.length; i++) {
-                if (oldIds[i] !== newIds[i]) { listChanged = true; break; }
-            }
-        }
-
-        devices = merged;
         window.djazair.invoke('saveDevices', devices);
-
-        if (devices.length === 0) {
-            renderDevices();
-            if (isManual) toast('No child devices found online.', 'warning');
-            return;
-        }
-
         renderDevices();
+
         if (selectedDev) {
-            var foundIdx = devices.findIndex(function(d) { return (d.id && d.id === selectedDev.id) || d.ip === selectedDev.ip; });
-            if (foundIdx !== -1) selectDevice(foundIdx);
-            else selectDevice(0);
-        } else {
-            selectDevice(0);
+            var currKey = selectedDev.id || ('KC-' + selectedDev.ip);
+            var matchIdx = devices.findIndex(function(d) { return (d.id || ('KC-' + d.ip)) === currKey; });
+            if (matchIdx !== -1) {
+                selectedDev = devices[matchIdx];
+                setDeviceLiveState(!!selectedDev.is_online);
+            }
         }
 
         if (isManual) {
-            toast('Found ' + found.length + ' active child device(s)!', 'success');
+            toast('Scan finished. ' + found.length + ' active device(s) online.', 'success');
         }
     });
 }
@@ -291,6 +365,10 @@ function startScan() {
 
 function sendCmd(command, successCb, failCb, retryCount) {
     if (!selectedDev) { toast('No device selected.', 'warning'); return; }
+    if (!selectedDev.is_online && command !== 'SYSINFO' && command !== 'TASKS') {
+        toast('Cannot send command: Device is offline.', 'warning');
+        return;
+    }
     retryCount = retryCount || 0;
     
     var reqPayload = {
@@ -302,7 +380,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
 
     window.djazair.invoke('agentCommand', reqPayload).then(function(res) {
         if (!res.ok) {
-            if (retryCount < 1) {
+            if (retryCount < 1 && selectedDev.is_online) {
                 setTimeout(function() { sendCmd(command, successCb, failCb, retryCount + 1); }, 300);
                 return;
             }
@@ -311,7 +389,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
             return;
         }
 
-        if (res.data && res.data.indexOf && (res.data.indexOf('ERR:') === 0 || res.data.indexOf('ERROR:') === 0)) {
+        if (res.data && typeof res.data === 'string' && (res.data.indexOf('ERR:') === 0 || res.data.indexOf('ERROR:') === 0)) {
             toast(res.data, 'danger');
             if (failCb) failCb(res.data);
             return;
@@ -321,7 +399,7 @@ function sendCmd(command, successCb, failCb, retryCount) {
             var color = res.latency < 50 ? '#2ea043' : (res.latency < 200 ? '#d29922' : '#f85149');
             $('#topbarBadge').html(
                 '<span class="badge" style="background: ' + color + '">' + res.latency + ' ms</span> ' +
-                '<span class="badge-id">' + (selectedDev.id || selectedDev.ip).slice(0, 15) + '...</span>'
+                '<span class="badge-id">' + (selectedDev.id || selectedDev.ip).slice(0, 14) + '...</span>'
             );
         }
         
@@ -456,9 +534,11 @@ function doScreenshot() {
     sendCmd('SCREENSHOT', function(raw) {
         btn.html('<i class="fa-solid fa-camera-retro"></i> Capture New Screenshot');
         btn.prop('disabled', false);
-        if (!raw.startsWith('SCREENSHOT:')) { toast('Screenshot failed.', 'danger'); return; }
+        if (!raw.startsWith('SCREENSHOT:')) {
+            toast('Failed to capture screenshot from child computer.', 'danger');
+            return;
+        }
         toast('Screenshot captured and archived!', 'success');
-        // Reload history from disk archive to update slideshow & carousel
         loadScreenshotHistory();
     }, function() {
         btn.html('<i class="fa-solid fa-camera-retro"></i> Capture New Screenshot');
@@ -483,24 +563,139 @@ function deleteActiveScreenshot() {
     });
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Webcam Gallery & Slideshow System
+// ═════════════════════════════════════════════════════════════════════════════
+
+function onWebcamTabOpened() {
+    loadWebcamHistory();
+}
+
+function loadWebcamHistory() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    window.djazair.invoke('getWebcamHistory', { id: devId }).then(function(res) {
+        var list = extractData(res);
+        if (!Array.isArray(list)) list = [];
+        var cache = getDevCache(devId);
+        cache.webcam = list;
+        renderWebcamGallery();
+    });
+}
+
+function renderWebcamGallery() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    var list = cache.webcam || [];
+    var activeIdx = cache.activeWebcamIdx || 0;
+
+    $('#webcamCountBadge').text(list.length + ' saved');
+
+    var strip = $('#webcamThumbnailStrip');
+    strip.empty();
+
+    if (list.length === 0) {
+        strip.html('<div style="color:var(--text-muted); font-size:12px; padding:10px;">No webcam snapshots saved yet. Click "Capture Webcam Snapshot".</div>');
+        $('#webcam-hero-img').attr('src', '').hide();
+        $('#webcamPrevBtn').hide();
+        $('#webcamNextBtn').hide();
+        $('#deleteCamBtn').hide();
+        $('#webcam-hero-title').text('No Webcam Captures');
+        $('#webcam-hero-time').text('Capture a snapshot to start');
+        $('#webcam-hero-counter').text('0 / 0');
+        return;
+    }
+
+    if (activeIdx < 0) activeIdx = 0;
+    if (activeIdx >= list.length) activeIdx = list.length - 1;
+    cache.activeWebcamIdx = activeIdx;
+
+    var currentItem = list[activeIdx];
+    $('#webcam-hero-img').attr('src', 'data:image/jpeg;base64,' + currentItem.b64).show();
+    $('#webcam-hero-title').text('Webcam Snapshot ' + (activeIdx + 1));
+    $('#webcam-hero-time').text(currentItem.time);
+    $('#webcam-hero-counter').text((activeIdx + 1) + ' / ' + list.length);
+    $('#webcamPrevBtn').show().prop('disabled', activeIdx <= 0);
+    $('#webcamNextBtn').show().prop('disabled', activeIdx >= list.length - 1);
+    $('#deleteCamBtn').show();
+
+    list.forEach(function(item, idx) {
+        var card = $('<div class="thumb-card ' + (idx === activeIdx ? 'active' : '') + '"></div>');
+        card.html(
+            '<img src="data:image/jpeg;base64,' + item.b64 + '">' +
+            '<div class="thumb-time">' + item.time + '</div>'
+        );
+        card.on('click', function() { selectWebcam(idx); });
+        strip.append(card);
+    });
+}
+
+function selectWebcam(idx) {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    cache.activeWebcamIdx = idx;
+    renderWebcamGallery();
+}
+
+function prevWebcam() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    if (cache.activeWebcamIdx > 0) {
+        cache.activeWebcamIdx--;
+        renderWebcamGallery();
+    }
+}
+
+function nextWebcam() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    if (cache.webcam && cache.activeWebcamIdx < cache.webcam.length - 1) {
+        cache.activeWebcamIdx++;
+        renderWebcamGallery();
+    }
+}
+
 function doWebcam() {
     var btn = $('#camBtn');
     btn.prop('disabled', true).html('<span class="spin"></span> Capturing...');
     sendCmd('WEBCAM', function(raw) {
-        btn.prop('disabled', false).html('<i class="fa-solid fa-camera"></i> Capture Webcam');
+        btn.prop('disabled', false).html('<i class="fa-solid fa-video"></i> Capture Webcam Snapshot');
         if(raw.startsWith("WEBCAM:")) {
             var b64 = raw.substring(7).trim();
-            if(b64 === "NO_WEBCAM" || b64 === "") {
-                toast("No webcam detected on the child computer.", "danger");
+            if(b64 === "NO_WEBCAM" || b64 === "" || b64.startsWith("ERR:")) {
+                toast("No webcam detected or camera access denied.", "warning");
                 return;
             }
-            $('#ss-hero-img').attr('src', 'data:image/jpeg;base64,' + b64).show();
-            $('#ss-hero-title').text('Live Webcam Capture');
-            $('#ss-hero-time').text(new Date().toLocaleTimeString());
-            toast('Webcam snapshot captured!', 'success');
+            toast('Webcam snapshot captured and archived!', 'success');
+            loadWebcamHistory();
+        } else if (raw.indexOf('NO_WEBCAM') >= 0) {
+            toast('No webcam detected on the child computer.', 'warning');
         } else {
-            toast("Failed to capture webcam.", "danger");
+            toast('Failed to capture webcam snapshot.', 'danger');
         }
+    }, function() {
+        btn.prop('disabled', false).html('<i class="fa-solid fa-video"></i> Capture Webcam Snapshot');
+    });
+}
+
+function deleteActiveWebcam() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    var list = cache.webcam || [];
+    var activeIdx = cache.activeWebcamIdx || 0;
+    if (list.length === 0 || !list[activeIdx]) return;
+
+    var item = list[activeIdx];
+    confirmAction('Delete Webcam Snapshot', 'Permanently delete snapshot from ' + item.time + '?', function() {
+        window.djazair.invoke('deleteWebcam', { id: devId, filename: item.filename }).then(function(res) {
+            toast('Webcam snapshot deleted.', 'info');
+            loadWebcamHistory();
+        });
     });
 }
 
@@ -529,7 +724,12 @@ function doLoadProcesses(forceRefresh) {
         filteredProcs = allProcs.slice();
         currentPage = 1;
         renderProcs();
-        $('#procCount').text(allProcs.length + ' processes');
+        $('#procCount').text(allProcs.length + ' processes (cached)');
+        return;
+    }
+
+    if (!selectedDev.is_online) {
+        toast('Cannot refresh: Child device is offline.', 'warning');
         return;
     }
 
@@ -544,6 +744,7 @@ function doLoadProcesses(forceRefresh) {
         var csv  = raw.startsWith('TASKS:') ? raw.substring(6) : raw;
         allProcs = parseCSV(csv);
         cache.procs = allProcs; // Save to Cache
+        window.djazair.invoke('saveDiskCache', { id: devId, data: { procs: cache.procs, sysinfo: cache.sysinfo } });
         filteredProcs = allProcs.slice();
         currentPage   = 1;
         renderProcs();
@@ -600,6 +801,8 @@ function renderProcs() {
         return;
     }
 
+    var isOnline = selectedDev && selectedDev.is_online;
+
     slice.forEach(function(p, i) {
         var row = $('<tr></tr>');
         var rowNum = start + i + 1;
@@ -610,9 +813,11 @@ function renderProcs() {
             '<td class="proc-pid">' + p.pid + '</td>' +
             '<td class="proc-mem" style="color:var(--text-muted);">' + p.session + '</td>' +
             '<td class="proc-mem">' + p.mem + '</td>' +
-            '<td><button class="btn-icon danger kill-btn" title="Terminate process"><i class="fa-solid fa-skull" style="font-size:11px;"></i></button></td>'
+            '<td><button class="btn-icon danger kill-btn ' + (isOnline ? '' : 'live-btn') + '" title="Terminate process" ' + (isOnline ? '' : 'disabled') + '><i class="fa-solid fa-skull" style="font-size:11px;"></i></button></td>'
         );
-        row.find('.kill-btn').on('click', function() { doKillProc(procName); });
+        if (isOnline) {
+            row.find('.kill-btn').on('click', function() { doKillProc(procName); });
+        }
         body.append(row);
     });
 }
@@ -712,9 +917,11 @@ function onSysinfoTabOpened() {
 
 function renderSysinfo(info) {
     var grid = $('#sysinfoGrid');
+    var isOnline = selectedDev && selectedDev.is_online;
     var fields = [
         { label: 'Device ID',        value: selectedDev ? selectedDev.id : '—', icon: 'fa-fingerprint'  },
         { label: 'Child Profile',    value: selectedDev ? (selectedDev.custom_name || 'Not set') : '—', icon: 'fa-user' },
+        { label: 'Status',           value: isOnline ? 'Online (Connected)' : 'Offline (Cached)', icon: 'fa-signal' },
         { label: 'Hostname',         value: info.hostname  || '—', icon: 'fa-server'        },
         { label: 'User Account',     value: info.username  || '—', icon: 'fa-id-badge'      },
         { label: 'Operating System',  value: info.os        || '—', icon: 'fa-windows'       },
@@ -745,6 +952,11 @@ function doSysinfo(forceRefresh) {
         return;
     }
 
+    if (!selectedDev.is_online) {
+        toast('Cannot refresh: Child device is offline.', 'warning');
+        return;
+    }
+
     var grid = $('#sysinfoGrid');
     grid.html('<div class="empty-state" style="grid-column:1/-1; padding:30px;"><span class="spin"></span> Loading...</div>');
     sendCmd('SYSINFO', function(raw) {
@@ -752,6 +964,7 @@ function doSysinfo(forceRefresh) {
         var info = {};
         try { info = JSON.parse(raw.substring(8)); } catch(e) { grid.html('<div>Parse error.</div>'); return; }
         cache.sysinfo = info; // Save to Cache
+        window.djazair.invoke('saveDiskCache', { id: devId, data: { procs: cache.procs, sysinfo: cache.sysinfo } });
         renderSysinfo(info);
         toast('System info updated.', 'success');
     });

