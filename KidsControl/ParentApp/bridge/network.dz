@@ -182,7 +182,11 @@ end
                     end
                 end
                 if hname == "" or hname == "Unknown"
-                    hname = if ip == "127.0.0.1" ? "localhost" else ip
+                    if ip == "127.0.0.1"
+                        hname = "localhost"
+                    else
+                        hname = ip
+                    end
                 end
                 found.append({"id": devId, "ip": ip, "hostname": hname, "port": port, "is_online": True})
             end
@@ -239,7 +243,12 @@ fn register(app)
             for dev in found
                 if type(dev) == "Map" and dev.has("id")
                     let did = dev["id"]
-                    let h = if dev.has("custom_name") and dev["custom_name"] != "" ? dev["custom_name"] else (if dev.has("hostname") ? dev["hostname"] : did)
+                    let h = did
+                    if dev.has("custom_name") and dev["custom_name"] != ""
+                        h = dev["custom_name"]
+                    elif dev.has("hostname") and dev["hostname"] != ""
+                        h = dev["hostname"]
+                    end
                     newOnline[did] = True
                     if not knownOnline.has(did)
                         notifyOnline(h)
