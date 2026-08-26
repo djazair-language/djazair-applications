@@ -15,6 +15,7 @@ import "../core/constants.dz" as constants
 
 let PENDING_CMDS_FILE = "storage/pending_cmds.json"
 let RESULTS_DIR = "storage/results"
+let OFFLINE_TIMEOUT_SECONDS = 3.5
 
 fn ensureStorageDirs()
     try dir.createAll("storage/screenshots") catch e end
@@ -63,7 +64,7 @@ use datetime
 
 let MASTER_PORT = 9999
 let SECRET_KEY = "KIDS_CTRL_2026"
-let OFFLINE_TIMEOUT = 5.0
+let OFFLINE_TIMEOUT = 3.5
 let DEVICES_FILE = "children.json"
 let PENDING_CMDS_FILE = "storage/pending_cmds.json"
 let RESULTS_DIR = "storage/results"
@@ -109,7 +110,7 @@ end
 # In-memory session tracking in server thread
 let sessions = {}
 
-# Load existing devices
+# Load existing devices with offline initial state
 try
     if file.isFile(DEVICES_FILE)
         let dData = file.read(DEVICES_FILE)
@@ -117,9 +118,12 @@ try
         if type(list) == "Array"
             for d in list
                 if type(d) == "Map" and d.has("id")
+                    d["is_online"] = False
+                    d["last_seen"] = 0
                     sessions[d["id"]] = d
                 end
             end
+            file.write(DEVICES_FILE, json.encode(list))
         end
     end
 catch e end
@@ -229,10 +233,10 @@ use json
 use datetime
 
 let DEVICES_FILE = "children.json"
-let OFFLINE_TIMEOUT = 5.0
+let OFFLINE_TIMEOUT = 3.5
 
 while True
-    process.sleep(1.5)
+    process.sleep(1.0)
     try
         if file.isFile(DEVICES_FILE)
             let data = file.read(DEVICES_FILE)
@@ -241,8 +245,12 @@ while True
                 let now = datetime.now().timestamp()
                 let changed = False
                 for d in list
-                    if type(d) == "Map" and d.has("last_seen")
-                        let isOnline = (now - d["last_seen"]) < OFFLINE_TIMEOUT
+                    if type(d) == "Map"
+                        let lastSeen = 0
+                        if d.has("last_seen")
+                            lastSeen = d["last_seen"]
+                        end
+                        let isOnline = (now - lastSeen) < OFFLINE_TIMEOUT
                         if d["is_online"] != isOnline
                             d["is_online"] = isOnline
                             changed = True
@@ -280,6 +288,16 @@ fn register(app)
                 let data = file.read(config.DEVICES_FILE)
                 let list = json.decode(data)
                 if type(list) == "Array"
+                    let now = datetime.now().timestamp()
+                    for d in list
+                        if type(d) == "Map"
+                            let lastSeen = 0
+                            if d.has("last_seen")
+                                lastSeen = d["last_seen"]
+                            end
+                            d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
+                        end
+                    end
                     return list
                 end
             end
@@ -308,13 +326,24 @@ fn register(app)
         end
     end)
 
-    # IPC: scanNetwork (Instant Refresh from registry)
+    # IPC: scanNetwork (Instant Refresh from registry with real-time liveness evaluation)
     app.bridge.on("scanNetwork", fn(payload)
         try
             if file.isFile(config.DEVICES_FILE)
                 let data = file.read(config.DEVICES_FILE)
                 let list = json.decode(data)
                 if type(list) == "Array"
+                    let now = datetime.now().timestamp()
+                    for d in list
+                        if type(d) == "Map"
+                            let lastSeen = 0
+                            if d.has("last_seen")
+                                lastSeen = d["last_seen"]
+                            end
+                            d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
+                        end
+                    end
+                    file.write(config.DEVICES_FILE, json.encode(list))
                     return list
                 end
             end

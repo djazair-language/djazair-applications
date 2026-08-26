@@ -290,15 +290,11 @@ function performScan(isManual) {
 
     if (isManual) {
         var btn = $('#scanBtn');
-        btn.html('<span class="spin"></span> Scanning...');
+        btn.html('<span class="spin"></span> Checking...');
         btn.prop('disabled', true);
-        toast('Scanning network for agents...', 'info');
     }
     
-    var endpoint = 'scanNetwork';
-    var payload = JSON.stringify(devices);
-
-    window.djazair.invoke(endpoint, payload).then(function(res) {
+    window.djazair.invoke('scanNetwork').then(function(res) {
         isScanning = false;
         
         if (isManual) {
@@ -309,19 +305,20 @@ function performScan(isManual) {
         var found = extractData(res);
         if (!Array.isArray(found)) found = [];
 
-        var onlineIds = {};
+        var updatedMap = {};
         found.forEach(function(f) {
             var key = f.id || ('KC-' + f.ip);
-            onlineIds[key] = f;
+            updatedMap[key] = f;
         });
 
-        // Update online/offline state on all existing known devices without deleting offline ones!
+        // Update online/offline state strictly according to backend liveness
         devices.forEach(function(d) {
             var key = d.id || ('KC-' + d.ip);
-            if (onlineIds[key]) {
-                d.is_online = true;
-                d.ip = onlineIds[key].ip;
-                d.hostname = onlineIds[key].hostname;
+            if (updatedMap[key]) {
+                d.is_online = !!updatedMap[key].is_online;
+                d.ip = updatedMap[key].ip;
+                d.hostname = updatedMap[key].hostname;
+                if (updatedMap[key].custom_name) d.custom_name = updatedMap[key].custom_name;
             } else {
                 d.is_online = false;
             }
@@ -332,12 +329,10 @@ function performScan(isManual) {
             var key = f.id || ('KC-' + f.ip);
             var exists = devices.some(function(d) { return (d.id || ('KC-' + d.ip)) === key; });
             if (!exists) {
-                f.is_online = true;
                 devices.push(f);
             }
         });
 
-        window.djazair.invoke('saveDevices', devices);
         renderDevices();
 
         if (selectedDev) {
@@ -350,7 +345,8 @@ function performScan(isManual) {
         }
 
         if (isManual) {
-            toast('Scan finished. ' + found.length + ' active device(s) online.', 'success');
+            var onlineCount = devices.filter(function(d) { return d.is_online; }).length;
+            toast('Status refreshed: ' + onlineCount + ' device(s) online.', 'info');
         }
     });
 }
