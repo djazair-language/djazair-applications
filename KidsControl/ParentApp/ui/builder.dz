@@ -1,26 +1,32 @@
 use file
+use qalam
 
-# Reads HTML, CSS, and JS from disk and builds the final HTML payload for the WebView.
+# Reads HTML, CSS, and JS from disk and builds the final HTML payload for the WebView using Qalam.
 # @return {string} The fully assembled HTML string.
 fn getHtml()
-    let html = ""
-    let css = ""
-    let js = ""
-    
-    let basePath = "ParentApp/ui/"
+    # Auto-detect the correct views directory based on execution context
+    let viewsDir = "ParentApp/ui"
+    if not file.exists(viewsDir + "/index.html")
+        viewsDir = "ui"
+    end
     
     try
-        html = file.read(basePath + "index.html")
-        css = file.read(basePath + "styles.css")
-        js = file.read(basePath + "app.js")
+        # Initialize Qalam template engine
+        let v = new qalam.view({"views": viewsDir})
+        
+        # Load CSS and JS manually since they are raw injected strings,
+        # or we could use Qalam includes, but reading them is fine.
+        let css = file.read(viewsDir + "/styles.css")
+        let js = file.read(viewsDir + "/app.js")
+        
+        # Render the template and pass CSS/JS as template variables!
+        let html = v.render("index", {
+            "injectedCss": "<style>\n" + css + "\n</style>",
+            "injectedJs": "<script>\n" + js + "\n</script>"
+        })
+        
+        return html
     catch e
         return "<h1>Error loading UI: " + str(e) + "</h1>"
     end
-    
-    # Inject CSS and JS into the HTML structure.
-    # We replace placeholder tokens with the actual content.
-    html = html.replace("<!-- INJECT_CSS -->", "<style>\n" + css + "\n</style>")
-    html = html.replace("<!-- INJECT_JS -->", "<script>\n" + js + "\n</script>")
-    
-    return html
 end
