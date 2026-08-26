@@ -227,9 +227,11 @@ function setDeviceLiveState(isOnline) {
         $('#msgInput').prop('disabled', false);
         $('#termIn').prop('disabled', false);
         
-        // Auto-fetch active window when coming online or switching
-        $('#dashActiveWindow').text('Fetching...');
-        doActiveWindow();
+        if (selectedDev.active_window) {
+            $('#dashActiveWindow').text(selectedDev.active_window);
+        } else {
+            $('#dashActiveWindow').text('Waiting for update...');
+        }
         
     } else {
         $('#topbarBadge').html(
