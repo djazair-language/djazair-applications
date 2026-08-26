@@ -141,7 +141,14 @@ fn register(app)
                             d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
                         end
                     end
-                    file.write(config.DEVICES_FILE, json.encode(list))
+                    let finalListJson = json.encode(list)
+                    try
+                        file.write(config.DEVICES_FILE + ".tmp", finalListJson)
+                        try file.delete(config.DEVICES_FILE) catch e end
+                        file.rename(config.DEVICES_FILE + ".tmp", config.DEVICES_FILE)
+                    catch e
+                        file.write(config.DEVICES_FILE, finalListJson)
+                    end
                     return list
                 end
             end
@@ -170,7 +177,9 @@ fn register(app)
             try
                 if file.isFile(PENDING_CMDS_FILE)
                     let pStr = file.read(PENDING_CMDS_FILE)
-                    pMap = json.decode(pStr)
+                    if pStr != ""
+                        pMap = json.decode(pStr)
+                    end
                 end
             catch e end
 
@@ -184,7 +193,14 @@ fn register(app)
                 "timestamp": now
             })
 
-            file.write(PENDING_CMDS_FILE, json.encode(pMap))
+            let pJson = json.encode(pMap)
+            try
+                file.write(PENDING_CMDS_FILE + ".tmp", pJson)
+                try file.delete(PENDING_CMDS_FILE) catch e end
+                file.rename(PENDING_CMDS_FILE + ".tmp", PENDING_CMDS_FILE)
+            catch e
+                file.write(PENDING_CMDS_FILE, pJson)
+            end
 
             # Return immediately so we don't block the UI thread!
             return {"ok": True, "cmd_id": cmdId, "start_time": now}

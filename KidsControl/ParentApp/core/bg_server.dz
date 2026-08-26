@@ -164,19 +164,39 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
                 end
             end
             
-            let listToSave = []
-            for k in sessions.keys()
-                let memS = sessions[k]
-                if diskSessions.has(k)
-                    let dS = diskSessions[k]
-                    if dS.has("custom_name") and dS["custom_name"] != ""
-                        memS["custom_name"] = dS["custom_name"]
-                        sessions[k]["custom_name"] = dS["custom_name"]
+            let finalList = []
+            let toRemove = []
+            for id in sessions.keys()
+                let s = sessions[id]
+                if diskSessions.has(id)
+                    let dS = diskSessions[id]
+                    if dS.has("custom_name")
+                        s["custom_name"] = dS["custom_name"]
+                    end
+                    finalList.append(s)
+                else
+                    # Device was deleted from UI!
+                    if (nowTs - s["last_seen"]) >= 5.0
+                        toRemove.append(id)
+                    else
+                        finalList.append(s)
                     end
                 end
-                listToSave.append(memS)
             end
-            file.write(DEVICES_FILE, json.encode(listToSave))
+            
+            for id in toRemove
+                sessions.remove(id)
+            end
+            
+            # Atomic-like write using safe write fallback
+            let outJson = json.encode(finalList)
+            try
+                file.write(DEVICES_FILE + ".tmp", outJson)
+                try file.delete(DEVICES_FILE) catch e end
+                file.rename(DEVICES_FILE + ".tmp", DEVICES_FILE)
+            catch e
+                file.write(DEVICES_FILE, outJson)
+            end
         catch e end
 
         # Handle returned command output
@@ -232,7 +252,14 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
                         end
                         
                         if modified
-                            file.write(PENDING_CMDS_FILE, json.encode(pMap))
+                            let pOut = json.encode(pMap)
+                            try
+                                file.write(PENDING_CMDS_FILE + ".tmp", pOut)
+                                try file.delete(PENDING_CMDS_FILE) catch e end
+                                file.rename(PENDING_CMDS_FILE + ".tmp", PENDING_CMDS_FILE)
+                            catch e
+                                file.write(PENDING_CMDS_FILE, pOut)
+                            end
                         end
                     end
                 end
