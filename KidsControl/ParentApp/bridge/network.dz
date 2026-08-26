@@ -10,7 +10,7 @@ import "../../Shared/constants.dz" as constants
 let SCAN_RESULTS_FILE = "__kc_scan_results.json"
 let knownOnline = {}
 
-# Background thread code
+# Background thread code for Continuous Zero-Latency Scanner
 let BG_SCANNER_CODE = `
 use net
 use process
@@ -25,21 +25,21 @@ let HERE_PREFIX = "` + constants.HERE_PREFIX + `"
 let PING_PAYLOAD = "` + constants.PING_PAYLOAD + `"
 let PONG_PREFIX = "` + constants.PONG_PREFIX + `"
 
-
-# Maps to resolve duplicates
+# Deduplicates devices by unique device ID
 fn deduplicate(results)
     let seen = {}
     let final = []
     for dev in results
-        let h = dev["hostname"]
+        let did = dev["id"]
         let ip = dev["ip"]
-        if not seen.has(h)
-            seen[h] = True
+        if not seen.has(did)
+            seen[did] = True
             final.append(dev)
         else
+            # Prefer LAN IP over loopback 127.0.0.1
             if ip != "127.0.0.1"
                 for i in range(final.length())
-                    if final[i]["hostname"] == h and final[i]["ip"] == "127.0.0.1"
+                    if final[i]["id"] == did and final[i]["ip"] == "127.0.0.1"
                         final[i]["ip"] = ip
                     end
                 end
@@ -98,7 +98,7 @@ while True
         c.close()
     catch e end
 
-    # 2. ARP Fallback
+    # 2. ARP Cache Fallback
     try
         let r2 = process.exec("arp -a")
         let lines2 = r2["stdout"].split("\n")
@@ -122,7 +122,7 @@ while True
 
     if not candidates.contains("127.0.0.1") candidates.append("127.0.0.1") end
 
-    # 3. TCP Ping Candidates (Parallel Thread Pool)
+    # 3. Parallel TCP Handshake with Thread Pool
     let workerCode = \`
 use thread
 use net
@@ -143,7 +143,7 @@ while running
             c.setTimeout(2.0)
             if c.connect(ip, port)
                 c.send("` + constants.PING_PAYLOAD + `")
-                let r = c.receive(128)
+                let r = c.receive(256)
                 c.close()
                 if !isNull(r) and type(r) == "String" and r.startsWith("` + constants.PONG_PREFIX + `")
                     rContent = r
@@ -154,13 +154,13 @@ while running
     end
 end
 \`
-    
+
     let poolSize = candidates.length()
     if poolSize > 30 poolSize = 30 end
     let p = thread.inlinePool(workerCode, poolSize)
     let payloads = []
     for ip in candidates payloads.append({"ip": ip, "port": port}) end
-    
+
     let results = p.map(payloads, 3.0)
     p.close()
 
@@ -169,20 +169,26 @@ end
             let ip = candidates[i]
             let rContent = results[i]
             if !isNull(rContent) and type(rContent) == "String" and rContent != ""
+                let devId = "KC-" + ip
                 let hname = ip
                 if rContent.contains(":")
-                    let p = rContent.split(":")
-                    if p.length() > 1 and p[1].strip() != ""
-                        hname = p[1].strip()
+                    let parts = rContent.split(":")
+                    # Format: PONG:<deviceId>:<hostname>
+                    if parts.length() >= 3
+                        devId = parts[1].strip()
+                        hname = parts[2].strip()
+                    elif parts.length() == 2
+                        hname = parts[1].strip()
                     end
-                elif ip == "127.0.0.1"
-                    hname = "localhost (this machine)"
                 end
-                found.append({"ip": ip, "hostname": hname, "port": port})
+                if hname == "" or hname == "Unknown"
+                    hname = if ip == "127.0.0.1" ? "localhost" else ip
+                end
+                found.append({"id": devId, "ip": ip, "hostname": hname, "port": port})
             end
         end
     end
-    
+
     let final = deduplicate(found)
     file.write("__kc_scan_results.json", json.encode(final))
     process.sleep(3.0)
@@ -212,14 +218,12 @@ try file.delete("__kc_notify.ps1") catch e end
     thread.spawnCode(code)
 end
 
-
 # Registers the network IPC handlers for the UI.
 fn register(app)
-    # Start the continuous background scanner to prevent UI freezing
+    # Start the continuous background scanner
     thread.spawnCode(BG_SCANNER_CODE)
 
     # Event: scanNetwork
-    # Reads instantly from the background scanner's output file
     app.bridge.on("scanNetwork", fn(payload)
         let found = []
         try
@@ -233,17 +237,17 @@ fn register(app)
         let newOnline = {}
         if type(found) == "Array"
             for dev in found
-                if type(dev) == "Map" and dev.has("hostname")
-                    let h = dev["hostname"]
-                    newOnline[h] = True
-                    if not knownOnline.has(h)
+                if type(dev) == "Map" and dev.has("id")
+                    let did = dev["id"]
+                    let h = if dev.has("hostname") ? dev["hostname"] else did
+                    newOnline[did] = True
+                    if not knownOnline.has(did)
                         notifyOnline(h)
                     end
                 end
             end
         end
 
-        # Reset knownOnline to current state
         let keys = knownOnline.keys()
         for k in keys knownOnline.pop(k) end
         for k in newOnline.keys() knownOnline[k] = True end
@@ -252,7 +256,6 @@ fn register(app)
     end)
 
     # Event: refreshDevices
-    # Just returns the current state instantly
     app.bridge.on("refreshDevices", fn(payload)
         let found = []
         try

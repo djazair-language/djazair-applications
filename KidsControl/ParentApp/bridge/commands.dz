@@ -1,16 +1,33 @@
 use net
 use datetime
+use file
+use dir
+use path
+use json
 import "../core/config.dz" as config
 import "../../Shared/constants.dz" as constants
+
+# Helper to get the screenshots storage directory for a device
+fn getStorageDir(deviceId)
+    let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+    let baseDir = "storage/screenshots/" + safeId
+    try
+        dir.createAll(baseDir)
+    catch e
+    end
+    return baseDir
+end
 
 # Registers the commands IPC handlers for the UI.
 # @param {App} app - The WebView application instance.
 fn register(app)
     # Event: agentCommand
-    # Sends a command to a specific agent and waits for a response.
+    # Sends a command to a specific agent, receives the response, and archives screenshots if applicable.
     app.bridge.on("agentCommand", fn(payload)
         let ip = payload["ip"]
-        let command = constants.SECRET_KEY + "|||" + payload["command"]
+        let deviceId = if payload.has("id") and !isNull(payload["id"]) ? payload["id"] else ("KC-" + ip)
+        let cmdType = payload["command"]
+        let command = constants.SECRET_KEY + "|||" + cmdType
         
         try
             let client = new net.tcpClient()
@@ -33,13 +50,94 @@ fn register(app)
             let latencyMs = int(t2 - t1)
             
             client.close()
-            if payload["command"] == "TASKS"
-                use file
-                file.write("debug_parent_tasks.txt", response)
+
+            # Auto-archive screenshot to disk
+            if cmdType == "SCREENSHOT" and response.startsWith("SCREENSHOT:")
+                let b64 = response.slice(11, response.length()).strip()
+                if b64 != ""
+                    try
+                        let storageDir = getStorageDir(deviceId)
+                        let now = datetime.now()
+                        let ts = str(now.year()) + "-" + str(now.month()) + "-" + str(now.day()) + "_" + str(now.hour()) + "-" + str(now.minute()) + "-" + str(now.second())
+                        let filePath = storageDir + "/" + ts + ".b64"
+                        file.write(filePath, b64)
+                    catch e
+                        print("[Screenshots] Storage error: " + str(e))
+                    end
+                end
             end
+
             return {"ok": True, "data": response, "latency": latencyMs}
         catch e
             return {"ok": False, "data": "Network error: " + str(e)}
         end
+    end)
+
+    # Event: getScreenshotHistory
+    # Retrieves all saved screenshots for a given device ID.
+    app.bridge.on("getScreenshotHistory", fn(payload)
+        let deviceId = payload
+        if type(payload) == "Map" and payload.has("id")
+            deviceId = payload["id"]
+        end
+        let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+        let storageDir = "storage/screenshots/" + safeId
+        let history = []
+
+        try
+            if file.exists(storageDir)
+                let items = dir.list(storageDir)
+                for item in items
+                    if item.endsWith(".b64")
+                        let fullPath = storageDir + "/" + item
+                        let b64 = file.read(fullPath).strip()
+                        let nameWithoutExt = item.replace(".b64", "")
+                        let parts = nameWithoutExt.split("_")
+                        let timeLabel = nameWithoutExt
+                        if parts.length() >= 2
+                            let datePart = parts[0]
+                            let timePart = parts[1].replace("-", ":")
+                            timeLabel = datePart + " " + timePart
+                        end
+                        history.append({
+                            "id": item,
+                            "filename": item,
+                            "time": timeLabel,
+                            "b64": b64
+                        })
+                    end
+                end
+            end
+        catch e
+            print("[Screenshots] History retrieval error: " + str(e))
+        end
+
+        # Reverse to have newest screenshots first
+        let reversedHistory = []
+        let len = history.length()
+        let idx = len - 1
+        while idx >= 0
+            reversedHistory.append(history[idx])
+            idx -= 1
+        end
+
+        return reversedHistory
+    end)
+
+    # Event: deleteScreenshot
+    # Deletes a saved screenshot file.
+    app.bridge.on("deleteScreenshot", fn(payload)
+        try
+            let deviceId = payload["id"]
+            let filename = payload["filename"]
+            let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+            let fullPath = "storage/screenshots/" + safeId + "/" + filename
+            if file.isFile(fullPath)
+                file.delete(fullPath)
+                return True
+            end
+        catch e
+        end
+        return False
     end)
 end

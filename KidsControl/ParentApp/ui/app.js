@@ -1,6 +1,5 @@
 'use strict';
 
-
 var devices       = [];
 var selectedDev   = null;
 var activeIdx     = -1;
@@ -11,10 +10,21 @@ var PAGE_SIZE     = 20;
 var termHistory   = [];
 var termHistIdx   = -1;
 var confirmCb     = null;
-var knownDevices  = {};
-var isInitialScan = true;
 var isScanning    = false;
+var currentAppConfig = { max_clients: 10, auto_scan_interval: 5 };
+var autoScanTimer = null;
 
+// Per-Device In-Memory Cache
+// Structure: { [deviceId]: { procs: [], sysinfo: null, screenshots: [], activeScreenshotIdx: 0 } }
+var deviceCache = {};
+
+function getDevCache(id) {
+    if (!id) return null;
+    if (!deviceCache[id]) {
+        deviceCache[id] = { procs: [], sysinfo: null, screenshots: [], activeScreenshotIdx: 0 };
+    }
+    return deviceCache[id];
+}
 
 function extractData(res) {
     if (!res) return null;
@@ -34,7 +44,7 @@ function extractData(res) {
 
 $(function() {
     window.djazair.invoke('getSettings').then(function(sRes) {
-        if (sRes.ok && sRes.data) {
+        if (sRes && sRes.ok && sRes.data) {
             currentAppConfig = sRes.data;
             applyAutoScanInterval(currentAppConfig.auto_scan_interval !== undefined ? currentAppConfig.auto_scan_interval : 5);
         } else {
@@ -51,7 +61,6 @@ $(function() {
     });
 });
 
-
 var ICONS = { success: 'fa-circle-check', danger: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
 
 function toast(msg, type) {
@@ -61,7 +70,6 @@ function toast(msg, type) {
     $('#toastWrap').append(el);
     setTimeout(function() { el.fadeOut(300, function() { el.remove(); }); }, 3500);
 }
-
 
 function confirmAction(title, body, cb) {
     $('#confirmTitle').text(title);
@@ -75,25 +83,29 @@ $('#confirmOk').on('click', function() {
     confirmCb = null;
 });
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Device Profile & Sidebar Management
+// ═════════════════════════════════════════════════════════════════════════════
 
 function renderDevices() {
     var list = $('#deviceList');
     list.empty();
     if (devices.length === 0) {
-        list.html('<div class="empty-state" style="padding:24px 12px; font-size:12px;"><i class="fa-solid fa-magnifying-glass-location" style="font-size:26px; margin-bottom:10px;"></i><br>No devices found. Scan your network or add an IP manually.</div>');
+        list.html('<div class="empty-state" style="padding:24px 12px; font-size:12px;"><i class="fa-solid fa-magnifying-glass-location" style="font-size:26px; margin-bottom:10px;"></i><br>No devices found. Scan network or add IP.</div>');
         return;
     }
     devices.forEach(function(dev, idx) {
-        var active = (selectedDev && selectedDev.ip === dev.ip) ? 'active' : '';
-        var name   = dev.hostname || dev.ip;
-        var item   = $('<div class="dev-item ' + active + '"></div>');
+        var devId = dev.id || ('KC-' + dev.ip);
+        var active = (selectedDev && (selectedDev.id === devId || selectedDev.ip === dev.ip)) ? 'active' : '';
+        var displayName = dev.custom_name || dev.hostname || dev.ip;
+        var item = $('<div class="dev-item ' + active + '"></div>');
         item.html(
             '<div class="dev-avatar"><i class="fa-solid fa-laptop"></i></div>' +
             '<div class="dev-info">' +
-                '<div class="dev-name">' + name + '</div>' +
-                '<div class="dev-ip">' + dev.ip + '</div>' +
+                '<div class="dev-name" title="' + displayName + '">' + displayName + '</div>' +
+                '<div class="dev-id-badge"><i class="fa-solid fa-network-wired"></i> ' + dev.ip + '</div>' +
             '</div>' +
-            '<div class="dev-dot" title="Agent running"></div>' +
+            '<div class="dev-dot" title="Agent Online"></div>' +
             '<button class="dev-remove" title="Remove device"><i class="fa-solid fa-xmark"></i></button>'
         );
         item.on('click', function() { selectDevice(idx); });
@@ -103,14 +115,62 @@ function renderDevices() {
 }
 
 function selectDevice(idx) {
+    activeIdx = idx;
     selectedDev = devices[idx];
+    if (!selectedDev.id) selectedDev.id = 'KC-' + selectedDev.ip;
     renderDevices();
-    $('#topbarTitle').text(selectedDev.hostname || selectedDev.ip);
-    $('#topbarBadge').html('<span class="badge-online"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Online</span>');
+
+    var displayName = selectedDev.custom_name || selectedDev.hostname || selectedDev.ip;
+    $('#topbarTitle').text(displayName);
+    $('#editNameBtn').show();
+    $('#topbarBadge').html(
+        '<span class="badge-online"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Online</span> ' +
+        '<span class="badge-id" title="' + selectedDev.id + '">' + selectedDev.id.slice(0, 15) + '...</span>'
+    );
     $('#pingBtn').show();
     $('#welcomeScreen').hide();
     $('#controlPanel').css('display', 'flex');
-    $('#termLabel').text('Remote Terminal — ' + selectedDev.ip);
+    $('#termLabel').text('Remote Terminal — ' + displayName + ' (' + selectedDev.ip + ')');
+
+    // 0ms Fast Cache Hydration
+    var cache = getDevCache(selectedDev.id);
+    if (cache.procs && cache.procs.length > 0) {
+        allProcs = cache.procs;
+        filteredProcs = allProcs.slice();
+        currentPage = 1;
+        renderProcs();
+        $('#procCount').text(allProcs.length + ' processes (cached)');
+    } else {
+        allProcs = [];
+        filteredProcs = [];
+        renderProcs();
+    }
+
+    if (cache.sysinfo) {
+        renderSysinfo(cache.sysinfo);
+    } else {
+        $('#sysinfoGrid').html('<div class="empty-state" style="grid-column:1/-1; padding:40px;"><i class="fa-solid fa-server"></i>Click Refresh to load system info.</div>');
+    }
+
+    // Load Screenshot Gallery from archive
+    loadScreenshotHistory();
+}
+
+function openRenameModal() {
+    if (!selectedDev) return;
+    $('#renameInput').val(selectedDev.custom_name || selectedDev.hostname || '');
+    new bootstrap.Modal('#renameModal').show();
+}
+
+function saveDeviceNickname() {
+    if (!selectedDev) return;
+    var newName = $('#renameInput').val().trim();
+    selectedDev.custom_name = newName;
+    window.djazair.invoke('saveDevices', devices);
+    bootstrap.Modal.getInstance('#renameModal').hide();
+    renderDevices();
+    $('#topbarTitle').text(newName || selectedDev.hostname || selectedDev.ip);
+    toast('Profile name updated!', 'success');
 }
 
 function removeDevice(idx) {
@@ -122,6 +182,7 @@ function removeDevice(idx) {
         $('#controlPanel').hide();
         $('#welcomeScreen').show();
         $('#topbarTitle').text('No device selected');
+        $('#editNameBtn').hide();
         $('#topbarBadge').html('');
         $('#pingBtn').hide();
     }
@@ -132,13 +193,17 @@ function addManualDevice() {
     var ip = $('#manualIp').val().trim();
     if (!ip) return;
     if (devices.some(function(d) { return d.ip === ip; })) { toast('Device already in the list.', 'warning'); return; }
-    devices.push({ ip: ip, hostname: ip });
+    var newDev = { id: 'KC-' + ip, ip: ip, hostname: ip, custom_name: '' };
+    devices.push(newDev);
     window.djazair.invoke('saveDevices', devices);
     $('#manualIp').val('');
     renderDevices();
     toast('Device added: ' + ip, 'success');
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Network Discovery Scanner
+// ═════════════════════════════════════════════════════════════════════════════
 
 function performScan(isManual) {
     if (isScanning) return;
@@ -146,12 +211,11 @@ function performScan(isManual) {
 
     if (isManual) {
         var btn = $('#scanBtn');
-        btn.html('<span class="spin"></span> Scanning (4s)...');
+        btn.html('<span class="spin"></span> Scanning...');
         btn.prop('disabled', true);
         toast('Scanning network for agents...', 'info');
     }
     
-    // Always use scanNetwork so it discovers new devices automatically, passing known devices in payload
     var endpoint = 'scanNetwork';
     var payload = JSON.stringify(devices);
 
@@ -166,80 +230,53 @@ function performScan(isManual) {
         var found = extractData(res);
         if (!Array.isArray(found)) found = [];
 
-        var oldDevices = devices.map(function(d) { return d.hostname; });
-        var newDevices = found.map(function(d) { return d.hostname; });
+        // Preserve custom_name and existing metadata across scans
+        var existingMap = {};
+        devices.forEach(function(d) {
+            var key = d.id || d.ip;
+            existingMap[key] = d;
+        });
 
-        // Check if list changed
+        var merged = found.map(function(f) {
+            var key = f.id || f.ip;
+            if (existingMap[key]) {
+                return Object.assign({}, existingMap[key], f);
+            }
+            return f;
+        });
+
+        var oldIds = devices.map(function(d) { return d.id || d.ip; });
+        var newIds = merged.map(function(d) { return d.id || d.ip; });
+
         var listChanged = false;
-        if (oldDevices.length !== newDevices.length) {
+        if (oldIds.length !== newIds.length) {
             listChanged = true;
         } else {
-            for (var i = 0; i < oldDevices.length; i++) {
-                if (oldDevices[i] !== newDevices[i]) {
-                    listChanged = true;
-                    break;
-                }
+            for (var i = 0; i < oldIds.length; i++) {
+                if (oldIds[i] !== newIds[i]) { listChanged = true; break; }
             }
         }
 
-        var lostSelectedDevice = false;
-
-        // Notifications
-        found.forEach(function(d) {
-            if (oldDevices.indexOf(d.hostname) === -1 && !isManual) {
-                toast('New device connected: ' + d.hostname, 'success');
-            }
-        });
-
-        devices.forEach(function(d) {
-            if (newDevices.indexOf(d.hostname) === -1) {
-                if (!isManual) {
-                    toast('Device disconnected: ' + d.hostname, 'danger');
-                }
-                if (selectedDev && selectedDev.hostname === d.hostname) {
-                    lostSelectedDevice = true;
-                }
-            }
-        });
-
-        devices = found;
+        devices = merged;
         window.djazair.invoke('saveDevices', devices);
 
         if (devices.length === 0) {
-            if (listChanged || isManual) {
-                renderDevices();
-                if (isManual) {
-                    toast('No agents found. Make sure child_app.dz is running.', 'warning');
-                }
-            }
-            if (lostSelectedDevice || selectedDev) {
-                selectedDev = null;
-                $('#controlPanel').hide();
-                $('#welcomeScreen').show();
-                $('#topbarTitle').text('No device selected');
-                $('#topbarBadge').html('');
-                $('#pingBtn').hide();
-            }
+            renderDevices();
+            if (isManual) toast('No child devices found online.', 'warning');
             return;
         }
 
-        if (listChanged || isManual) {
-            // Keep selection if possible
-            if (selectedDev && !lostSelectedDevice) {
-                var idx = devices.findIndex(function(d) { return d.hostname === selectedDev.hostname; });
-                if (idx !== -1) {
-                    selectDevice(idx);
-                } else {
-                    selectDevice(0);
-                }
-            } else {
-                // We lost the selected device or didn't have one, just pick the first available
-                selectDevice(0);
-            }
+        renderDevices();
+        if (selectedDev) {
+            var foundIdx = devices.findIndex(function(d) { return (d.id && d.id === selectedDev.id) || d.ip === selectedDev.ip; });
+            if (foundIdx !== -1) selectDevice(foundIdx);
+            else selectDevice(0);
+        } else {
+            selectDevice(0);
         }
 
         if (isManual) {
-            toast('Found ' + found.length + ' active agent(s)!', 'success');
+            toast('Found ' + found.length + ' active child device(s)!', 'success');
         }
     });
 }
@@ -248,15 +285,24 @@ function startScan() {
     performScan(true);
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// IPC Command Dispatcher
+// ═════════════════════════════════════════════════════════════════════════════
 
 function sendCmd(command, successCb, failCb, retryCount) {
     if (!selectedDev) { toast('No device selected.', 'warning'); return; }
     retryCount = retryCount || 0;
     
-    window.djazair.invoke('agentCommand', { ip: selectedDev.ip, hostname: selectedDev.hostname, command: command }).then(function(res) {
+    var reqPayload = {
+        id: selectedDev.id || ('KC-' + selectedDev.ip),
+        ip: selectedDev.ip,
+        hostname: selectedDev.hostname,
+        command: command
+    };
+
+    window.djazair.invoke('agentCommand', reqPayload).then(function(res) {
         if (!res.ok) {
             if (retryCount < 1) {
-                // Auto-retry once silently before failing
                 setTimeout(function() { sendCmd(command, successCb, failCb, retryCount + 1); }, 300);
                 return;
             }
@@ -271,22 +317,22 @@ function sendCmd(command, successCb, failCb, retryCount) {
             return;
         }
         
-        // Show latency indicator
         if (res.latency !== undefined) {
             var color = res.latency < 50 ? '#2ea043' : (res.latency < 200 ? '#d29922' : '#f85149');
-            $('#topbarBadge').html('<span class="badge" style="background: ' + color + '">' + res.latency + ' ms</span>');
+            $('#topbarBadge').html(
+                '<span class="badge" style="background: ' + color + '">' + res.latency + ' ms</span> ' +
+                '<span class="badge-id">' + (selectedDev.id || selectedDev.ip).slice(0, 15) + '...</span>'
+            );
         }
         
         if (successCb) successCb(res.data, res.latency);
     });
 }
 
-
 function switchTab(id) {
     var btn = document.querySelector('[data-bs-target="#' + id + '"]');
     if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
 }
-
 
 function doPing() {
     sendCmd('PING', function(r, latency) { 
@@ -307,23 +353,133 @@ function doMsg() {
     });
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Screenshot Gallery & Slideshow System
+// ═════════════════════════════════════════════════════════════════════════════
+
+function onScreenshotTabOpened() {
+    loadScreenshotHistory();
+}
+
+function loadScreenshotHistory() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    window.djazair.invoke('getScreenshotHistory', { id: devId }).then(function(res) {
+        var list = extractData(res);
+        if (!Array.isArray(list)) list = [];
+        var cache = getDevCache(devId);
+        cache.screenshots = list;
+        renderScreenshotGallery();
+    });
+}
+
+function renderScreenshotGallery() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    var list = cache.screenshots || [];
+    var activeIdx = cache.activeScreenshotIdx || 0;
+
+    $('#galleryCountBadge').text(list.length + ' saved');
+
+    var strip = $('#thumbnailStrip');
+    strip.empty();
+
+    if (list.length === 0) {
+        strip.html('<div style="color:var(--text-muted); font-size:12px; padding:10px;">No screenshots saved yet. Click "Capture New Screenshot".</div>');
+        $('#ss-hero-img').attr('src', '').hide();
+        $('#galleryPrevBtn').hide();
+        $('#galleryNextBtn').hide();
+        $('#deleteSsBtn').hide();
+        $('#ss-hero-title').text('No Captures');
+        $('#ss-hero-time').text('Capture a screenshot to start');
+        $('#ss-hero-counter').text('0 / 0');
+        return;
+    }
+
+    if (activeIdx < 0) activeIdx = 0;
+    if (activeIdx >= list.length) activeIdx = list.length - 1;
+    cache.activeScreenshotIdx = activeIdx;
+
+    var currentItem = list[activeIdx];
+    $('#ss-hero-img').attr('src', 'data:image/jpeg;base64,' + currentItem.b64).show();
+    $('#ss-hero-title').text('Screenshot ' + (activeIdx + 1));
+    $('#ss-hero-time').text(currentItem.time);
+    $('#ss-hero-counter').text((activeIdx + 1) + ' / ' + list.length);
+    $('#galleryPrevBtn').show().prop('disabled', activeIdx <= 0);
+    $('#galleryNextBtn').show().prop('disabled', activeIdx >= list.length - 1);
+    $('#deleteSsBtn').show();
+
+    list.forEach(function(item, idx) {
+        var card = $('<div class="thumb-card ' + (idx === activeIdx ? 'active' : '') + '"></div>');
+        card.html(
+            '<img src="data:image/jpeg;base64,' + item.b64 + '">' +
+            '<div class="thumb-time">' + item.time + '</div>'
+        );
+        card.on('click', function() { selectScreenshot(idx); });
+        strip.append(card);
+    });
+}
+
+function selectScreenshot(idx) {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    cache.activeScreenshotIdx = idx;
+    renderScreenshotGallery();
+}
+
+function prevScreenshot() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    if (cache.activeScreenshotIdx > 0) {
+        cache.activeScreenshotIdx--;
+        renderScreenshotGallery();
+    }
+}
+
+function nextScreenshot() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    if (cache.screenshots && cache.activeScreenshotIdx < cache.screenshots.length - 1) {
+        cache.activeScreenshotIdx++;
+        renderScreenshotGallery();
+    }
+}
 
 function doScreenshot() {
     var btn = $('#ssBtn');
     btn.html('<span class="spin"></span> Capturing...');
     btn.prop('disabled', true);
     sendCmd('SCREENSHOT', function(raw) {
-        btn.html('<i class="fa-solid fa-camera"></i> Capture Now');
+        btn.html('<i class="fa-solid fa-camera-retro"></i> Capture New Screenshot');
         btn.prop('disabled', false);
         if (!raw.startsWith('SCREENSHOT:')) { toast('Screenshot failed.', 'danger'); return; }
-        var b64 = raw.substring(11).trim();
-        $('#ss-preview').attr('src', 'data:image/jpeg;base64,' + b64).show();
-        $('#ssCard').show();
-        $('#ssTime').text('Captured at ' + new Date().toLocaleTimeString());
-        toast('Screenshot captured!', 'success');
+        toast('Screenshot captured and archived!', 'success');
+        // Reload history from disk archive to update slideshow & carousel
+        loadScreenshotHistory();
     }, function() {
-        btn.html('<i class="fa-solid fa-camera"></i> Capture Now');
+        btn.html('<i class="fa-solid fa-camera-retro"></i> Capture New Screenshot');
         btn.prop('disabled', false);
+    });
+}
+
+function deleteActiveScreenshot() {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+    var list = cache.screenshots || [];
+    var activeIdx = cache.activeScreenshotIdx || 0;
+    if (list.length === 0 || !list[activeIdx]) return;
+
+    var item = list[activeIdx];
+    confirmAction('Delete Screenshot', 'Permanently delete screenshot from ' + item.time + '?', function() {
+        window.djazair.invoke('deleteScreenshot', { id: devId, filename: item.filename }).then(function(res) {
+            toast('Screenshot deleted.', 'info');
+            loadScreenshotHistory();
+        });
     });
 }
 
@@ -333,15 +489,15 @@ function doWebcam() {
     sendCmd('WEBCAM', function(raw) {
         btn.prop('disabled', false).html('<i class="fa-solid fa-camera"></i> Capture Webcam');
         if(raw.startsWith("WEBCAM:")) {
-            var b64 = raw.substring(7);
-            if(b64.trim() === "NO_WEBCAM" || b64.trim() === "") {
-                toast("No webcam detected on the target computer.", "danger");
+            var b64 = raw.substring(7).trim();
+            if(b64 === "NO_WEBCAM" || b64 === "") {
+                toast("No webcam detected on the child computer.", "danger");
                 return;
             }
-            $('#ssCard').show();
-            $('#ss-preview').attr('src', 'data:image/jpeg;base64,' + b64);
-            var d = new Date();
-            $('#ssTime').text('Captured at ' + d.toLocaleTimeString());
+            $('#ss-hero-img').attr('src', 'data:image/jpeg;base64,' + b64).show();
+            $('#ss-hero-title').text('Live Webcam Capture');
+            $('#ss-hero-time').text(new Date().toLocaleTimeString());
+            toast('Webcam snapshot captured!', 'success');
         } else {
             toast("Failed to capture webcam.", "danger");
         }
@@ -349,22 +505,45 @@ function doWebcam() {
 }
 
 function openLightbox(src) {
+    if (!src) return;
     $('#lightboxImg').attr('src', src);
     $('#lightbox').css('display', 'flex');
 }
 function closeLightbox() { $('#lightbox').hide(); }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Processes Management & Caching
+// ═════════════════════════════════════════════════════════════════════════════
 
-function doLoadProcesses() {
+function onProcessesTabOpened() {
+    if (allProcs.length === 0) doLoadProcesses(false);
+}
+
+function doLoadProcesses(forceRefresh) {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+
+    if (!forceRefresh && cache.procs && cache.procs.length > 0) {
+        allProcs = cache.procs;
+        filteredProcs = allProcs.slice();
+        currentPage = 1;
+        renderProcs();
+        $('#procCount').text(allProcs.length + ' processes');
+        return;
+    }
+
     var btn = $('#refreshProcBtn');
     btn.html('<span class="spin"></span> Loading...');
     btn.prop('disabled', true);
     $('#procBody').html('<tr><td colspan="6"><div class="empty-state" style="padding:20px;"><span class="spin"></span> Fetching process list...</div></td></tr>');
+
     sendCmd('TASKS', function(raw) {
         btn.html('<i class="fa-solid fa-rotate-right"></i> Refresh');
         btn.prop('disabled', false);
         var csv  = raw.startsWith('TASKS:') ? raw.substring(6) : raw;
         allProcs = parseCSV(csv);
+        cache.procs = allProcs; // Save to Cache
         filteredProcs = allProcs.slice();
         currentPage   = 1;
         renderProcs();
@@ -442,7 +621,7 @@ function doKillProc(name) {
     confirmAction('Terminate Process', 'Force-kill "' + name + '" on the remote device?', function() {
         sendCmd('KILL:' + name, function() {
             toast('Terminated: ' + name, 'success');
-            setTimeout(doLoadProcesses, 600);
+            setTimeout(function() { doLoadProcesses(true); }, 600);
         });
     });
 }
@@ -450,10 +629,12 @@ function doKillProc(name) {
 function prevPage() { if (currentPage > 1) { currentPage--; renderProcs(); } }
 function nextPage() { var t = Math.ceil(filteredProcs.length / PAGE_SIZE); if (currentPage < t) { currentPage++; renderProcs(); } }
 
-
 function doBlock()   { var d = $('#domainInput').val().trim(); if (d) sendCmd('BLOCK:'   + d, function() { toast('Blocked: '   + d, 'success'); }); }
 function doUnblock() { var d = $('#domainInput').val().trim(); if (d) sendCmd('UNBLOCK:' + d, function() { toast('Unblocked: ' + d, 'success'); }); }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// Remote Terminal
+// ═════════════════════════════════════════════════════════════════════════════
 
 function termPrint(cls, text) {
     var out = $('#termOut');
@@ -495,12 +676,11 @@ function termKeydown(e) {
     }
 }
 
-
 function doActiveWindow() {
     if(!selectedDev) return;
-    toast("Requesting active window...", "success");
+    toast("Requesting active window...", "info");
     sendCmd('ACTIVE_WINDOW', function(res) {
-        let text = res;
+        var text = res;
         if(text.startsWith("ACTIVE_WINDOW:")) text = text.substring(14);
         alert("Currently Active Window:\n\n" + text);
     });
@@ -508,9 +688,9 @@ function doActiveWindow() {
 
 function doSetSchedule() {
     if(!selectedDev) return;
-    let limit = prompt("Enter bedtime hour (0-23). The computer will automatically lock after this hour every day.\n\nEnter 0 to disable:", "22");
+    var limit = prompt("Enter bedtime hour (0-23). The computer will automatically lock after this hour every day.\n\nEnter 0 to disable:", "22");
     if(limit !== null) {
-        let h = parseInt(limit);
+        var h = parseInt(limit, 10);
         if(!isNaN(h) && h >= 0 && h <= 23) {
             sendCmd("SCHEDULE:" + h, function(res) {
                 if(res.startsWith("OK:")) toast("Bedtime schedule saved successfully!", "success");
@@ -522,41 +702,64 @@ function doSetSchedule() {
     }
 }
 
-function doSysinfo() {
+// ═════════════════════════════════════════════════════════════════════════════
+// System Information & Caching
+// ═════════════════════════════════════════════════════════════════════════════
+
+function onSysinfoTabOpened() {
+    doSysinfo(false);
+}
+
+function renderSysinfo(info) {
+    var grid = $('#sysinfoGrid');
+    var fields = [
+        { label: 'Device ID',        value: selectedDev ? selectedDev.id : '—', icon: 'fa-fingerprint'  },
+        { label: 'Child Profile',    value: selectedDev ? (selectedDev.custom_name || 'Not set') : '—', icon: 'fa-user' },
+        { label: 'Hostname',         value: info.hostname  || '—', icon: 'fa-server'        },
+        { label: 'User Account',     value: info.username  || '—', icon: 'fa-id-badge'      },
+        { label: 'Operating System',  value: info.os        || '—', icon: 'fa-windows'       },
+        { label: 'Processor (CPU)',   value: info.cpu       || '—', icon: 'fa-microchip'     },
+        { label: 'Total RAM',         value: info.ram_total || '—', icon: 'fa-memory'        },
+        { label: 'Available RAM',     value: info.ram_free  || '—', icon: 'fa-memory'        },
+        { label: 'Last Boot Time',    value: info.boot_time || '—', icon: 'fa-clock'         },
+        { label: 'IP Address',        value: selectedDev ? selectedDev.ip : '—', icon: 'fa-network-wired' }
+    ];
+    grid.empty();
+    fields.forEach(function(f) {
+        grid.append(
+            '<div class="si-card">' +
+                '<div class="si-label"><i class="fa-solid ' + f.icon + '"></i>' + f.label + '</div>' +
+                '<div class="si-value">' + f.value + '</div>' +
+            '</div>'
+        );
+    });
+}
+
+function doSysinfo(forceRefresh) {
+    if (!selectedDev) return;
+    var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+    var cache = getDevCache(devId);
+
+    if (!forceRefresh && cache.sysinfo) {
+        renderSysinfo(cache.sysinfo);
+        return;
+    }
+
     var grid = $('#sysinfoGrid');
     grid.html('<div class="empty-state" style="grid-column:1/-1; padding:30px;"><span class="spin"></span> Loading...</div>');
     sendCmd('SYSINFO', function(raw) {
         if (!raw.startsWith('SYSINFO:')) { grid.html('<div class="empty-state" style="grid-column:1/-1;">Failed to parse response.</div>'); return; }
         var info = {};
         try { info = JSON.parse(raw.substring(8)); } catch(e) { grid.html('<div>Parse error.</div>'); return; }
-        var fields = [
-            { label: 'Hostname',         value: info.hostname  || '—', icon: 'fa-server'        },
-            { label: 'Username',          value: info.username  || '—', icon: 'fa-user'           },
-            { label: 'Operating System',  value: info.os        || '—', icon: 'fa-windows'        },
-            { label: 'Processor (CPU)',   value: info.cpu       || '—', icon: 'fa-microchip'      },
-            { label: 'Total RAM',         value: info.ram_total || '—', icon: 'fa-memory'         },
-            { label: 'Available RAM',     value: info.ram_free  || '—', icon: 'fa-memory'         },
-            { label: 'Last Boot Time',    value: info.boot_time || '—', icon: 'fa-clock'          },
-            { label: 'IP Address',        value: selectedDev ? selectedDev.ip : '—', icon: 'fa-network-wired' }
-        ];
-        grid.empty();
-        fields.forEach(function(f) {
-            grid.append(
-                '<div class="si-card">' +
-                    '<div class="si-label"><i class="fa-solid ' + f.icon + '"></i>' + f.label + '</div>' +
-                    '<div class="si-value">' + f.value + '</div>' +
-                '</div>'
-            );
-        });
-        toast('System info loaded.', 'success');
+        cache.sysinfo = info; // Save to Cache
+        renderSysinfo(info);
+        toast('System info updated.', 'success');
     });
 }
 
-var currentAppConfig = {
-    max_clients: 10,
-    auto_scan_interval: 5,
-};
-var autoScanTimer = null;
+// ═════════════════════════════════════════════════════════════════════════════
+// Settings Modal
+// ═════════════════════════════════════════════════════════════════════════════
 
 function applyAutoScanInterval(seconds) {
     if (autoScanTimer) clearInterval(autoScanTimer);

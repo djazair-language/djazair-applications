@@ -1,58 +1,36 @@
 # =============================================================================
-# main.dz — Kids Control Agent (Server-Side)
-# Refactored for modularity and professional standards.
+# main.dz — Kids Control Agent (Child-Side)
+# Professional Object-Oriented Architecture
 # =============================================================================
 
 use net
-use process
 use thread
-use file
-use datetime
+use process
 
-import "core/security.dz" as security
-import "core/commands.dz" as commands
+import "core/identity.dz" as idModule
+import "core/router.dz" as routerModule
+import "services/system.dz" as sysModule
 import "../Shared/constants.dz" as constants
 
-# Initialize system dependencies
-security.setupWatchdog()
-security.setupStartup()
+# 1. Initialize Machine Identity
+let identity = new idModule.IdentityService()
+let deviceId = identity.getDeviceId()
+let hostname = identity.getHostname()
 
-# Get the hostname to identify the machine
-let systemHostname = "Unknown"
-try
-    systemHostname = process.exec("hostname")["stdout"].strip()
-catch e
-    print("[Agent] Failed to retrieve hostname: " + str(e))
-end
+print("================================================")
+print("  Kids Control Agent (Child-Side)")
+print("  Device ID : " + deviceId)
+print("  Hostname  : " + hostname)
+print("  TCP Port  : " + str(constants.TCP_PORT))
+print("  UDP Port  : " + str(constants.UDP_DISCOVERY_PORT))
+print("================================================")
 
-# Starts the schedule monitoring thread.
-# Checks the configured schedule and locks the workstation if limits are exceeded.
-fn startScheduleMonitor()
-    let monitorCode = `
-use file
-use datetime
-use process
-let SCHEDULE_FILE = "C:\\Users\\Public\\kc_schedule.txt"
-while True
-    try
-        if file.isFile(SCHEDULE_FILE)
-            let limitHour = num(file.read(SCHEDULE_FILE).strip())
-            let h = datetime.now().hour()
-            if (h >= limitHour or h < 6) and limitHour > 0
-                process.exec("rundll32.exe user32.dll,LockWorkStation")
-            end
-        end
-    catch e 
-        # Ignore read errors
-    end
-    process.sleep(60.0)
-end
-`
-    thread.spawnCode(monitorCode)
-end
+# 2. Start Background Schedule Monitor
+let systemService = new sysModule.SystemService()
+systemService.startScheduleMonitor()
 
-# Starts the UDP Discovery Server to respond to ParentApp broadcasts
-fn startDiscoveryServer(hostname)
+# 3. Start UDP Discovery Responder
+fn startDiscoveryServer(devId, host)
     let bcastCode = `
 use net
 use thread
@@ -60,11 +38,12 @@ use thread
 let UDP_PORT = ` + str(constants.UDP_DISCOVERY_PORT) + `
 let DISCOVER_PAYLOAD = "` + constants.DISCOVER_PAYLOAD + `"
 let HERE_PREFIX = "` + constants.HERE_PREFIX + `"
-let hname = "` + hostname + `"
+let devId = "` + devId + `"
+let host = "` + host + `"
 
 let s = new net.udpServer(fn(data, ip, port)
     if data == DISCOVER_PAYLOAD
-        s.reply(HERE_PREFIX + hname, ip, port)
+        s.reply(HERE_PREFIX + devId + ":" + host, ip, port)
     end
 end)
 
@@ -77,23 +56,24 @@ end
     thread.spawnCode(bcastCode)
 end
 
-# Start the background schedule monitor and discovery server
-startScheduleMonitor()
-startDiscoveryServer(systemHostname)
+startDiscoveryServer(deviceId, hostname)
 
-# Setup the main TCP Server for receiving commands from ParentApp
+# 4. Initialize Command Router
+let router = new routerModule.CommandRouter(identity)
+
+# 5. Start TCP Server
 let server = new net.tcpServer(fn(client, ip, port)
     print("[Agent] Connection from " + ip + ":" + str(port))
     let raw = Null
     try
-        raw = client.receive(131072)    # 128 KB buffer
+        raw = client.receive(131072)
     catch e
-        print("[Agent] Error receiving data: " + str(e))
+        print("[Agent] Receive error: " + str(e))
         raw = Null
     end
 
     if not isNull(raw) and raw != ""
-        let response = commands.dispatch(raw, systemHostname)
+        let response = router.dispatch(raw)
         try
             client.send(response)
         catch e
@@ -105,9 +85,4 @@ let server = new net.tcpServer(fn(client, ip, port)
     client.close()
 end, {"timeout": 10})
 
-# Start Agent
-print("================================================")
-print("  Kids Control Agent — TCP port " + str(constants.TCP_PORT))
-print("  Hostname: " + systemHostname)
-print("================================================")
 server.listen(constants.TCP_PORT)

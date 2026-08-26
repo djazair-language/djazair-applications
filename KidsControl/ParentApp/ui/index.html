@@ -46,7 +46,12 @@
 
     <!-- Topbar -->
     <div class='topbar'>
-      <span class='topbar-name' id='topbarTitle'>No device selected</span>
+      <div class='topbar-name'>
+        <span id='topbarTitle'>No device selected</span>
+        <button class='btn-edit-name' id='editNameBtn' onclick='openRenameModal()' title='Rename child computer' style='display:none;'>
+          <i class='fa-solid fa-pen-to-square'></i>
+        </button>
+      </div>
       <span id='topbarBadge'></span>
       <div style='margin-left:auto; display:flex; gap:8px; align-items:center;'>
         <button class='btn-kc success' id='pingBtn' onclick='doPing()' style='display:none;'>
@@ -62,7 +67,7 @@
     <div id='welcomeScreen' class='empty-state' style='flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;'>
       <i class='fa-solid fa-desktop'></i>
       <h4>No Device Selected</h4>
-      <p>Scan your network or add a device IP from the sidebar.</p>
+      <p>Scan your network or select a child device from the sidebar.</p>
     </div>
 
     <!-- Control Panel (shown when a device is selected) -->
@@ -77,12 +82,12 @@
             </button>
           </li>
           <li class='nav-item'>
-            <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-processes'>
+            <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-processes' onclick='onProcessesTabOpened()'>
               <i class='fa-solid fa-microchip'></i> Processes
             </button>
           </li>
           <li class='nav-item'>
-            <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-screenshot'>
+            <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-screenshot' onclick='onScreenshotTabOpened()'>
               <i class='fa-solid fa-camera'></i> Screenshot
             </button>
           </li>
@@ -97,8 +102,7 @@
             </button>
           </li>
           <li class='nav-item'>
-            <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-sysinfo'
-              onclick='doSysinfo()'>
+            <button class='nav-link' data-bs-toggle='tab' data-bs-target='#tab-sysinfo' onclick='onSysinfoTabOpened()'>
               <i class='fa-solid fa-circle-info'></i> System Info
             </button>
           </li>
@@ -114,7 +118,7 @@
             <div class='action-card info' onclick='doActiveWindow()'>
               <div class='ac-icon' style='color:#0dcaf0;'><i class='fa-solid fa-window-maximize'></i></div>
               <div class='ac-label'>Active Window</div>
-              <div class='ac-sub'>See what they are viewing</div>
+              <div class='ac-sub'>See current app/window</div>
             </div>
             <div class='action-card warning' onclick='doCmd("LOCK")'>
               <div class='ac-icon' style='color:var(--warning);'><i class='fa-solid fa-lock'></i></div>
@@ -164,7 +168,7 @@
         <!-- ─── PROCESSES ─── -->
         <div class='tab-pane fade' id='tab-processes'>
           <div style='display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;'>
-            <button class='btn-kc primary' onclick='doLoadProcesses()' id='refreshProcBtn'>
+            <button class='btn-kc primary' onclick='doLoadProcesses(true)' id='refreshProcBtn'>
               <i class='fa-solid fa-rotate-right'></i> Refresh
             </button>
             <input class='kc-input' id='procSearch' placeholder='Filter by name...' oninput='filterProcs()' style='width:200px;'>
@@ -199,22 +203,52 @@
           </div>
         </div>
 
-        <!-- ─── SCREENSHOT ─── -->
+        <!-- ─── SCREENSHOT (GALLERY & SLIDESHOW) ─── -->
         <div class='tab-pane fade' id='tab-screenshot'>
-          <div style='display:flex; gap:8px; margin-bottom:16px;'>
+          <div style='display:flex; gap:8px; margin-bottom:16px; align-items:center;'>
             <button class='btn-kc success' id='ssBtn' onclick='doScreenshot()'>
-              <i class='fa-solid fa-desktop'></i> Capture Screen
+              <i class='fa-solid fa-camera-retro'></i> Capture New Screenshot
             </button>
             <button class='btn-kc' style='background:#0dcaf0; color:#000;' id='camBtn' onclick='doWebcam()'>
               <i class='fa-solid fa-camera'></i> Capture Webcam
             </button>
+            <button class='btn-kc' onclick='loadScreenshotHistory()' title='Reload screenshot gallery'>
+              <i class='fa-solid fa-rotate-right'></i> Refresh Gallery
+            </button>
           </div>
-          <div class='kc-card' style='display:none;' id='ssCard'>
-            <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
-              <span style='font-size:12px; font-weight:600;'>Live Capture</span>
-              <span id='ssTime' style='font-size:11px; color:var(--text-muted);'></span>
+
+          <!-- Hero Main View -->
+          <div class='gallery-hero' id='galleryHero'>
+            <img id='ss-hero-img' src='' onclick='openLightbox(this.src)' alt='Screenshot'>
+            <button class='gallery-nav-btn prev' id='galleryPrevBtn' onclick='prevScreenshot()' title='Previous screenshot'>
+              <i class='fa-solid fa-chevron-left'></i>
+            </button>
+            <button class='gallery-nav-btn next' id='galleryNextBtn' onclick='nextScreenshot()' title='Next screenshot'>
+              <i class='fa-solid fa-chevron-right'></i>
+            </button>
+            <div class='gallery-controls'>
+              <button class='btn-kc danger' id='deleteSsBtn' onclick='deleteActiveScreenshot()' title='Delete this screenshot'>
+                <i class='fa-solid fa-trash'></i>
+              </button>
             </div>
-            <img id='ss-preview' src='' onclick='openLightbox(this.src)'>
+            <div class='gallery-info-bar'>
+              <div>
+                <div style='font-size:13px; font-weight:700;' id='ss-hero-title'>Latest Capture</div>
+                <div style='font-size:11px; color:#aaa;' id='ss-hero-time'>No captures yet</div>
+              </div>
+              <div style='font-size:12px; color:#ccc;' id='ss-hero-counter'>0 / 0</div>
+            </div>
+          </div>
+
+          <!-- Thumbnail Strip -->
+          <div class='kc-card' style='padding:12px;'>
+            <div style='font-size:12px; font-weight:600; margin-bottom:8px; color:var(--text-muted); display:flex; justify-content:space-between;'>
+              <span><i class='fa-solid fa-images'></i> Screenshot History (Slideshow Gallery)</span>
+              <span id='galleryCountBadge' style='font-size:11px;'>0 saved</span>
+            </div>
+            <div class='thumbnail-strip' id='thumbnailStrip'>
+              <div style='color:var(--text-muted); font-size:12px; padding:10px;'>No screenshots saved yet for this child.</div>
+            </div>
           </div>
         </div>
 
@@ -269,7 +303,7 @@
         <div class='tab-pane fade' id='tab-sysinfo'>
           <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;'>
             <span style='font-size:15px; font-weight:700;'>System Information</span>
-            <button class='btn-kc' onclick='doSysinfo()'><i class='fa-solid fa-rotate-right'></i> Refresh</button>
+            <button class='btn-kc' onclick='doSysinfo(true)'><i class='fa-solid fa-rotate-right'></i> Refresh</button>
           </div>
           <div class='sysinfo-grid' id='sysinfoGrid'>
             <div class='empty-state' style='grid-column:1/-1; padding:40px;'>
@@ -296,6 +330,26 @@
       <div class='modal-footer border-0 pt-0'>
         <button class='btn-kc' data-bs-dismiss='modal'>Cancel</button>
         <button class='btn-kc danger' id='confirmOk'>Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Child Device Modal -->
+<div class='modal fade' id='renameModal' tabindex='-1'>
+  <div class='modal-dialog modal-dialog-centered modal-sm'>
+    <div class='modal-content' style='background:#161b22; border:1px solid #30363d; color:#e6edf3;'>
+      <div class='modal-header' style='border-bottom:1px solid #30363d; padding:12px 16px;'>
+        <h6 class='modal-title fw-bold'><i class='fa-solid fa-user-pen' style='color:var(--accent);'></i> Rename Device Profile</h6>
+        <button type='button' class='btn-close btn-close-white' data-bs-dismiss='modal'></button>
+      </div>
+      <div class='modal-body' style='padding:16px;'>
+        <label style='font-size:12px; font-weight:600; margin-bottom:6px;'>Child Name / Custom Nickname:</label>
+        <input class='kc-input form-control' id='renameInput' placeholder='e.g. Anas PC, Sarah Laptop'>
+      </div>
+      <div class='modal-footer' style='border-top:1px solid #30363d; padding:10px 16px;'>
+        <button class='btn btn-outline-secondary btn-sm' data-bs-dismiss='modal'>Cancel</button>
+        <button class='btn-kc primary' onclick='saveDeviceNickname()'>Save</button>
       </div>
     </div>
   </div>
