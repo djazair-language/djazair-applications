@@ -530,12 +530,33 @@ function doScreenshot() {
     sendCmd('SCREENSHOT', function(raw) {
         btn.html('<i class="fa-solid fa-camera-retro"></i> Capture New Screenshot');
         btn.prop('disabled', false);
-        if (!raw.startsWith('SCREENSHOT:')) {
+        if (!raw || typeof raw !== 'string' || !raw.startsWith('SCREENSHOT:')) {
             toast('Failed to capture screenshot from child computer.', 'danger');
             return;
         }
+        var b64 = raw.substring(11).trim();
+        if (!b64 || b64.startsWith('ERR:')) {
+            toast('Screenshot error: ' + b64, 'danger');
+            return;
+        }
+        
+        var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+        var cache = getDevCache(devId);
+        if (!cache.screenshots) cache.screenshots = [];
+        
+        var d = new Date();
+        var timeLabel = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + ' ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+        
+        cache.screenshots.unshift({
+            filename: 'live_' + Date.now() + '.b64',
+            time: timeLabel,
+            b64: b64
+        });
+        cache.activeScreenshotIdx = 0;
+        saveDevCache(devId);
+        renderScreenshotGallery();
         toast('Screenshot captured and archived!', 'success');
-        loadScreenshotHistory();
+        setTimeout(loadScreenshotHistory, 800);
     }, function() {
         btn.html('<i class="fa-solid fa-camera-retro"></i> Capture New Screenshot');
         btn.prop('disabled', false);
@@ -574,8 +595,10 @@ function loadWebcamHistory() {
         var list = extractData(res);
         if (!Array.isArray(list)) list = [];
         var cache = getDevCache(devId);
-        cache.webcam = list;
-        renderWebcamGallery();
+        if (list.length > 0) {
+            cache.webcam = list;
+            renderWebcamGallery();
+        }
     });
 }
 
@@ -660,19 +683,37 @@ function doWebcam() {
     btn.prop('disabled', true).html('<span class="spin"></span> Capturing...');
     sendCmd('WEBCAM', function(raw) {
         btn.prop('disabled', false).html('<i class="fa-solid fa-video"></i> Capture Webcam Snapshot');
-        if(raw.startsWith("WEBCAM:")) {
-            var b64 = raw.substring(7).trim();
-            if(b64 === "NO_WEBCAM" || b64 === "" || b64.startsWith("ERR:")) {
-                toast("No webcam detected or camera access denied.", "warning");
-                return;
+        if (!raw || typeof raw !== 'string' || !raw.startsWith('WEBCAM:')) {
+            if (raw === 'NO_WEBCAM' || (typeof raw === 'string' && raw.indexOf('NO_WEBCAM') >= 0)) {
+                toast('No webcam detected on the child computer.', 'warning');
+            } else {
+                toast('Failed to capture webcam snapshot.', 'danger');
             }
-            toast('Webcam snapshot captured and archived!', 'success');
-            loadWebcamHistory();
-        } else if (raw.indexOf('NO_WEBCAM') >= 0) {
-            toast('No webcam detected on the child computer.', 'warning');
-        } else {
-            toast('Failed to capture webcam snapshot.', 'danger');
+            return;
         }
+        var b64 = raw.substring(7).trim();
+        if (!b64 || b64 === 'NO_WEBCAM' || b64.startsWith('ERR:')) {
+            toast('No webcam detected or camera access denied.', 'warning');
+            return;
+        }
+        
+        var devId = selectedDev.id || ('KC-' + selectedDev.ip);
+        var cache = getDevCache(devId);
+        if (!cache.webcam) cache.webcam = [];
+        
+        var d = new Date();
+        var timeLabel = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + ' ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+        
+        cache.webcam.unshift({
+            filename: 'live_' + Date.now() + '.b64',
+            time: timeLabel,
+            b64: b64
+        });
+        cache.activeWebcamIdx = 0;
+        saveDevCache(devId);
+        renderWebcamGallery();
+        toast('Webcam snapshot captured and archived!', 'success');
+        setTimeout(loadWebcamHistory, 800);
     }, function() {
         btn.prop('disabled', false).html('<i class="fa-solid fa-video"></i> Capture Webcam Snapshot');
     });

