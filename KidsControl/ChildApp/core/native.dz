@@ -1,7 +1,7 @@
 use file
 use process
 
-let NATIVE_EXE = "KidsControlNative.exe"
+let NATIVE_EXE = "KidsControlNative_v2.exe"
 
 # Compiles the high-performance C# helper on startup if missing.
 fn setupNativeHelper()
@@ -96,36 +96,42 @@ class KidsControlNative {
     try file.delete(csFile) catch e end
 end
 
-# Global daemon handle — started once, reused for all calls.
+# Global daemon handle — started once, reused for all calls until it dies.
 let _daemonProc = Null
 
-# Ensures the native daemon process is alive, restarting it if needed.
+# Ensures the native daemon process is alive, (re)starting it if needed.
+# @return {Map} The spawn handle {read, write, err, pid}
 fn ensureDaemon()
-    # If we already have a live daemon handle, return it immediately.
     if !isNull(_daemonProc)
         return _daemonProc
     end
 
-    # Build the binary if it doesn't exist yet.
+    # Build the binary if missing (first run or after update)
     setupNativeHelper()
 
-    # Spawn the daemon process. It will wait for stdin commands in a loop.
+    # Spawn the daemon — it now loops on stdin waiting for commands
     _daemonProc = process.spawn(NATIVE_EXE)
-    process.sleep(0.2)
+    # Give the process time to start up before we talk to it
+    process.sleep(0.5)
     return _daemonProc
 end
 
-# Sends a single command to the persistent native daemon and reads one line back.
-# @param {string} cmd - The command to send (window | screenshot | webcam).
-# @return {string} The response line from the daemon, or an error string.
-fn callDaemon(cmd)
+# Sends a command to the daemon and waits the appropriate time for a response.
+# Different commands have different latencies:
+#   window     ~instant  → wait 0.5s
+#   screenshot ~500ms    → wait 3.0s
+#   webcam     ~1500ms   → wait 4.5s (includes Thread.Sleep(1000) inside C#)
+# @param {string} cmd      - Command name
+# @param {number} waitSecs - How long to wait for the response
+# @return {string} Trimmed response line, or "ERROR:..."
+fn callDaemon(cmd, waitSecs)
     try
         let p = ensureDaemon()
         process.write(p["write"], cmd + "\n")
-        process.sleep(0.1)
+        process.sleep(waitSecs)
         let out = process.read(p["read"])
-        if isNull(out)
-            # Daemon may have died — reset and signal error
+        if isNull(out) or out == ""
+            # Daemon died or timed out — reset so next call restarts it
             _daemonProc = Null
             return "ERROR:DAEMON_DIED"
         end
@@ -139,8 +145,7 @@ end
 # Captures a desktop screenshot using the persistent native daemon.
 # @return {string} Base64 image data prefixed with SCREENSHOT: or ERR:
 fn takeScreenshot()
-    setupNativeHelper()
-    let out = callDaemon("screenshot")
+    let out = callDaemon("screenshot", 3.0)
     if out == "" or out.startsWith("ERROR:")
         return "ERR:SCREENSHOT_FAILED"
     end
@@ -150,8 +155,7 @@ end
 # Captures a webcam image using the persistent native daemon.
 # @return {string} Base64 image data prefixed with WEBCAM: or ERR:
 fn takeWebcamSnapshot()
-    setupNativeHelper()
-    let out = callDaemon("webcam")
+    let out = callDaemon("webcam", 4.5)
     if out == "NO_WEBCAM"
         return "ERR:NO_WEBCAM"
     elif out == "" or out.startsWith("ERROR:")
@@ -163,7 +167,6 @@ end
 # Gets the title of the currently active window using the persistent native daemon.
 # @return {string} Window title prefixed with ACTIVE_WINDOW:
 fn getActiveWindow()
-    setupNativeHelper()
-    let out = callDaemon("window")
+    let out = callDaemon("window", 0.5)
     return "ACTIVE_WINDOW:" + out
 end
