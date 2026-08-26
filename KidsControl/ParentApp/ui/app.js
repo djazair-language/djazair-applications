@@ -331,6 +331,8 @@ function performScan(isManual) {
                 d.ip = updatedMap[key].ip;
                 d.hostname = updatedMap[key].hostname;
                 if (updatedMap[key].custom_name) d.custom_name = updatedMap[key].custom_name;
+                d.active_window = updatedMap[key].active_window || '';
+                d.processes_changed = updatedMap[key].processes_changed || false;
             } else {
                 d.is_online = false;
             }
@@ -353,6 +355,18 @@ function performScan(isManual) {
             if (matchIdx !== -1) {
                 selectedDev = devices[matchIdx];
                 setDeviceLiveState(!!selectedDev.is_online);
+                if (selectedDev.is_online && selectedDev.active_window) {
+                    $('#dashActiveWindow').text(selectedDev.active_window);
+                }
+                if (selectedDev.is_online && selectedDev.processes_changed) {
+                    // Automatically reload processes if on the tab
+                    if ($('#tab-processes').hasClass('active') || $('#tab-processes').hasClass('show')) {
+                        doLoadProcesses(true); // Re-fetch since child signaled new data
+                        selectedDev.processes_changed = false;
+                    } else if ($('#procNewBadge').length === 0) {
+                        $('#nav-processes-tab').append('<span class="kc-badge danger" id="procNewBadge" style="margin-left:8px; padding:2px 4px; font-size:9px;">NEW</span>');
+                    }
+                }
             }
         }
 
@@ -833,6 +847,10 @@ function closeLightbox() { $('#lightbox').hide(); }
 // ═════════════════════════════════════════════════════════════════════════════
 
 function onProcessesTabOpened() {
+    $('#procNewBadge').remove();
+    if (selectedDev && selectedDev.processes_changed) {
+        selectedDev.processes_changed = false; // Reset the flag locally
+    }
     if (allProcs.length === 0) doLoadProcesses(false);
 }
 

@@ -131,7 +131,9 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
                 "custom_name": "",
                 "ip": reportedIp,
                 "is_online": True,
-                "last_seen": nowTs
+                "last_seen": nowTs,
+                "active_window": if req.has("active_window") ? req["active_window"] else "",
+                "processes_changed": if req.has("processes_changed") ? req["processes_changed"] else False
             }
         else
             let s = sessions[devId]
@@ -139,6 +141,12 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
             s["ip"] = reportedIp
             s["is_online"] = True
             s["last_seen"] = nowTs
+            if req.has("active_window")
+                s["active_window"] = req["active_window"]
+            end
+            if req.has("processes_changed")
+                s["processes_changed"] = req["processes_changed"]
+            end
         end
 
         # Sync sessions map to children.json without overwriting UI changes (custom_name)

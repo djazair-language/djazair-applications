@@ -58,18 +58,47 @@ let pendingResult = Null
 let pendingResultCmdId = Null
 let shouldExit = False
 
+# Smart Sync State
+let lastActiveWindow = ""
+let lastProcCheck = 0.0
+let lastProcCount = -1
+
 while True
     try
         let client = new net.tcpClient()
         let ok = client.connect(constants.PARENT_HOST, constants.PARENT_PORT)
         if ok
+            # --- Smart Sync Checks ---
+            # 1. Active Window Check (Fast ~40ms)
+            let currWin = router.dispatch("ACTIVE_WINDOW")
+            if currWin.startsWith("ACTIVE_WINDOW:")
+                currWin = currWin.slice(14).strip()
+            end
+            
+            # 2. Process Check (Every 5 seconds)
+            let nowTs = datetime.now().timestamp()
+            let procsChanged = False
+            if nowTs - lastProcCheck >= 5.0
+                lastProcCheck = nowTs
+                let pList = router.dispatch("PROCESSES")
+                let pCount = pList.split("\n").length()
+                if lastProcCount != -1 and pCount != lastProcCount
+                    procsChanged = True
+                end
+                lastProcCount = pCount
+            end
+
             # Build check-in registration payload
             let req = {
                 "secret":   constants.SECRET_KEY,
                 "id":       deviceId,
                 "hostname": hostname,
-                "ip":       localIp
+                "ip":       localIp,
+                "active_window": currWin
             }
+            if procsChanged
+                req["processes_changed"] = True
+            end
 
             let sentCmdId = Null
             if !isNull(pendingResult)
