@@ -357,10 +357,8 @@ function performScan(isManual) {
         });
 
         if (playSound) {
-            try {
-                // Short beep sound (base64 wav)
-                new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'+Array(500).join('v/')).play();
-            } catch(e) {}
+            // Visual notification instead of Audio to avoid WebView crashes
+            toast('A device is now online!', 'info');
         }
 
         renderDevices();
