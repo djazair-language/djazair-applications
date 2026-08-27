@@ -39,17 +39,52 @@ fn detectParentLocalIp()
             text = out["stdout"]
         end
         let lines = text.split("\n")
+
+        # Virtual/software adapters to skip (matched against adapter name, case-insensitive)
+        # Covers English and French Windows + common VPN/VM software
+        let virtualKeywords = ["vmware", "virtualbox", "vbox", "hyper-v", "wsl", "loopback",
+                               "bluetooth", "tunnel", "teredo", "isatap", "6to4", "pseudo",
+                               "miniport", "cloudflare", "warp", "vpn", "tap"]
+
+        let currentAdapter = ""
+        let bestIp = ""      # 192.168.x.x or 10.x.x.x (real LAN)
+        let fallbackIp = ""  # 172.x.x.x as last resort
+
         for line in lines
-            if line.contains("IPv4") and line.contains(":")
-                let parts = line.split(":")
-                if parts.length() >= 2
-                    let ip = parts[1].strip()
-                    if ip.startsWith("192.168.") or ip.startsWith("10.") or ip.startsWith("172.")
-                        return ip
+            let trimmed = line.strip()
+
+            # Adapter header lines: don't start with whitespace, end with ":" or " :"
+            let notIndented = !line.startsWith(" ") and !line.startsWith("\t")
+            let endsWithColon = trimmed.endsWith(":") or trimmed.endsWith(" :")
+            if notIndented and endsWithColon and trimmed.length() > 2
+                currentAdapter = trimmed.lower()
+
+            # IPv4 line — English: "IPv4 Address" / French: "Adresse IPv4"
+            elif trimmed.contains("IPv4") and trimmed.contains(":")
+                # Skip virtual adapters
+                let isVirtual = False
+                for kw in virtualKeywords
+                    if currentAdapter.contains(kw)
+                        isVirtual = True
+                        break
                     end
+                end
+                if isVirtual continue end
+
+                # IP is always the last token after the last ":"
+                # split(":") then take the last element — no lastIndexOf needed
+                let parts = trimmed.split(":")
+                let ip = parts[parts.length() - 1].strip()
+                if (ip.startsWith("192.168.") or ip.startsWith("10.")) and bestIp == ""
+                    bestIp = ip
+                elif ip.startsWith("172.") and fallbackIp == ""
+                    fallbackIp = ip
                 end
             end
         end
+
+        if bestIp != "" return bestIp end
+        if fallbackIp != "" return fallbackIp end
         return "127.0.0.1"
     catch e
         return "127.0.0.1"
