@@ -339,14 +339,19 @@
         <!-- ─── TERMINAL ─── -->
         <div class='tab-pane fade' id='tab-terminal'>
           <div class='term-wrap'>
-            <div class='term-bar'>
+            <div class='term-bar d-flex align-items-center'>
               <div class='term-dot' style='background:#f85149;'></div>
               <div class='term-dot' style='background:#d29922;'></div>
               <div class='term-dot' style='background:#3fb950;'></div>
-              <span class='term-label' id='termLabel'>Remote Terminal</span>
-              <button class='btn-icon' onclick='clearTerm()' style='margin-left:auto; width:26px; height:26px;' title='Clear'>
-                <i class='fa-solid fa-trash'></i>
-              </button>
+              <span class='term-label ms-2' id='termLabel'>Remote Terminal</span>
+              <div style='margin-left:auto;'>
+                <button class='btn-icon me-2' onclick='exportTerminalCSV()' style='width:26px; height:26px;' title='Export CSV'>
+                  <i class='fa-solid fa-file-csv'></i>
+                </button>
+                <button class='btn-icon' onclick='clearTerm()' style='width:26px; height:26px;' title='Clear'>
+                  <i class='fa-solid fa-trash'></i>
+                </button>
+              </div>
             </div>
             <div class='term-out' id='termOut'>
               <span class='t-sys'>// Kids Control Center — Remote Terminal

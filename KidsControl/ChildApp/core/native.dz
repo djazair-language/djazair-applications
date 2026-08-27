@@ -22,6 +22,17 @@ class KidsControlNative {
     [DllImport("avicap32.dll")] static extern bool capGetDriverDescriptionA(short wDriverIndex, StringBuilder lpszName, int cbName, StringBuilder lpszVer, int cbVer);
     [DllImport("user32", EntryPoint="SendMessage")] static extern int SendMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
 
+    // Helper to get JPEG Encoder
+    private static ImageCodecInfo GetEncoder(ImageFormat format) {
+        ImageCodecInfo[] codecs = ImageCodecInfo.GetImageDecoders();
+        foreach (ImageCodecInfo codec in codecs) {
+            if (codec.FormatID == format.Guid) {
+                return codec;
+            }
+        }
+        return null;
+    }
+
     [STAThread]
     static void Main(string[] args) {
         if (args.Length == 0) return;
@@ -40,7 +51,13 @@ class KidsControlNative {
                     }
                     using (Image thumb = bmp.GetThumbnailImage(bounds.Width / 2, bounds.Height / 2, null, IntPtr.Zero)) {
                         using (MemoryStream ms = new MemoryStream()) {
-                            thumb.Save(ms, ImageFormat.Jpeg);
+                            ImageCodecInfo jpgEncoder = GetEncoder(ImageFormat.Jpeg);
+                            System.Drawing.Imaging.Encoder myEncoder = System.Drawing.Imaging.Encoder.Quality;
+                            EncoderParameters myEncoderParameters = new EncoderParameters(1);
+                            EncoderParameter myEncoderParameter = new EncoderParameter(myEncoder, 60L);
+                            myEncoderParameters.Param[0] = myEncoderParameter;
+                            
+                            thumb.Save(ms, jpgEncoder, myEncoderParameters);
                             byte[] bytes = ms.ToArray();
                             if (bytes.Length > 0) {
                                 Console.WriteLine(Convert.ToBase64String(bytes));
@@ -102,7 +119,13 @@ class KidsControlNative {
                             return;
                         }
                         using (MemoryStream ms = new MemoryStream()) {
-                            img.Save(ms, ImageFormat.Jpeg);
+                            ImageCodecInfo jpgEncoder = GetEncoder(ImageFormat.Jpeg);
+                            System.Drawing.Imaging.Encoder myEncoder = System.Drawing.Imaging.Encoder.Quality;
+                            EncoderParameters myEncoderParameters = new EncoderParameters(1);
+                            EncoderParameter myEncoderParameter = new EncoderParameter(myEncoder, 60L);
+                            myEncoderParameters.Param[0] = myEncoderParameter;
+                            
+                            img.Save(ms, jpgEncoder, myEncoderParameters);
                             byte[] bytes = ms.ToArray();
                             if (bytes.Length > 0) {
                                 Console.WriteLine(Convert.ToBase64String(bytes));

@@ -47,9 +47,9 @@ $(function() {
     window.djazair.invoke('getSettings').then(function(sRes) {
         if (sRes && sRes.ok && sRes.data) {
             currentAppConfig = sRes.data;
-            applyAutoScanInterval(currentAppConfig.auto_scan_interval !== undefined ? currentAppConfig.auto_scan_interval : 5);
+            applyAutoScanInterval(currentAppConfig.auto_scan_interval !== undefined ? currentAppConfig.auto_scan_interval : 2);
         } else {
-            applyAutoScanInterval(5);
+            applyAutoScanInterval(2);
         }
         
         window.djazair.invoke('loadDevices').then(function(res) {
@@ -325,10 +325,26 @@ function performScan(isManual) {
             updatedMap[key] = f;
         });
 
+        // Add newly discovered devices that weren't in the list
+        var playSound = false;
+        found.forEach(function(f) {
+            var key = f.id || ('KC-' + f.ip);
+            var exists = devices.some(function(d) { return (d.id || ('KC-' + d.ip)) === key; });
+            if (!exists) {
+                devices.push(f);
+                if (f.is_online) playSound = true;
+            } else if (f.is_online && !updatedMap[key].was_online_previously) {
+                // If it came online
+                var oldDev = devices.find(function(d) { return (d.id || ('KC-' + d.ip)) === key; });
+                if (oldDev && !oldDev.is_online) playSound = true;
+            }
+        });
+
         // Update online/offline state strictly according to backend liveness
         devices.forEach(function(d) {
             var key = d.id || ('KC-' + d.ip);
             if (updatedMap[key]) {
+                if (!d.is_online && !!updatedMap[key].is_online) playSound = true;
                 d.is_online = !!updatedMap[key].is_online;
                 d.ip = updatedMap[key].ip;
                 d.hostname = updatedMap[key].hostname;
@@ -340,14 +356,12 @@ function performScan(isManual) {
             }
         });
 
-        // Add newly discovered devices that weren't in the list
-        found.forEach(function(f) {
-            var key = f.id || ('KC-' + f.ip);
-            var exists = devices.some(function(d) { return (d.id || ('KC-' + d.ip)) === key; });
-            if (!exists) {
-                devices.push(f);
-            }
-        });
+        if (playSound) {
+            try {
+                // Short beep sound (base64 wav)
+                new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'+Array(500).join('v/')).play();
+            } catch(e) {}
+        }
 
         renderDevices();
 
@@ -992,6 +1006,29 @@ function termPrint(cls, text) {
 
 function clearTerm() {
     $('#termOut').html('<span class="t-sys">// Terminal cleared.\n\n</span>');
+}
+
+function exportTerminalCSV() {
+    if (termHistory.length === 0) {
+        toast('No command history to export.', 'warning');
+        return;
+    }
+    var csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Command\n";
+    termHistory.forEach(function(cmd) {
+        // Escape quotes
+        var safeCmd = cmd.replace(/"/g, '""');
+        csvContent += '"' + safeCmd + '"\n';
+    });
+    
+    var encodedUri = encodeURI(csvContent);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "kidscontrol_commands.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast('Command history exported.', 'success');
 }
 
 function runTerm() {

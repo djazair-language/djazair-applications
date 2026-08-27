@@ -222,6 +222,11 @@ fn register(app)
                 pMap[devId] = []
             end
 
+            # Command Queue Limit (Max 5 commands per device)
+            if pMap[devId].length() >= 5
+                return {"ok": False, "data": "الجهاز بطيء في الاستجابة أو غير متصل. هناك 5 أوامر قيد الانتظار بالفعل، يرجى الانتظار."}
+            end
+
             pMap[devId].append({
                 "cmd_id": cmdId,
                 "command": cmd,

@@ -12,20 +12,41 @@ use json
 use datetime
 import "../core/constants.dz" as constants
 
-let MASTER_PORT    = constants.MASTER_PORT
-let SECRET_KEY     = constants.SECRET_KEY
+let MASTER_PORT     = constants.MASTER_PORT
+let SECRET_KEY      = constants.SECRET_KEY
 let OFFLINE_TIMEOUT = 3.5
+let MAX_SCREENSHOTS = 100   # Max stored files per device per type before rotation
+let LOG_FILE        = ""    # Set after BASE_DIR is known
 
 let BASE_DIR = "."
 if file.exists("ParentApp/main.dz")
     BASE_DIR = "ParentApp"
 end
 
-let DEVICES_FILE = path.join(BASE_DIR, "children.json")
+let LOG_FILE        = path.join(BASE_DIR, "storage", "app.log")
+let DEVICES_FILE    = path.join(BASE_DIR, "children.json")
 let PENDING_CMDS_FILE = path.join(BASE_DIR, "storage", "pending_cmds.json")
-let RESULTS_DIR = path.join(BASE_DIR, "storage", "results")
+let RESULTS_DIR     = path.join(BASE_DIR, "storage", "results")
 
-# Helpers for storage
+# ─── Logging ──────────────────────────────────────────────────────────────────
+fn logMsg(level, msg)
+    try
+        let now = datetime.now()
+        let ts = str(int(now.year())) + "-" + str(int(now.month())).zFill(2) + "-" + str(int(now.day())).zFill(2) + " " + str(int(now.hour())).zFill(2) + ":" + str(int(now.minute())).zFill(2) + ":" + str(int(now.second())).zFill(2)
+        let line = "[" + ts + "] [" + level + "] " + msg + "\n"
+        print(line.strip())
+        # Rotate log if > 1MB
+        try
+            let st = file.stat(LOG_FILE)
+            if st.has("size") and st["size"] > 1048576
+                file.delete(LOG_FILE)
+            end
+        catch e end
+        file.append(LOG_FILE, line)
+    catch e end
+end
+
+# ─── Storage Directory Helpers ────────────────────────────────────────────────
 fn getSsDir(deviceId)
     let safeId = deviceId.replace(":", "_").replace("/", "_").replace("\\", "_")
     let d = path.join(BASE_DIR, "storage", "screenshots", safeId)
@@ -40,6 +61,34 @@ fn getWcDir(deviceId)
     return d
 end
 
+# ─── Storage Rotation ─────────────────────────────────────────────────────────
+# Keep only the newest MAX_SCREENSHOTS files — delete the oldest ones.
+fn rotateStorage(dirPath)
+    try
+        let files = dir.list(dirPath)
+        if files.length() <= MAX_SCREENSHOTS return end
+        # Sort ascending (oldest first) — bubble sort
+        if files.length() > 1
+            for i in 0..(files.length() - 2)
+                for j in (i + 1)..(files.length() - 1)
+                    if files[i] > files[j]
+                        let tmp = files[i]
+                        files[i] = files[j]
+                        files[j] = tmp
+                    end
+                end
+            end
+        end
+        # Delete oldest files until we're under the limit
+        let toDelete = files.length() - MAX_SCREENSHOTS
+        for i in 0..(toDelete - 1)
+            try file.delete(path.join(dirPath, files[i])) catch e end
+        end
+        logMsg("INFO", "[Rotation] Deleted " + str(toDelete) + " old files from " + dirPath)
+    catch e end
+end
+
+# ─── Auto Archive ─────────────────────────────────────────────────────────────
 fn autoArchive(deviceId, rawData)
     if isNull(rawData) or type(rawData) != "String"
         return
@@ -55,14 +104,19 @@ fn autoArchive(deviceId, rawData)
             let sDir = getSsDir(safeId)
             let filePath = path.join(sDir, ts + ".jpg")
             try
-                # Decode Base64 → binary String → bytes Array → write as real JPEG
                 use crypto
                 use bytes
                 let imgBytes = bytes.fromString(crypto.base64Decode(b64))
+                # Validate JPEG magic bytes: 0xFF 0xD8
+                if imgBytes.length() < 2 or imgBytes[0] != 255 or imgBytes[1] != 216
+                    logMsg("WARN", "[Archive] Rejected invalid JPEG for " + deviceId)
+                    return
+                end
                 file.writeBytes(filePath, imgBytes)
-                print("[AutoArchive] Saved screenshot: " + filePath)
+                rotateStorage(sDir)
+                logMsg("INFO", "[Archive] Screenshot saved: " + filePath)
             catch e
-                print("[AutoArchive] ERROR saving screenshot: " + str(e))
+                logMsg("ERROR", "[Archive] Screenshot failed for " + deviceId + ": " + str(e))
             end
         end
     elif rawData.startsWith("WEBCAM:")
@@ -74,7 +128,12 @@ fn autoArchive(deviceId, rawData)
                 use crypto
                 use bytes
                 let imgBytes = bytes.fromString(crypto.base64Decode(b64))
+                # Validate JPEG magic bytes
+                if imgBytes.length() < 2 or imgBytes[0] != 255 or imgBytes[1] != 216
+                    return
+                end
                 file.writeBytes(filePath, imgBytes)
+                rotateStorage(wDir)
             catch e end
         end
     end
