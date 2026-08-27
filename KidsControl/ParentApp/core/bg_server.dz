@@ -171,7 +171,13 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
         end
 
         let req = Null
-        try req = json.decode(raw) catch e client.close() return end
+        try 
+            req = json.decode(raw) 
+        catch e 
+            print("[Master Server] Invalid JSON from client: " + str(e) + " | RAW: " + raw)
+            client.close() 
+            return 
+        end
         if type(req) != "Map" or !req.has("id") or !req.has("secret")
             client.close()
             return
@@ -202,9 +208,15 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
                 "ip": reportedIp,
                 "is_online": True,
                 "last_seen": nowTs,
-                "active_window": if req.has("active_window") ? req["active_window"] else "",
-                "processes_changed": if req.has("processes_changed") ? req["processes_changed"] else False
+                "active_window": "",
+                "processes_changed": False
             }
+            if req.has("active_window")
+                sessions[devId]["active_window"] = req["active_window"]
+            end
+            if req.has("processes_changed")
+                sessions[devId]["processes_changed"] = req["processes_changed"]
+            end
         else
             let s = sessions[devId]
             s["hostname"] = hostname
@@ -340,6 +352,7 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
         client.shutdown(net.SD_SEND)
         client.close()
     catch err
+        print("[Master Server] Client Handler Error: " + str(err))
         try client.close() catch e end
     end
 end)

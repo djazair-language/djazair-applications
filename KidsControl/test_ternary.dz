@@ -1,0 +1,1 @@
+let req = {"active_window": "foo"}; let a = {"active_window": if req.has("active_window") ? req["active_window"] else ""}; print(a)

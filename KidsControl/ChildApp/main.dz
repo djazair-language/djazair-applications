@@ -148,10 +148,13 @@ while True
                     sentCmdId = pendingResultCmdId
                 end
 
+                print("[ChildApp] Sending check-in payload...")
                 client.send(json.encode(req))
                 client.shutdown(net.SD_SEND)
+                print("[ChildApp] Sent. Waiting for response...")
 
                 let respRaw = client.receiveAll()
+                print("[ChildApp] Received response: " + str(respRaw))
                 client.close()
 
                 if !isNull(sentCmdId) and pendingResultCmdId == sentCmdId
