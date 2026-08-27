@@ -19,7 +19,7 @@ let app = webview.createWindow({
     "title":  "Kids Control Center",
     "width":  1280.0,
     "height": 800.0,
-    "debug":  True
+    "debug":  False
 })
 
 # 4. On Ready Handler

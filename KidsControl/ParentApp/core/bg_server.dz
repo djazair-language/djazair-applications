@@ -10,9 +10,10 @@ use dir
 use path
 use json
 use datetime
+import "../core/constants.dz" as constants
 
-let MASTER_PORT = 9999
-let SECRET_KEY = "KIDS_CTRL_2026"
+let MASTER_PORT    = constants.MASTER_PORT
+let SECRET_KEY     = constants.SECRET_KEY
 let OFFLINE_TIMEOUT = 3.5
 
 let BASE_DIR = "."

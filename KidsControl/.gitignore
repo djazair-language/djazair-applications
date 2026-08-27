@@ -1,5 +1,11 @@
+# Build artifacts & binaries
 .dpack_cache_*
 .dpack_bundle.zip
 *.exe
+NativeHelper.cs
+
+# Runtime-generated files (should not be tracked)
 __kc_scan_results.json
+children.json
 storage/
+*.tmp
