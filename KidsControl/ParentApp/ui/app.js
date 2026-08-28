@@ -316,8 +316,14 @@ function performScan(isManual) {
             btn.html('<i class="fa-solid fa-radar"></i> Scan Network');
             btn.prop('disabled', false);
         }
+
+        // If res is null (due to read lock collision on backend), ignore it and wait for next tick.
+        if (res === null || res === undefined) {
+            return;
+        }
+
         var found = extractData(res);
-        if (!Array.isArray(found)) found = [];
+        if (!Array.isArray(found)) return; // If we got gibberish, don't nuke the state
 
         var updatedMap = {};
         found.forEach(function(f) {

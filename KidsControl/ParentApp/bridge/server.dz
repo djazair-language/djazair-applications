@@ -114,24 +114,38 @@ fn register(app)
         return detectParentLocalIp()
     end)
 
+    # Helper function for safe reading with retries
+    fn safeReadFile(pathStr)
+        for i in range(5)
+            try
+                return file.read(pathStr)
+            catch e
+                process.sleep(0.1)
+            end
+        end
+        return ""
+    end
+
     # IPC: loadDevices
     app.bridge.on("loadDevices", fn(payload)
         try
             if file.isFile(config.DEVICES_FILE)
-                let data = file.read(config.DEVICES_FILE)
-                let list = json.decode(data)
-                if type(list) == "Array"
-                    let now = datetime.now().timestamp()
-                    for d in list
-                        if type(d) == "Map"
-                            let lastSeen = 0
-                            if d.has("last_seen")
-                                lastSeen = d["last_seen"]
+                let data = safeReadFile(config.DEVICES_FILE)
+                if data != ""
+                    let list = json.decode(data)
+                    if type(list) == "Array"
+                        let now = datetime.now().timestamp()
+                        for d in list
+                            if type(d) == "Map"
+                                let lastSeen = 0
+                                if d.has("last_seen")
+                                    lastSeen = d["last_seen"]
+                                end
+                                d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
                             end
-                            d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
                         end
+                        return list
                     end
-                    return list
                 end
             end
             return []
@@ -163,26 +177,27 @@ fn register(app)
     app.bridge.on("scanNetwork", fn(payload)
         try
             if file.isFile(config.DEVICES_FILE)
-                let data = file.read(config.DEVICES_FILE)
-                let list = json.decode(data)
-                if type(list) == "Array"
-                    let now = datetime.now().timestamp()
-                    for d in list
-                        if type(d) == "Map"
-                            let lastSeen = 0
-                            if d.has("last_seen")
-                                lastSeen = d["last_seen"]
+                let data = safeReadFile(config.DEVICES_FILE)
+                if data != ""
+                    let list = json.decode(data)
+                    if type(list) == "Array"
+                        let now = datetime.now().timestamp()
+                        for d in list
+                            if type(d) == "Map"
+                                let lastSeen = 0
+                                if d.has("last_seen")
+                                    lastSeen = d["last_seen"]
+                                end
+                                d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
                             end
-                            d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
                         end
+                        return list
                     end
-                    # Do NOT write is_online back to disk — bg_server owns that file!
-                    return list
                 end
             end
-            return []
+            return Null # Return Null on failure so UI doesn't nuke state
         catch e
-            return []
+            return Null
         end
     end)
 
