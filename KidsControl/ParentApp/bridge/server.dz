@@ -19,7 +19,7 @@ end
 
 let PENDING_CMDS_FILE = path.join(BASE_DIR, "storage", "pending_cmds.json")
 let RESULTS_DIR = path.join(BASE_DIR, "storage", "results")
-let OFFLINE_TIMEOUT_SECONDS = 3.5
+let OFFLINE_TIMEOUT_SECONDS = 7.0
 
 fn ensureStorageDirs()
     try dir.createAll(path.join(BASE_DIR, "storage", "screenshots")) catch e end
@@ -176,14 +176,7 @@ fn register(app)
                             d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
                         end
                     end
-                    let finalListJson = json.encode(list)
-                    try
-                        file.write(config.DEVICES_FILE + ".tmp", finalListJson)
-                        try file.delete(config.DEVICES_FILE) catch e end
-                        file.rename(config.DEVICES_FILE + ".tmp", config.DEVICES_FILE)
-                    catch e
-                        file.write(config.DEVICES_FILE, finalListJson)
-                    end
+                    # Do NOT write is_online back to disk — bg_server owns that file!
                     return list
                 end
             end
