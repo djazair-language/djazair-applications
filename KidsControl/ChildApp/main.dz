@@ -86,6 +86,7 @@ let shouldExit = False
 let lastActiveWindow = ""
 let lastProcCheck = 0.0
 let lastWinCheck = 0.0
+let lastProcCount = -1
 
 while True
     let connected = False

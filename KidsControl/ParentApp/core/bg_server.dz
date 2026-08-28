@@ -28,6 +28,30 @@ let DEVICES_FILE    = path.join(BASE_DIR, "children.json")
 let PENDING_CMDS_FILE = path.join(BASE_DIR, "storage", "pending_cmds.json")
 let RESULTS_DIR     = path.join(BASE_DIR, "storage", "results")
 
+fn safeReadFile(pathStr)
+    for i in range(5)
+        try
+            return file.read(pathStr)
+        catch e
+            process.sleep(0.1)
+        end
+    end
+    return ""
+end
+
+fn safeWriteFile(pathStr, dataStr)
+    for i in range(5)
+        try
+            file.write(pathStr, dataStr)
+            return True
+        catch e
+            process.sleep(0.1)
+        end
+    end
+    return False
+end
+
+
 # ─── Logging ──────────────────────────────────────────────────────────────────
 fn logMsg(level, msg)
     try
@@ -146,7 +170,8 @@ let sessions = {}
 # Load existing devices with offline initial state
 try
     if file.isFile(DEVICES_FILE)
-        let dData = file.read(DEVICES_FILE)
+        let dData = safeReadFile(DEVICES_FILE)
+        if dData == "" return end
         let list = json.decode(dData)
         if type(list) == "Array"
             for d in list
@@ -156,7 +181,7 @@ try
                     sessions[d["id"]] = d
                 end
             end
-            file.write(DEVICES_FILE, json.encode(list))
+            safeWriteFile(DEVICES_FILE, json.encode(list))
         end
     end
 catch e end
@@ -235,7 +260,8 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
         try
             let diskSessions = {}
             if file.isFile(DEVICES_FILE)
-                let dData = file.read(DEVICES_FILE)
+                let dData = safeReadFile(DEVICES_FILE)
+                if dData == "" throw "Failed to read" end
                 let list = json.decode(dData)
                 if type(list) == "Array"
                     for d in list
@@ -270,15 +296,9 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
                 sessions.remove(id)
             end
             
-            # Atomic-like write using safe write fallback
+            # Safe write with retries
             let outJson = json.encode(finalList)
-            try
-                file.write(DEVICES_FILE + ".tmp", outJson)
-                try file.delete(DEVICES_FILE) catch e end
-                file.rename(DEVICES_FILE + ".tmp", DEVICES_FILE)
-            catch e
-                file.write(DEVICES_FILE, outJson)
-            end
+            safeWriteFile(DEVICES_FILE, outJson)
         catch e end
 
         # Handle returned command output
