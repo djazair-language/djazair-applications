@@ -133,7 +133,7 @@ fn register(app)
             end
         end
         
-        if !readOk return Null end
+        if !readOk return {"ok": False, "error": "lock"} end
         if data == "" return [] end
         
         try
@@ -153,7 +153,7 @@ fn register(app)
             end
             return []
         catch e
-            return Null # Return Null on JSON error so UI doesn't wipe state
+            return {"ok": False, "error": "json"}
         end
     end)
 
