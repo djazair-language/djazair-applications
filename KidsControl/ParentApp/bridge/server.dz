@@ -19,7 +19,7 @@ end
 
 let PENDING_CMDS_FILE = path.join(BASE_DIR, "storage", "pending_cmds.json")
 let RESULTS_DIR = path.join(BASE_DIR, "storage", "results")
-let OFFLINE_TIMEOUT_SECONDS = 3.5
+let OFFLINE_TIMEOUT_SECONDS = 12.0
 
 fn ensureStorageDirs()
     try dir.createAll(path.join(BASE_DIR, "storage", "screenshots")) catch e end
@@ -116,27 +116,44 @@ fn register(app)
 
     # IPC: loadDevices
     app.bridge.on("loadDevices", fn(payload)
-        try
-            if file.isFile(config.DEVICES_FILE)
-                let data = file.read(config.DEVICES_FILE)
-                let list = json.decode(data)
-                if type(list) == "Array"
-                    let now = datetime.now().timestamp()
-                    for d in list
-                        if type(d) == "Map"
-                            let lastSeen = 0
-                            if d.has("last_seen")
-                                lastSeen = d["last_seen"]
-                            end
-                            d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
-                        end
-                    end
-                    return list
+        let retryCount = 0
+        let data = ""
+        let readOk = False
+        
+        while retryCount < 5
+            try
+                if file.isFile(config.DEVICES_FILE)
+                    data = file.read(config.DEVICES_FILE)
                 end
+                readOk = True
+                break
+            catch e
+                retryCount += 1
+                process.sleep(0.1)
+            end
+        end
+        
+        if !readOk return Null end
+        if data == "" return [] end
+        
+        try
+            let list = json.decode(data)
+            if type(list) == "Array"
+                let now = datetime.now().timestamp()
+                for d in list
+                    if type(d) == "Map"
+                        let lastSeen = 0
+                        if d.has("last_seen")
+                            lastSeen = d["last_seen"]
+                        end
+                        d["is_online"] = (now - lastSeen) < OFFLINE_TIMEOUT_SECONDS
+                    end
+                end
+                return list
             end
             return []
         catch e
-            return []
+            return Null # Return Null on JSON error so UI doesn't wipe state
         end
     end)
 

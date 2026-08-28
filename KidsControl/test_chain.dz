@@ -1,0 +1,4 @@
+let sessions = {}
+sessions["dev1"] = {"active_window": ""}
+sessions["dev1"]["active_window"] = "yes"
+print(sessions["dev1"]["active_window"])

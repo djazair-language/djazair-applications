@@ -317,6 +317,10 @@ function performScan(isManual) {
             btn.prop('disabled', false);
         }
         var found = extractData(res);
+        if (found === null || found === undefined) {
+            // Read error or lock collision, ignore this cycle
+            return;
+        }
         if (!Array.isArray(found)) found = [];
 
         var updatedMap = {};
