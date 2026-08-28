@@ -164,9 +164,7 @@ catch e end
 # Master TCP Server Instance
 let srv = new net.tcpServer(fn(client, clientIp, clientPort)
     try
-        print("[Master Server] Accepted connection from " + clientIp)
         let raw = client.receiveAll()
-        print("[Master Server] Received raw data length: " + str(raw.length()))
         if isNull(raw) or raw == ""
             client.close()
             return
@@ -176,11 +174,9 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
         try 
             req = json.decode(raw) 
         catch e 
-            print("[Master Server] Invalid JSON from client: " + str(e) + " | RAW: " + raw)
             client.close() 
             return 
         end
-        print("[Master Server] Decoded JSON OK")
         
         if type(req) != "Map" or !req.has("id") or !req.has("secret")
             client.close()
@@ -192,7 +188,6 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
             return
         end
 
-        print("[Master Server] Authenticated")
         let devId = req["id"]
         let hostname = clientIp
         if req.has("hostname") and req["hostname"] != ""
@@ -204,7 +199,6 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
         end
         let nowTs = datetime.now().timestamp()
 
-        print("[Master Server] Updating session...")
         # Update or create session
         if !sessions.has(devId)
             sessions[devId] = {
@@ -237,36 +231,19 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
             end
         end
 
-        print("[Master Server] Syncing to children.json...")
-
         # Sync sessions map to children.json without overwriting UI changes (custom_name)
         try
             let diskSessions = {}
-            let retryCount = 0
-            let dData = ""
-            while retryCount < 5
-                try
-                    if file.isFile(DEVICES_FILE)
-                        dData = file.read(DEVICES_FILE)
-                    end
-                    break
-                catch e
-                    retryCount += 1
-                    process.sleep(0.05)
-                end
-            end
-
-            if dData != ""
-                try
-                    let list = json.decode(dData)
-                    if type(list) == "Array"
-                        for d in list
-                            if type(d) == "Map" and d.has("id")
-                                diskSessions[d["id"]] = d
-                            end
+            if file.isFile(DEVICES_FILE)
+                let dData = file.read(DEVICES_FILE)
+                let list = json.decode(dData)
+                if type(list) == "Array"
+                    for d in list
+                        if type(d) == "Map" and d.has("id")
+                            diskSessions[d["id"]] = d
                         end
                     end
-                catch e end
+                end
             end
             
             let finalList = []
@@ -280,8 +257,8 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
                     end
                     finalList.append(s)
                 else
-                    # Device was deleted from UI! Or it's a completely new device
-                    if (nowTs - s["last_seen"]) >= 60.0
+                    # Device was deleted from UI!
+                    if (nowTs - s["last_seen"]) >= 5.0
                         toRemove.append(id)
                     else
                         finalList.append(s)
@@ -371,13 +348,11 @@ let srv = new net.tcpServer(fn(client, clientIp, clientPort)
             end
         catch e end
 
-        print("[Master Server] Sending reply...")
         client.send(json.encode(replyPayload))
         client.shutdown(net.SD_SEND)
         client.close()
-        print("[Master Server] Connection closed cleanly")
     catch err
-        print("[Master Server] Client Handler Error: " + str(err))
+        logMsg("ERROR", "[Server] Client handler error: " + str(err))
         try client.close() catch e end
     end
 end)

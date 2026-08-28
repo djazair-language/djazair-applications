@@ -53,9 +53,8 @@ $(function() {
         }
         
         window.djazair.invoke('loadDevices').then(function(res) {
-            var extracted = extractData(res);
-            if (res && res.ok === false) return;
-            devices = Array.isArray(extracted) ? extracted : [];
+            var d = extractData(res);
+            devices = Array.isArray(d) ? d : [];
             renderDevices();
             if (devices.length > 0) selectDevice(0);
             performScan(false);
@@ -318,10 +317,6 @@ function performScan(isManual) {
             btn.prop('disabled', false);
         }
         var found = extractData(res);
-        if (found === null || found === undefined || (found && found.ok === false)) {
-            // Read error or lock collision, ignore this cycle
-            return;
-        }
         if (!Array.isArray(found)) found = [];
 
         var updatedMap = {};
