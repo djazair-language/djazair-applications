@@ -10,7 +10,7 @@ use dir
 use path
 use json
 use datetime
-import "../core/constants.dz" as constants
+import "constants.dz" as constants
 
 let MASTER_PORT     = constants.MASTER_PORT
 let SECRET_KEY      = constants.SECRET_KEY
