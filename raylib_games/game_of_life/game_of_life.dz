@@ -213,8 +213,8 @@ class GameOfLife
             let mx = rl.getMouseX()
             let my = rl.getMouseY()
             if mx >= 0 and mx < SCREEN_WIDTH and my >= 0 and my < GRID_AREA_HEIGHT
-                let col = math.floor(num(mx) / num(GRID_SIZE))
-                let row = math.floor(num(my) / num(GRID_SIZE))
+                let col = int(mx / GRID_SIZE)
+                let row = int(my / GRID_SIZE)
                 # Bounds check
                 if col >= 0 and col < GRID_W and row >= 0 and row < GRID_H
                     if mPressedL
@@ -302,8 +302,8 @@ class GameOfLife
         let mx = rl.getMouseX()
         let my = rl.getMouseY()
         if mx >= 0 and mx < SCREEN_WIDTH and my >= 0 and my < GRID_AREA_HEIGHT
-            let hCol = math.floor(num(mx) / num(GRID_SIZE))
-            let hRow = math.floor(num(my) / num(GRID_SIZE))
+            let hCol = int(mx / GRID_SIZE)
+            let hRow = int(my / GRID_SIZE)
             if hCol >= 0 and hCol < GRID_W and hRow >= 0 and hRow < GRID_H
                 if self.grid[hCol][hRow] == 0
                     rl.drawRectangle(hCol * GRID_SIZE + 1, hRow * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2, [0, 240, 180, 80])

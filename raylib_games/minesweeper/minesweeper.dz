@@ -255,8 +255,8 @@ class Minesweeper
 
         # Grid bounds check
         if mouseX >= 0 and mouseX < SCREEN_WIDTH and mouseY >= TOP_BAR_HEIGHT and mouseY < SCREEN_HEIGHT
-            let col = math.floor(num(mouseX) / num(CELL_SIZE))
-            let row = math.floor(num(mouseY - TOP_BAR_HEIGHT) / num(CELL_SIZE))
+            let col = int(mouseX / CELL_SIZE)
+            let row = int((mouseY - TOP_BAR_HEIGHT) / CELL_SIZE)
 
             if col >= 0 and col < COLS and row >= 0 and row < ROWS
                 if rl.isMouseButtonPressed(rl.MOUSE_LEFT_BUTTON)
@@ -400,7 +400,7 @@ class Minesweeper
                         let fy = cy + CELL_SIZE / 2
                         rl.drawLine(fx - 4, fy + 7, fx + 5, fy + 7, rl.RAYWHITE) # Base
                         rl.drawLine(fx, fy - 7, fx, fy + 7, rl.RAYWHITE)        # Pole
-                        rl.drawTriangle([fx, fy - 6], [fx, fy + 1], [fx - 6, fy - 2], [255, 60, 80, 255]) # Red flag
+                        rl.drawTriangle(fx, fy - 6, fx, fy + 1, fx - 6, fy - 2, [255, 60, 80, 255]) # Red flag
                     end
                 end
             end
