@@ -12,29 +12,6 @@ let MAX_TUBES = 100
 let FLOPPY_RADIUS = 20
 let TUBES_WIDTH = 80
 
-# Procedural Collision Helper
-fn checkCollisionCircleRec(cx, cy, radius, rx, ry, rw, rh)
-    let closestX = cx
-    if cx < rx
-        closestX = rx
-    elif cx > rx + rw
-        closestX = rx + rw
-    end
-
-    let closestY = cy
-    if cy < ry
-        closestY = ry
-    elif cy > ry + rh
-        closestY = ry + rh
-    end
-
-    let dx = cx - closestX
-    let dy = cy - closestY
-    let distanceSquared = dx * dx + dy * dy
-
-    return distanceSquared < radius * radius
-end
-
 class Tube
     init(x, y)
         self.x = x
@@ -112,8 +89,8 @@ class FloppyGame
                     let lowerY = 600 + t.y - 255
                     let lowerH = 255
 
-                    let collUpper = checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, upperY, TUBES_WIDTH, upperH)
-                    let collLower = checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, lowerY, TUBES_WIDTH, lowerH)
+                    let collUpper = rl.checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, upperY, TUBES_WIDTH, upperH)
+                    let collLower = rl.checkCollisionCircleRec(self.floppyX, self.floppyY, self.floppyRadius, t.x, lowerY, TUBES_WIDTH, lowerH)
                     let collBounds = self.floppyY - self.floppyRadius < 0 or self.floppyY + self.floppyRadius > self.screenHeight
 
                     if collUpper or collLower or collBounds

@@ -20,29 +20,6 @@ fn abs(val)
     return val
 end
 
-# Procedural Circle-Rectangle Collision
-fn checkCollisionCircleRec(cx, cy, radius, rx, ry, rw, rh)
-    let closestX = cx
-    if cx < rx
-        closestX = rx
-    elif cx > rx + rw
-        closestX = rx + rw
-    end
-
-    let closestY = cy
-    if cy < ry
-        closestY = ry
-    elif cy > ry + rh
-        closestY = ry + rh
-    end
-
-    let dx = cx - closestX
-    let dy = cy - closestY
-    let distanceSquared = dx * dx + dy * dy
-
-    return distanceSquared < radius * radius
-end
-
 class Brick
     init(x, y)
         self.x = x
@@ -160,7 +137,7 @@ class ArkanoidGame
                 # Ball vs player paddle collision
                 let paddleRecX = self.playerX - self.playerW / 2
                 let paddleRecY = self.playerY - self.playerH / 2
-                if checkCollisionCircleRec(self.ballX, self.ballY, self.ballRadius, paddleRecX, paddleRecY, self.playerW, self.playerH)
+                if rl.checkCollisionCircleRec(self.ballX, self.ballY, self.ballRadius, paddleRecX, paddleRecY, self.playerW, self.playerH)
                     if self.ballSpeedY > 0
                         self.ballSpeedY = 0 - self.ballSpeedY
                         self.ballSpeedX = (self.ballX - self.playerX) / (self.playerW / 2) * 5
