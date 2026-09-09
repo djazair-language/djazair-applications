@@ -1,0 +1,189 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_helmet.dz — Comprehensive Tests for Kasbah Helmet Middleware
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import "../init.dz" as kasbah
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Kasbah Helmet Middleware Tests ===")
+
+# Mock Request & Response for Unit Testing
+class mockReq
+    init(method = "GET", path = "/", headers = {}, secureFlag = False)
+        self.method     = method
+        self.path       = path
+        self.headersMap = {}
+        for k, v in headers
+            self.headersMap[k.lower()] = v
+        end
+        self.secureFlag = secureFlag
+    end
+
+    header(name)
+        let k = name.lower()
+        if self.headersMap.has(k)
+            return self.headersMap[k]
+        end
+        return ""
+    end
+
+    isSecure()
+        return self.secureFlag
+    end
+end
+
+class mockRes
+    init()
+        self.headersMap = {
+            "x-powered-by": "Djazair/Kasbah"
+        }
+        self.statusCode = 200
+        self.sentFlag   = False
+    end
+
+    header(name, value = Null)
+        let k = name.lower()
+        if not isNull(value)
+            self.headersMap[k] = str(value)
+            return self
+        end
+        if self.headersMap.has(k)
+            return self.headersMap[k]
+        end
+        return ""
+    end
+
+    removeHeader(name)
+        let k = name.lower()
+        if self.headersMap.has(k)
+            self.headersMap.pop(k)
+        end
+        return self
+    end
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 1: Default Security Headers
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 1: Default Security Headers ---")
+
+let defaultHelmet = kasbah.helmet()
+let req1 = new mockReq("GET", "/")
+let res1 = new mockRes()
+defaultHelmet(req1, res1)
+
+test("default X-Frame-Options is SAMEORIGIN", res1.header("X-Frame-Options") == "SAMEORIGIN")
+test("default X-Content-Type-Options is nosniff", res1.header("X-Content-Type-Options") == "nosniff")
+test("default X-XSS-Protection is 1; mode=block", res1.header("X-XSS-Protection") == "1; mode=block")
+test("default Referrer-Policy is no-referrer", res1.header("Referrer-Policy") == "no-referrer")
+test("default X-Download-Options is noopen", res1.header("X-Download-Options") == "noopen")
+test("default Cross-Origin-Opener-Policy is same-origin", res1.header("Cross-Origin-Opener-Policy") == "same-origin")
+test("default Cross-Origin-Resource-Policy is same-origin", res1.header("Cross-Origin-Resource-Policy") == "same-origin")
+test("default removes X-Powered-By", res1.header("X-Powered-By") == "")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 2: HSTS (Strict-Transport-Security)
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 2: HSTS ---")
+
+# Insecure HTTP should NOT get HSTS by default
+let reqHttp = new mockReq("GET", "/", {}, False)
+let resHttp = new mockRes()
+defaultHelmet(reqHttp, resHttp)
+test("insecure request does not receive HSTS by default", resHttp.header("Strict-Transport-Security") == "")
+
+# Secure HTTPS request receives HSTS
+let reqHttps = new mockReq("GET", "/", {}, True)
+let resHttps = new mockRes()
+defaultHelmet(reqHttps, resHttps)
+test("secure HTTPS request receives default HSTS", resHttps.header("Strict-Transport-Security").contains("max-age=15552000"))
+test("default HSTS includes includeSubDomains", resHttps.header("Strict-Transport-Security").contains("includeSubDomains"))
+
+# Custom HSTS configuration with preload
+let customHstsHelmet = kasbah.helmet({
+    "hsts": {
+        "maxAge": 31536000,
+        "includeSubDomains": True,
+        "preload": True,
+        "force": True
+    }
+})
+let reqForce = new mockReq("GET", "/", {}, False)
+let resForce = new mockRes()
+customHstsHelmet(reqForce, resForce)
+test("forced HSTS sets 1 year max-age on HTTP", resForce.header("Strict-Transport-Security").contains("max-age=31536000"))
+test("forced HSTS includes preload directive", resForce.header("Strict-Transport-Security").contains("preload"))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 3: Custom Overrides & Disabling Headers
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 3: Overrides & Disabling ---")
+
+let customHelmet = kasbah.helmet({
+    "xFrameOptions": "DENY",
+    "xContentTypeOptions": False,
+    "referrerPolicy": "strict-origin-when-cross-origin",
+    "xDownloadOptions": False,
+    "hidePoweredBy": False
+})
+
+let reqCustom = new mockReq("GET", "/")
+let resCustom = new mockRes()
+customHelmet(reqCustom, resCustom)
+
+test("custom xFrameOptions set to DENY", resCustom.header("X-Frame-Options") == "DENY")
+test("disabled xContentTypeOptions is omitted", resCustom.header("X-Content-Type-Options") == "")
+test("custom referrerPolicy is set", resCustom.header("Referrer-Policy") == "strict-origin-when-cross-origin")
+test("disabled xDownloadOptions is omitted", resCustom.header("X-Download-Options") == "")
+test("disabled hidePoweredBy preserves X-Powered-By", resCustom.header("X-Powered-By") == "Djazair/Kasbah")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 4: Content-Security-Policy (CSP)
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 4: Content-Security-Policy ---")
+
+# String CSP
+let stringCspHelmet = kasbah.helmet({
+    "csp": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net"
+})
+let resCsp1 = new mockRes()
+stringCspHelmet(new mockReq(), resCsp1)
+test("string CSP header is set", resCsp1.header("Content-Security-Policy").contains("default-src 'self'"))
+
+# Map CSP
+let mapCspHelmet = kasbah.helmet({
+    "csp": {
+        "default-src": ["'self'"],
+        "img-src": ["'self'", "data:", "https:"],
+        "style-src": ["'self'", "'unsafe-inline'"]
+    }
+})
+let resCsp2 = new mockRes()
+mapCspHelmet(new mockReq(), resCsp2)
+test("map CSP contains default-src", resCsp2.header("Content-Security-Policy").contains("default-src 'self'"))
+test("map CSP contains img-src with items", resCsp2.header("Content-Security-Policy").contains("img-src 'self' data: https:"))
+test("map CSP contains style-src", resCsp2.header("Content-Security-Policy").contains("style-src 'self' 'unsafe-inline'"))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUMMARY
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n═══════════════════════════════════════════════════════════════════════════════")
+print("=== Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+print("═══════════════════════════════════════════════════════════════════════════════")
+
+if failed > 0
+    process.exit(1)
+end

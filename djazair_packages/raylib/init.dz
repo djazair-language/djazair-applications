@@ -1,0 +1,300 @@
+# ==============================================================================
+# init.dz — Raylib Complete Hybrid (OOP & Procedural) Wrapper for Djazair
+#
+# Provides high-level object-oriented abstractions (Window, Texture, Sound, etc.)
+# alongside the standard procedural Raylib API.
+#
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# ==============================================================================
+
+let rl = __dynamic("raylib")
+use assert
+
+import "constants.dz" as const
+import "types.dz" as types
+import "shapes.dz" as shapes
+import "media.dz" as media
+import "camera.dz" as cam
+
+# ── Re-export Constants ───────────────────────────────────────────────────────
+
+# Colors
+let WHITE       = const.WHITE
+let RAYWHITE    = const.RAYWHITE
+let BLACK       = const.BLACK
+let RED         = const.RED
+let GREEN       = const.GREEN
+let BLUE        = const.BLUE
+let YELLOW      = const.YELLOW
+let ORANGE      = const.ORANGE
+let PINK        = const.PINK
+let PURPLE      = const.PURPLE
+let GOLD        = const.GOLD
+let LIME        = const.LIME
+let DARKGRAY    = const.DARKGRAY
+let GRAY        = const.GRAY
+let LIGHTGRAY   = const.LIGHTGRAY
+let MAROON      = const.MAROON
+let DARKGREEN   = const.DARKGREEN
+let DARKBLUE    = const.DARKBLUE
+let DARKPURPLE  = const.DARKPURPLE
+let VIOLET      = const.VIOLET
+let BEIGE       = const.BEIGE
+let BROWN       = const.BROWN
+let MAGENTA     = const.MAGENTA
+let SKYBLUE     = const.SKYBLUE
+let BLANK       = const.BLANK
+
+# Keyboard Keys
+let KEY_RIGHT   = const.KEY_RIGHT
+let KEY_LEFT    = const.KEY_LEFT
+let KEY_DOWN    = const.KEY_DOWN
+let KEY_UP      = const.KEY_UP
+let KEY_SPACE   = const.KEY_SPACE
+let KEY_ENTER   = const.KEY_ENTER
+let KEY_ESCAPE  = const.KEY_ESCAPE
+
+let KEY_A       = const.KEY_A
+let KEY_B       = const.KEY_B
+let KEY_C       = const.KEY_C
+let KEY_D       = const.KEY_D
+let KEY_E       = const.KEY_E
+let KEY_F       = const.KEY_F
+let KEY_G       = const.KEY_G
+let KEY_H       = const.KEY_H
+let KEY_I       = const.KEY_I
+let KEY_J       = const.KEY_J
+let KEY_K       = const.KEY_K
+let KEY_L       = const.KEY_L
+let KEY_M       = const.KEY_M
+let KEY_N       = const.KEY_N
+let KEY_O       = const.KEY_O
+let KEY_P       = const.KEY_P
+let KEY_Q       = const.KEY_Q
+let KEY_R       = const.KEY_R
+let KEY_S       = const.KEY_S
+let KEY_T       = const.KEY_T
+let KEY_U       = const.KEY_U
+let KEY_V       = const.KEY_V
+let KEY_W       = const.KEY_W
+let KEY_X       = const.KEY_X
+let KEY_Y       = const.KEY_Y
+let KEY_Z       = const.KEY_Z
+
+let KEY_0       = const.KEY_0
+let KEY_1       = const.KEY_1
+let KEY_2       = const.KEY_2
+let KEY_3       = const.KEY_3
+let KEY_4       = const.KEY_4
+let KEY_5       = const.KEY_5
+let KEY_6       = const.KEY_6
+let KEY_7       = const.KEY_7
+let KEY_8       = const.KEY_8
+let KEY_9       = const.KEY_9
+
+let KEY_BACKSPACE     = const.KEY_BACKSPACE
+let KEY_TAB           = const.KEY_TAB
+let KEY_LEFT_SHIFT    = const.KEY_LEFT_SHIFT
+let KEY_LEFT_CONTROL  = const.KEY_LEFT_CONTROL
+let KEY_LEFT_ALT      = const.KEY_LEFT_ALT
+let KEY_RIGHT_SHIFT   = const.KEY_RIGHT_SHIFT
+let KEY_RIGHT_CONTROL = const.KEY_RIGHT_CONTROL
+let KEY_RIGHT_ALT     = const.KEY_RIGHT_ALT
+let KEY_DELETE        = const.KEY_DELETE
+let KEY_INSERT        = const.KEY_INSERT
+let KEY_HOME          = const.KEY_HOME
+let KEY_END           = const.KEY_END
+let KEY_PAGE_UP       = const.KEY_PAGE_UP
+let KEY_PAGE_DOWN     = const.KEY_PAGE_DOWN
+let KEY_CAPS_LOCK     = const.KEY_CAPS_LOCK
+let KEY_NUM_LOCK      = const.KEY_NUM_LOCK
+let KEY_PRINT_SCREEN  = const.KEY_PRINT_SCREEN
+let KEY_PAUSE         = const.KEY_PAUSE
+
+let KEY_F1  = const.KEY_F1
+let KEY_F2  = const.KEY_F2
+let KEY_F3  = const.KEY_F3
+let KEY_F4  = const.KEY_F4
+let KEY_F5  = const.KEY_F5
+let KEY_F6  = const.KEY_F6
+let KEY_F7  = const.KEY_F7
+let KEY_F8  = const.KEY_F8
+let KEY_F9  = const.KEY_F9
+let KEY_F10 = const.KEY_F10
+let KEY_F11 = const.KEY_F11
+let KEY_F12 = const.KEY_F12
+
+# Mouse Buttons
+let MOUSE_LEFT_BUTTON   = const.MOUSE_LEFT_BUTTON
+let MOUSE_RIGHT_BUTTON  = const.MOUSE_RIGHT_BUTTON
+let MOUSE_MIDDLE_BUTTON = const.MOUSE_MIDDLE_BUTTON
+
+# ── Re-export Types ───────────────────────────────────────────────────────────
+let Vector2   = types.Vector2
+let Vector3   = types.Vector3
+let Color     = types.Color
+let RectType  = types.Rectangle
+
+# ── Re-export Shape Classes ───────────────────────────────────────────────────
+let Circle    = shapes.Circle
+let Rectangle = shapes.Rectangle
+
+# ── Re-export Media Classes ───────────────────────────────────────────────────
+let Texture = media.Texture
+let Text    = media.Text
+let Sound   = media.Sound
+let Audio   = media.Audio
+let Font    = media.Font
+let Music   = media.Music
+
+# ── Re-export Camera Class ────────────────────────────────────────────────────
+let Camera2D = cam.Camera2D
+
+# ── Window & Core Procedural API ──────────────────────────────────────────────
+let initWindow              = rl.init
+let closeWindow             = rl.close
+let shouldClose             = rl.shouldClose
+let setTargetFPS            = rl.setTargetFPS
+let getFPS                  = rl.getFPS
+let getFrameTime            = rl.getFrameTime
+let getScreenWidth          = rl.getScreenWidth
+let getScreenHeight         = rl.getScreenHeight
+let setWindowTitle          = rl.setWindowTitle
+let setWindowSize           = rl.setWindowSize
+let getRandomValue          = rl.getRandomValue
+let hideCursor              = rl.hideCursor
+let showCursor              = rl.showCursor
+let getTime                 = rl.getTime
+let toggleFullscreen        = rl.toggleFullscreen
+let isWindowResized         = rl.isWindowResized
+
+# ── Drawing Procedural API ────────────────────────────────────────────────────
+let beginDrawing            = rl.beginDrawing
+let endDrawing              = rl.endDrawing
+let clearBackground         = rl.clearBackground
+let drawText                = rl.drawText
+let measureText             = rl.measureText
+
+# Shapes Procedural API (Direct native polymorphic bindings)
+let drawRectangle           = rl.drawRectangle
+let drawRectangleLines      = rl.drawRectangleLines
+let drawRectangleGradientV  = rl.drawRectangleGradientV
+let drawRectangleRounded    = rl.drawRectangleRounded
+let drawCircle              = rl.drawCircle
+let drawCircleLines         = rl.drawCircleLines
+let drawEllipse             = rl.drawEllipse
+let drawLine                = rl.drawLine
+let drawLineEx              = rl.drawLineEx
+let drawTriangle            = rl.drawTriangle
+let drawTriangleLines       = rl.drawTriangleLines
+let drawPoly                = rl.drawPoly
+
+# Input: Keyboard
+let isKeyDown               = rl.isKeyDown
+let isKeyPressed            = rl.isKeyPressed
+let isKeyReleased           = rl.isKeyReleased
+let isKeyUp                 = rl.isKeyUp
+let getKeyPressed           = rl.getKeyPressed
+let getCharPressed          = rl.getCharPressed
+
+# Input: Mouse
+let getMouseX               = rl.getMouseX
+let getMouseY               = rl.getMouseY
+let isMouseButtonPressed    = rl.isMouseButtonPressed
+let isMouseButtonDown       = rl.isMouseButtonDown
+let isMouseButtonReleased   = rl.isMouseButtonReleased
+let isMouseButtonUp         = rl.isMouseButtonUp
+let getMouseWheelMove       = rl.getMouseWheelMove
+
+# Collision Detection
+let checkCollisionRecs      = rl.checkCollisionRecs
+let checkCollisionCircles   = rl.checkCollisionCircles
+let checkCollisionCircleRec = rl.checkCollisionCircleRec
+let checkCollisionPointRec  = rl.checkCollisionPointRec
+
+# Textures & Fonts Procedural API
+let loadTexture             = rl.loadTexture
+let drawTexture             = rl.drawTexture
+let unloadTexture           = rl.unloadTexture
+let drawTextureRec          = rl.drawTextureRec
+let drawTextureEx           = rl.drawTextureEx
+let loadFont                = rl.loadFont
+let unloadFont              = rl.unloadFont
+let drawTextEx              = rl.drawTextEx
+
+# Audio Procedural API
+let initAudio               = rl.initAudio
+let closeAudio              = rl.closeAudio
+let loadSound               = rl.loadSound
+let playSound               = rl.playSound
+let unloadSound             = rl.unloadSound
+let loadMusicStream         = rl.loadMusicStream
+let playMusicStream         = rl.playMusicStream
+let updateMusicStream       = rl.updateMusicStream
+let unloadMusicStream       = rl.unloadMusicStream
+let stopMusicStream         = rl.stopMusicStream
+let pauseMusicStream        = rl.pauseMusicStream
+let resumeMusicStream       = rl.resumeMusicStream
+let isMusicStreamPlaying    = rl.isMusicStreamPlaying
+let setMusicVolume          = rl.setMusicVolume
+
+# Camera2D Procedural API
+let beginMode2D             = rl.beginMode2D
+let endMode2D               = rl.endMode2D
+let getScreenToWorld2D      = rl.getScreenToWorld2D
+let getWorldToScreen2D      = rl.getWorldToScreen2D
+
+# ── Window OOP Class ──────────────────────────────────────────────────────────
+class Window
+    init(width, height, title)
+        assert.number(width, "width")
+        assert.number(height, "height")
+        assert.string(title, "title")
+
+        self.width = int(width)
+        self.height = int(height)
+        initWindow(self.width, self.height, title)
+    end
+
+    isOpen()
+        return !shouldClose()
+    end
+
+    begin()
+        beginDrawing()
+    end
+
+    finish()
+        endDrawing()
+    end
+
+    clear(color = [0, 0, 0, 255])
+        clearBackground(color)
+    end
+
+    close()
+        closeWindow()
+    end
+
+    setFPS(fps)
+        assert.number(fps, "fps")
+        setTargetFPS(int(fps))
+    end
+
+    setTitle(title)
+        assert.string(title, "title")
+        setWindowTitle(title)
+    end
+
+    setSize(width, height)
+        assert.number(width, "width")
+        assert.number(height, "height")
+        self.width = int(width)
+        self.height = int(height)
+        setWindowSize(self.width, self.height)
+    end
+
+    getFPS()
+        return getFPS()
+    end
+end

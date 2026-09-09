@@ -1,0 +1,679 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_docs_snippets.dz — Automated Verification of All Documentation Code Snippets
+# ═══════════════════════════════════════════════════════════════════════════════
+# Runs and asserts every single code example and snippet present in README.md
+# and docs/index.html to ensure 100% documentation accuracy.
+
+use qalam
+use os
+use file
+use dir
+
+let passed = 0
+let failed = 0
+
+fn test(name, result, expected)
+    if result == expected
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected: ${expected}")
+        print("  Got:      ${result}")
+    end
+end
+
+fn testContains(name, result, expectedSubstring)
+    if isString(result) and result.contains(expectedSubstring)
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected to contain: ${expectedSubstring}")
+        print("  Got:                 ${result}")
+    end
+end
+
+print("=== Running Documentation Code Snippets Tests ===\n")
+
+# ── 1. Quick Start In-Memory ──────────────────────────────────────────────────
+let tpl1 = `
+<h1>Hello, {{ user.name | capitalize }}!</h1>
+<p>Status: {% if user.isActive %}Active Member{% else %}Pending{% endif %}</p>
+<ul>
+{% for item in items %}
+  <li>#{{ loop.index }}: {{ item }}</li>
+{% endfor %}
+</ul>
+`
+let data1 = {
+    "user": {"name": "riad", "isActive": True},
+    "items": ["Djazair Language", "Kasbah Framework", "Qalam Template Engine"]
+}
+let res1 = qalam.renderString(tpl1, data1)
+testContains("DOC: QuickStart In-Memory user.name", res1, "Hello, Riad!")
+testContains("DOC: QuickStart In-Memory status", res1, "Active Member")
+testContains("DOC: QuickStart In-Memory loop item 1", res1, "<li>#1: Djazair Language</li>")
+testContains("DOC: QuickStart In-Memory loop item 3", res1, "<li>#3: Qalam Template Engine</li>")
+
+# ── 2. Quick Start File-Based & Layout Inheritance ────────────────────────────
+let tmpDir = "${os.tmpDir()}/qalam_doc_snippets"
+if not file.exists(tmpDir) dir.createAll(tmpDir) end
+if not file.exists("${tmpDir}/layouts") dir.createAll("${tmpDir}/layouts") end
+if not file.exists("${tmpDir}/partials") dir.createAll("${tmpDir}/partials") end
+
+file.write("${tmpDir}/layouts/base.html", `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}My Application{% endblock %}</title>
+</head>
+<body>
+    <header>{% include "partials/nav" %}</header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>&copy; 2026 Djazair Language</footer>
+</body>
+</html>`)
+
+file.write("${tmpDir}/partials/nav.html", `<nav><a href="/">Home</a></nav>`)
+
+file.write("${tmpDir}/home.html", `{% extends "layouts/base" %}
+
+{% block title %}Dashboard — {{ siteName }}{% endblock %}
+
+{% block content %}
+    <h2>Welcome back, {{ user.name }}!</h2>
+    <p>Your role: <span class="badge">{{ user.role | upper }}</span></p>
+{% endblock %}`)
+
+let viewEngine = new qalam.view({
+    "views": tmpDir,
+    "cache": True
+})
+
+let htmlRes = viewEngine.render("home", {
+    "siteName": "Enterprise Portal",
+    "user": {"name": "Riad", "role": "admin"}
+})
+
+testContains("DOC: File-Based base layout title override", htmlRes, "<title>Dashboard — Enterprise Portal</title>")
+testContains("DOC: File-Based include partial", htmlRes, "<nav><a href=\"/\">Home</a></nav>")
+testContains("DOC: File-Based block content", htmlRes, "<h2>Welcome back, Riad!</h2>")
+testContains("DOC: File-Based filter in inheritance", htmlRes, "<span class=\"badge\">ADMIN</span>")
+
+# ── 3. Variables, Dot Notation, Bracket Indexing & Raw ────────────────────────
+let tplVar = `<p>Hello, {{ user.name }}</p>
+<p>Escaped input: {{ userInput }}</p>
+<p>City: {{ user.profile.address.city }}</p>
+<p>First item: {{ articles[0].title }}</p>
+<div class="article-body">{{{ article.trustedHtmlContent }}}</div>`
+
+let dataVar = {
+    "user": {"name": "Riad", "profile": {"address": {"city": "Blida"}}},
+    "userInput": "<script>alert(1)</script>",
+    "articles": [{"title": "Getting Started"}],
+    "article": {"trustedHtmlContent": "<b>Hello World</b>"}
+}
+let resVar = qalam.renderString(tplVar, dataVar)
+testContains("DOC: Variable dot notation", resVar, "<p>City: Blida</p>")
+testContains("DOC: Variable bracket index", resVar, "<p>First item: Getting Started</p>")
+testContains("DOC: Variable auto-escaping", resVar, "&lt;script&gt;alert(1)&lt;/script&gt;")
+testContains("DOC: Raw unescaped output", resVar, "<div class=\"article-body\"><b>Hello World</b></div>")
+
+# ── 4. Filters & Piping ───────────────────────────────────────────────────────
+let tplFilter = `<h1>{{ article.title | trim | title }}</h1>
+<p>Joined tags: {{ tags | join(" • ") | upper }}</p>
+<p>Price: \${{ product.price | round(2) }}</p>
+<p>Bio: {{ user.bio | default("No biography provided.") }}</p>`
+
+let dataFilter = {
+    "article": {"title": "  qalam template engine  "},
+    "tags": ["djazair", "qalam", "kasbah"],
+    "product": {"price": 19.999},
+    "user": {"bio": ""}
+}
+let resFilter = qalam.renderString(tplFilter, dataFilter)
+testContains("DOC: Chained trim | title", resFilter, "<h1>Qalam Template Engine</h1>")
+testContains("DOC: Chained join | upper", resFilter, "<p>Joined tags: DJAZAIR • QALAM • KASBAH</p>")
+testContains("DOC: Math round filter", resFilter, "<p>Price: $20</p>")
+testContains("DOC: Default filter fallback", resFilter, "<p>Bio: No biography provided.</p>")
+
+# ── 5. Conditionals & Logical Operators ───────────────────────────────────────
+let tplCond = `{% if user.role == 'admin' %}
+<span class="badge badge-danger">Administrator</span>
+{% elif user.role == 'moderator' %}
+<span class="badge badge-warning">Moderator</span>
+{% elif user.role == 'author' %}
+<span class="badge badge-info">Author</span>
+{% else %}
+<span class="badge badge-secondary">Member</span>
+{% endif %}`
+
+testContains("DOC: Conditional if branch", qalam.renderString(tplCond, {"user": {"role": "admin"}}), "Administrator")
+testContains("DOC: Conditional elif 1 branch", qalam.renderString(tplCond, {"user": {"role": "moderator"}}), "Moderator")
+testContains("DOC: Conditional elif 2 branch", qalam.renderString(tplCond, {"user": {"role": "author"}}), "Author")
+testContains("DOC: Conditional else fallback", qalam.renderString(tplCond, {"user": {"role": "guest"}}), "Member")
+
+let tplLogic = `{% if user.isVerified and not user.isBanned %}
+<button class="btn-primary">Proceed to Checkout</button>
+{% endif %}`
+testContains("DOC: Logic and + not (allowed)", qalam.renderString(tplLogic, {"user": {"isVerified": True, "isBanned": False}}), "Proceed to Checkout")
+test("DOC: Logic and + not (banned)", qalam.renderString(tplLogic, {"user": {"isVerified": True, "isBanned": True}}).strip(), "")
+
+# ── 6. Loops, Loop Context Metadata & For-Else ────────────────────────────────
+let tplLoop = `<table>
+  <tbody>
+  {% for item in products %}
+    <tr class="{% if loop.even %}row-even{% else %}row-odd{% endif %}">
+      <td>{{ loop.index }}</td>
+      <td>{{ item.name }}</td>
+      <td>\${{ item.price | round(2) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="3">No products found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>`
+
+let resLoop = qalam.renderString(tplLoop, {
+    "products": [
+        {"name": "Keyboard", "price": 45.5},
+        {"name": "Mouse", "price": 25.0}
+    ]
+})
+testContains("DOC: Loop item 1 index", resLoop, "<td>1</td>")
+testContains("DOC: Loop item 1 odd class", resLoop, "<tr class=\"row-odd\">")
+testContains("DOC: Loop item 2 even class", resLoop, "<tr class=\"row-even\">")
+testContains("DOC: Loop item 2 price", resLoop, "<td>$25</td>")
+
+let resLoopEmpty = qalam.renderString(tplLoop, {"products": []})
+testContains("DOC: For-else fallback", resLoopEmpty, "No products found.")
+
+# ── 7. Comments & Whitespace Control ──────────────────────────────────────────
+let tplComment = `{# Internal comment #}Hello   {{- user.name -}}   World`
+let resComment = qalam.renderString(tplComment, {"user": {"name": "Riad"}})
+test("DOC: Comments stripped and whitespace trimmed", resComment, "HelloRiadWorld")
+
+# ── 8. Custom Filter Registration ─────────────────────────────────────────────
+let vCustom = new qalam.view({})
+vCustom.registerFilter("currency", fn(val, args = [])
+    let code = if args.length() > 0 ? str(args[0]) else "USD"
+    return "${val} ${code}"
+end)
+
+vCustom.registerFilter("statusBadge", fn(status, args = [])
+    if status == "active"
+        return "<span class='badge-green'>ACTIVE</span>"
+    end
+    return "<span class='badge-red'>INACTIVE</span>"
+end)
+
+let htmlCustom = vCustom.renderString(
+    "<p>Price: {{ amount | currency('DZD') }}</p><div>{{{ status | statusBadge }}}</div>",
+    {"amount": 4500, "status": "active"}
+)
+testContains("DOC: Custom currency filter", htmlCustom, "<p>Price: 4500 DZD</p>")
+testContains("DOC: Custom statusBadge raw HTML", htmlCustom, "<span class='badge-green'>ACTIVE</span>")
+
+# ── 9. Transactional Email Recipe ─────────────────────────────────────────────
+let emailTpl = `
+<h1>Invoice #{{ invoiceId }}</h1>
+<p>Dear {{ customer.name | capitalize }},</p>
+<p>Thank you for your order on {{ orderDate }}.</p>
+<table>
+  <tr><th>Item</th><th>Price</th></tr>
+  {% for item in items %}
+  <tr>
+    <td>{{ item.name }}</td>
+    <td>\${{ item.price | round(2) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p><strong>Total: \${{ total | round(2) }}</strong></p>
+`
+
+let emailHtml = qalam.renderString(emailTpl, {
+    "invoiceId": "INV-2026-08",
+    "customer": {"name": "riad harizi"},
+    "orderDate": "2026-08-21",
+    "items": [
+        {"name": "Djazair Pro License", "price": 199.99},
+        {"name": "Kasbah Cloud Hosting", "price": 49.50}
+    ],
+    "total": 249.49
+})
+
+testContains("DOC: Email recipe customer name", emailHtml, "Dear Riad harizi,")
+testContains("DOC: Email recipe item 1", emailHtml, "<td>Djazair Pro License</td>")
+testContains("DOC: Email recipe total", emailHtml, "<strong>Total: $249.49</strong>")
+
+# ── 10. Built-in Filter Catalog (All 20 Filters Verification) ─────────────────
+test("FILTER: upper", qalam.renderString("{{ 'riad' | upper }}", {}), "RIAD")
+test("FILTER: lower", qalam.renderString("{{ 'RIAD' | lower }}", {}), "riad")
+test("FILTER: capitalize", qalam.renderString("{{ 'hello world' | capitalize }}", {}), "Hello world")
+test("FILTER: title", qalam.renderString("{{ 'hello world' | title }}", {}), "Hello World")
+test("FILTER: trim", qalam.renderString("{{ '  hi  ' | trim }}", {}), "hi")
+test("FILTER: ltrim", qalam.renderString("{{ '  hi' | ltrim }}", {}), "hi")
+test("FILTER: rtrim", qalam.renderString("{{ 'hi  ' | rtrim }}", {}), "hi")
+test("FILTER: length array", qalam.renderString("{{ [1,2,3] | length }}", {}), "3")
+test("FILTER: len alias", qalam.renderString("{{ [1,2,3] | len }}", {}), "3")
+test("FILTER: reverse", qalam.renderString("{{ 'abc' | reverse }}", {}), "cba")
+test("FILTER: first", qalam.renderString("{{ ['a','b'] | first }}", {}), "a")
+test("FILTER: last", qalam.renderString("{{ ['a','b'] | last }}", {}), "b")
+test("FILTER: join", qalam.renderString("{{ ['a','b'] | join(' • ') }}", {}), "a • b")
+test("FILTER: default fallback", qalam.renderString("{{ '' | default('N/A') }}", {}), "N/A")
+test("FILTER: json raw", qalam.renderString("{{{ data | json }}}", {"data": {"k": "v"}}), "{\"k\":\"v\"}")
+test("FILTER: replace", qalam.renderString("{{ 'a-b' | replace('-', '/') }}", {}), "a/b")
+test("FILTER: abs", qalam.renderString("{{ -15 | abs }}", {}), "15")
+test("FILTER: round", qalam.renderString("{{ 3.14159 | round(2) }}", {}), "3.14")
+test("FILTER: int", qalam.renderString("{{ '42' | int }}", {}), "42")
+test("FILTER: float", qalam.renderString("{{ '3.14' | float }}", {}), "3.14")
+test("FILTER: str", qalam.renderString("{{ 123 | str }}", {}), "123")
+
+# ── 11. Security API & Helpers ────────────────────────────────────────────────
+test("SECURITY: escapeHtml utility",
+    qalam.escapeHtml("<script>alert('xss')</script>"),
+    "&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;")
+
+test("API: getSafePath valid",
+    viewEngine.getSafePath("home").length() > 0,
+    True)
+
+# ── 12. Full Documentation HTML Snippets Verification ─────────────────────────
+# Snippet 5: In-Memory Email Template
+let emailQuick = `
+<h1>Welcome, {{ user.name | capitalize }}!</h1>
+<p>Your temporary access token is: <code>{{ token }}</code></p>
+<p>Expires in {{ ttl }} minutes.</p>
+`
+let outQuick = qalam.renderString(emailQuick, {
+    "user": {"name": "riad harizi"},
+    "token": "DZ-8941",
+    "ttl": 30
+})
+testContains("DOC HTML Snippet 5: token", outQuick, "<code>DZ-8941</code>")
+testContains("DOC HTML Snippet 5: name", outQuick, "Welcome, Riad harizi!")
+
+# Snippets 6 & 12 & 13: Layout Inheritance (views/layout.html & views/dashboard.html)
+let layoutDir = "${os.tmpDir()}/qalam_doc_layout_full"
+if not file.exists(layoutDir) dir.createAll(layoutDir) end
+
+file.write("${layoutDir}/layout.html", `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{% block title %}Djazair Enterprise Portal{% end %}</title>
+  {% block styles %}<link rel="stylesheet" href="/style.css" />{% end %}
+</head>
+<body>
+  <header>
+    {% block header %}<nav>Default Application Navigation</nav>{% end %}
+  </header>
+
+  <main class="main-content">
+    {% block content %}{% end %}
+  </main>
+
+  <footer>
+    {% block footer %}<p>&copy; 2026 Djazair Language Project</p>{% end %}
+  </footer>
+</body>
+</html>`)
+
+file.write("${layoutDir}/dashboard.html", `{% extends "layout" %}
+
+{% block title %}Trading Dashboard • Djazair Portal{% end %}
+
+{% block content %}
+  <h1>Live Portfolios</h1>
+  <p>Welcome back, {{ user.name }}!</p>
+  <ul>
+    {% for trade in trades %}
+      <li>{{ trade.symbol }}: \${{ trade.value | round(2) }}</li>
+    {% end %}
+  </ul>
+{% end %}`)
+
+let vDashboard = new qalam.view({
+    "views": layoutDir,
+    "cache": True
+})
+
+let htmlDashboard = vDashboard.render("dashboard", {
+    "siteTitle": "Algerian Trading Portal",
+    "user": {"name": "Riad", "role": "admin"},
+    "trades": [
+        {"symbol": "DZ-ENERGY", "value": 1450.50},
+        {"symbol": "ALG-TECH", "value": 820.75}
+    ]
+})
+
+testContains("DOC HTML Snippets 6+12+13: title block", htmlDashboard, "<title>Trading Dashboard • Djazair Portal</title>")
+testContains("DOC HTML Snippets 6+12+13: user greeting", htmlDashboard, "Welcome back, Riad!")
+testContains("DOC HTML Snippets 6+12+13: trade DZ-ENERGY", htmlDashboard, "DZ-ENERGY: $1450.5")
+testContains("DOC HTML Snippets 6+12+13: trade ALG-TECH", htmlDashboard, "ALG-TECH: $820.75")
+testContains("DOC HTML Snippets 6+12+13: footer copy", htmlDashboard, "&copy; 2026 Djazair Language Project")
+
+# Snippet 14: Partials & Sub-Views Inclusion (include)
+let partialsDir = "${os.tmpDir()}/qalam_doc_partials_full"
+if not file.exists(partialsDir) dir.createAll(partialsDir) end
+if not file.exists("${partialsDir}/partials") dir.createAll("${partialsDir}/partials") end
+if not file.exists("${partialsDir}/components") dir.createAll("${partialsDir}/components") end
+
+file.write("${partialsDir}/partials/navbar.html", "<nav class='brand-nav'>Navbar Content</nav>")
+file.write("${partialsDir}/components/metrics_card.html", "<div class='card'>Daily Trades: 142</div>")
+file.write("${partialsDir}/partials/footer.html", "<footer>Company Footer</footer>")
+
+file.write("${partialsDir}/dashboard.html", `<header>
+  <!-- Injects views/partials/navbar.html into the view -->
+  {% include "partials/navbar" %}
+</header>
+
+<div class="container">
+  {% include "components/metrics_card" %}
+</div>
+
+<footer>
+  {% include "partials/footer" %}
+</footer>`)
+
+let vPartials = new qalam.view({"views": partialsDir, "cache": True})
+let htmlPartials = vPartials.render("dashboard", {})
+testContains("DOC HTML Snippet 14: include navbar", htmlPartials, "<nav class='brand-nav'>Navbar Content</nav>")
+testContains("DOC HTML Snippet 14: include metrics", htmlPartials, "<div class='card'>Daily Trades: 142</div>")
+testContains("DOC HTML Snippet 14: include footer", htmlPartials, "<footer>Company Footer</footer>")
+
+# Snippet 7: Variables & Auto-Escaping (dot-path navigation and array indexing)
+let tplSnippet7 = `
+<!-- Auto-sanitized against script injection -->
+<h1>User: {{ user.name }}</h1>
+
+<!-- Deep dot-path navigation -->
+<p>Location: {{ user.profile.address.city }}</p>
+
+<!-- Array index resolution -->
+<p>Primary Phone: {{ user.phones[0] }}</p>
+`
+let outSnippet7 = qalam.renderString(tplSnippet7, {
+    "user": {
+        "name": "<script>alert('xss')</script>",
+        "profile": {"address": {"city": "Algiers"}},
+        "phones": ["+213 555 123 456", "+213 555 789 012"]
+    }
+})
+testContains("DOC HTML Snippet 7: sanitized name", outSnippet7, "&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;")
+testContains("DOC HTML Snippet 7: dot-path city", outSnippet7, "Location: Algiers")
+testContains("DOC HTML Snippet 7: array index phone", outSnippet7, "Primary Phone: +213 555 123 456")
+
+# Snippet 8: Raw HTML Output ({{{ ... }}})
+let tplSnippet8 = `
+<div class="article-body">
+  <!-- Trusted HTML passes through verbatim without escaping -->
+  {{{ article.sanitizedHtmlContent }}}
+</div>
+`
+let outSnippet8 = qalam.renderString(tplSnippet8, {
+    "article": {"sanitizedHtmlContent": "<p class='lead'>Djazair <strong>pure AST</strong> engine.</p>"}
+})
+testContains("DOC HTML Snippet 8: unescaped html", outSnippet8, "<p class='lead'>Djazair <strong>pure AST</strong> engine.</p>")
+
+# Snippet 9: Comments and Whitespace Trimming
+let tplSnippet9 = `{# This comment is completely stripped during lexing: zero runtime cost #}
+
+<div>
+  <!-- Hyphen trims leading and trailing whitespace -->
+  {{- user.name -}}
+</div>
+
+<!-- Trimming inside control tags -->
+{%- for tag in tags -%}
+  <span class="tag">{{ tag }}</span>
+{%- end -%}`
+
+let outSnippet9 = qalam.renderString(tplSnippet9, {
+    "user": {"name": "Riad"},
+    "tags": ["djazair", "web", "templates"]
+})
+testContains("DOC HTML Snippet 9: trimmed var", outSnippet9, "Riad</div>")
+testContains("DOC HTML Snippet 9: tag 1", outSnippet9, "<span class=\"tag\">djazair</span>")
+testContains("DOC HTML Snippet 9: tag 2", outSnippet9, "<span class=\"tag\">web</span>")
+testContains("DOC HTML Snippet 9: tag 3", outSnippet9, "<span class=\"tag\">templates</span>")
+
+# Snippet 10: Multi-Branch Conditionals (if / elif / else / end)
+let tplSnippet10 = `{% if user.role == "admin" %}
+  <span class="badge badge-admin">Administrator</span>
+{% elif user.role == "editor" %}
+  <span class="badge badge-editor">Editor</span>
+{% elif user.role == "moderator" %}
+  <span class="badge badge-mod">Moderator</span>
+{% else %}
+  <span class="badge badge-guest">Standard Guest</span>
+{% end %}`
+
+testContains("DOC HTML Snippet 10: admin", qalam.renderString(tplSnippet10, {"user": {"role": "admin"}}), "badge-admin")
+testContains("DOC HTML Snippet 10: editor", qalam.renderString(tplSnippet10, {"user": {"role": "editor"}}), "badge-editor")
+testContains("DOC HTML Snippet 10: moderator", qalam.renderString(tplSnippet10, {"user": {"role": "moderator"}}), "badge-mod")
+testContains("DOC HTML Snippet 10: guest", qalam.renderString(tplSnippet10, {"user": {"role": "unknown"}}), "badge-guest")
+
+# Snippet 11: Loops and Metadata Table (loop.first, loop.last, loop.index of loop.length)
+let tplSnippet11 = `<table>
+  <tr><th>#</th><th>Product</th><th>Price</th></tr>
+  {% for product in products %}
+  <tr class="{% if loop.first %}first-row{% elif loop.last %}last-row{% end %}">
+    <td>{{ loop.index }} of {{ loop.length }}</td>
+    <td>{{ product.title | capitalize }}</td>
+    <td>\${{ product.price | round(2) }}</td>
+  </tr>
+  {% end %}
+</table>`
+
+let outSnippet11 = qalam.renderString(tplSnippet11, {
+    "products": [
+        {"title": "mechanical keyboard", "price": 129.99},
+        {"title": "ergonomic mouse", "price": 49.50}
+    ]
+})
+testContains("DOC HTML Snippet 11: loop.first class", outSnippet11, "<tr class=\"first-row\">")
+testContains("DOC HTML Snippet 11: loop.last class", outSnippet11, "<tr class=\"last-row\">")
+testContains("DOC HTML Snippet 11: 1 of 2", outSnippet11, "<td>1 of 2</td>")
+testContains("DOC HTML Snippet 11: 2 of 2", outSnippet11, "<td>2 of 2</td>")
+testContains("DOC HTML Snippet 11: capitalize title", outSnippet11, "Mechanical keyboard")
+testContains("DOC HTML Snippet 11: rounded price", outSnippet11, "$129.99")
+
+# Snippet 15: Direct Context Functions
+let tplFnDoc = `
+<p>Greeting: {{ greet(user.name) }}</p>
+<p>Total Amount: {{ calculateTax(order.subtotal, 0.19) }} DZD</p>
+`
+let outFnDoc = qalam.renderString(tplFnDoc, {
+    "user": {"name": "Riad"},
+    "order": {"subtotal": 10000},
+    "greet": fn(name) return "Marhaba, ${name}!" end,
+    "calculateTax": fn(amount, rate) return amount * (1 + rate) end
+})
+testContains("DOC HTML Snippet 15: Direct function greet", outFnDoc, "<p>Greeting: Marhaba, Riad!</p>")
+testContains("DOC HTML Snippet 15: Direct function calculateTax", outFnDoc, "<p>Total Amount: 11900 DZD</p>")
+
+# Snippet 16: Filter Pipelines and Default Fallbacks
+let tplSnippet16 = `
+<!-- Multiple sequential pipes: trim whitespace, then capitalize -->
+<h2>{{ "   algerian developer   " | trim | capitalize }}</h2>
+
+<!-- Pipe with argument: join array with custom delimiter, then uppercase -->
+<p>Tags: {{ post.tags | join(" • ") | upper }}</p>
+
+<!-- Fallback default if value is null or empty -->
+<p>Bio: {{ user.biography | default("No biography available.") }}</p>
+`
+let outSnippet16 = qalam.renderString(tplSnippet16, {
+    "post": {"tags": ["system", "ast", "compiler"]},
+    "user": {"biography": ""}
+})
+testContains("DOC HTML Snippet 16: chained trim|capitalize", outSnippet16, "<h2>Algerian developer</h2>")
+testContains("DOC HTML Snippet 16: join with upper", outSnippet16, "SYSTEM • AST • COMPILER")
+testContains("DOC HTML Snippet 16: default fallback", outSnippet16, "No biography available.")
+
+# Snippet 17: Custom Algerian Dinar and HTML Status Badge Filters
+let vDzd = new qalam.view({})
+vDzd.registerFilter("dzd", fn(val, args = [])
+    return "${val} DZD"
+end)
+vDzd.registerFilter("statusBadge", fn(status, args = [])
+    if status == "paid"
+        return "<span class='badge bg-success'>PAID</span>"
+    elif status == "pending"
+        return "<span class='badge bg-warning'>PENDING</span>"
+    end
+    return "<span class='badge bg-danger'>CANCELLED</span>"
+end)
+let htmlDzd = vDzd.renderString(
+    "<p>Total: {{ amount | dzd }}</p><div>{{{ status | statusBadge }}}</div>",
+    {"amount": 8500, "status": "paid"}
+)
+testContains("DOC HTML Snippet 17: Custom dzd filter", htmlDzd, "<p>Total: 8500 DZD</p>")
+testContains("DOC HTML Snippet 17: Custom statusBadge paid", htmlDzd, "<span class='badge bg-success'>PAID</span>")
+
+# Snippet 18: Kasbah Web Application Integration Simulation
+let kasbahViewsDir = "${os.tmpDir()}/qalam_kasbah_views"
+if not file.exists(kasbahViewsDir) dir.createAll(kasbahViewsDir) end
+file.write("${kasbahViewsDir}/profile.html", `<!DOCTYPE html>
+<html>
+<head><title>{{ title }}</title></head>
+<body>
+  <h1>{{ user.name }} ({{ user.email }})</h1>
+  <p>Orders: {{ stats.orders }} | Credits: \${{ stats.credits | round(2) }}</p>
+</body>
+</html>`)
+
+let kasbahViewEngine = new qalam.view({
+    "views": kasbahViewsDir,
+    "cache": True
+})
+
+let renderedProfile = kasbahViewEngine.render("profile", {
+    "title": "User Profile",
+    "user": {"name": "Riad Harizi", "email": "riad@example.com"},
+    "stats": {"orders": 14, "credits": 520.00}
+})
+testContains("DOC HTML Snippet 18: Kasbah view rendering title", renderedProfile, "<title>User Profile</title>")
+testContains("DOC HTML Snippet 18: Kasbah user info", renderedProfile, "Riad Harizi (riad@example.com)")
+testContains("DOC HTML Snippet 18: Kasbah stats", renderedProfile, "Orders: 14 | Credits: $520")
+
+# Snippet 19: AST Cache Configuration and Invalidation
+let prodView = new qalam.view({"views": layoutDir, "cache": True})
+let devView = new qalam.view({"views": layoutDir, "cache": False})
+test("DOC HTML Snippet 19: prodView cache enabled", prodView.loader.cacheEnabled, True)
+test("DOC HTML Snippet 19: devView cache disabled", devView.loader.cacheEnabled, False)
+prodView.clearCache()
+test("DOC HTML Snippet 19: prodView clearCache cleans map", prodView.loader.astCache.length(), 0)
+
+# Operators Table Verification (membership, identity, ternary)
+let tplOpsDoc = `
+{% if "admin" in user.roles %}Superuser{% end %}
+{% if user.deletedAt is Null %}Active User{% end %}
+{{ isVip ? 'VIP Customer' : 'Standard Customer' }}
+`
+let outOpsDoc = qalam.renderString(tplOpsDoc, {
+    "user": {"roles": ["admin", "editor"], "deletedAt": Null},
+    "isVip": True
+})
+testContains("DOC HTML Operators: Membership operator 'in'", outOpsDoc, "Superuser")
+testContains("DOC HTML Operators: Identity operator 'is Null'", outOpsDoc, "Active User")
+testContains("DOC HTML Operators: Ternary operator", outOpsDoc, "VIP Customer")
+
+# ── 13. Interactive Simulator Presets Verification ────────────────────────────
+# Preset 1: User Profile Card & Badges
+let presetUserTpl = `<div class="user-card">
+  <h2>{{ user.name | title }}</h2>
+  <p>Email: {{ user.email | lower }}</p>
+  <p>Status: {% if user.isActive %}<span class="sim-badge active">Active</span>{% else %}<span class="sim-badge">Inactive</span>{% end %}</p>
+  <p>Roles: {{ user.roles | join(" • ") | upper }}</p>
+</div>`
+let presetUserData = {
+  "user": {
+    "name": "riad harizi",
+    "email": "RIAD@EXAMPLE.COM",
+    "isActive": True,
+    "roles": ["architect", "developer"]
+  }
+}
+let outPresetUser = qalam.renderString(presetUserTpl, presetUserData)
+testContains("SIM PRESET 1: title filter", outPresetUser, "<h2>Riad Harizi</h2>")
+testContains("SIM PRESET 1: lower filter", outPresetUser, "Email: riad@example.com")
+testContains("SIM PRESET 1: active badge", outPresetUser, "<span class=\"sim-badge active\">Active</span>")
+testContains("SIM PRESET 1: upper join", outPresetUser, "ARCHITECT • DEVELOPER")
+
+# Preset 2: E-Commerce Invoice Table & Math
+let presetTableTpl = `<h3>Invoice #{{ invoice.id }}</h3>
+<p>Customer: {{ invoice.customer | capitalize }}</p>
+<table>
+  <tr><th>Item</th><th>Price</th><th>Stock</th></tr>
+  {% for item in items %}
+  <tr>
+    <td>{{ item.name }}</td>
+    <td>\${{ item.price | round(2) }}</td>
+    <td>{% if item.stock > 0 %}{{ item.stock }} in stock{% else %}Out of Stock{% end %}</td>
+  </tr>
+  {% end %}
+</table>
+<p><strong>Total Items: {{ items | length }}</strong></p>`
+let presetTableData = {
+  "invoice": { "id": "INV-2026-09", "customer": "riad" },
+  "items": [
+    { "name": "Kasbah Cloud", "price": 149.5, "stock": 8 },
+    { "name": "Qalam Book", "price": 29.99, "stock": 0 },
+    { "name": "Enterprise Support", "price": 499.0, "stock": 3 }
+  ]
+}
+let outPresetTable = qalam.renderString(presetTableTpl, presetTableData)
+testContains("SIM PRESET 2: invoice customer", outPresetTable, "<p>Customer: Riad</p>")
+testContains("SIM PRESET 2: in stock row", outPresetTable, "8 in stock")
+testContains("SIM PRESET 2: out of stock row", outPresetTable, "Out of Stock")
+testContains("SIM PRESET 2: total items length", outPresetTable, "<strong>Total Items: 3</strong>")
+
+# Preset 3: Loop Metadata & Alternating Rows
+let presetLoopsTpl = `<ul>
+{% for fruit in fruits %}
+  <li>
+    {{ loop.index }}. {{ fruit | upper }}
+    {% if loop.first %}(First item!){% elif loop.last %}(Last item!){% end %}
+  </li>
+{% end %}
+</ul>
+<p>Total Fruits: {{ fruits | length }}</p>`
+let presetLoopsData = {
+  "fruits": ["apple", "orange", "pomegranate", "fig"]
+}
+let outPresetLoops = qalam.renderString(presetLoopsTpl, presetLoopsData)
+testContains("SIM PRESET 3: first item note", outPresetLoops, "1. APPLE\n    (First item!)")
+testContains("SIM PRESET 3: last item note", outPresetLoops, "4. FIG\n    (Last item!)")
+testContains("SIM PRESET 3: fruits count", outPresetLoops, "<p>Total Fruits: 4</p>")
+
+# Preset 4: Filter Pipeline & Default Fallbacks
+let presetFiltersTpl = `<p>Original: "{{ rawText }}"</p>
+<p>Cleaned: "{{ rawText | trim | upper }}"</p>
+<p>Reversed: "{{ "qalam" | reverse }}"</p>
+<p>Fallback Bio: "{{ userBio | default("No biography provided.") }}"</p>
+<p>Abs Value: {{ numVal | abs }}</p>`
+let presetFiltersData = {
+  "rawText": "   welcome to qalam template engine   ",
+  "userBio": "",
+  "numVal": -99
+}
+let outPresetFilters = qalam.renderString(presetFiltersTpl, presetFiltersData)
+testContains("SIM PRESET 4: chained trim and upper", outPresetFilters, 'Cleaned: "WELCOME TO QALAM TEMPLATE ENGINE"')
+testContains("SIM PRESET 4: reversed string literal", outPresetFilters, 'Reversed: "malaq"')
+testContains("SIM PRESET 4: default fallback", outPresetFilters, 'Fallback Bio: "No biography provided."')
+testContains("SIM PRESET 4: abs filter", outPresetFilters, "Abs Value: 99")
+
+# ── Report ────────────────────────────────────────────────────────────────────
+print("\n═══════════════════════════════════════════════════════════════")
+print("Documentation Snippets Tests")
+print("  Passed : ${passed}")
+print("  Failed : ${failed}")
+if failed == 0
+    print("  Result : ALL DOCUMENTATION SNIPPETS VERIFIED 100% ✅")
+end
+print("═══════════════════════════════════════════════════════════════")

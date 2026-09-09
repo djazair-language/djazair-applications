@@ -1,0 +1,130 @@
+# ==============================================================================
+# types.dz — Raylib Core Mathematical & Geometric Types for Djazair
+#
+# Provides Vector2, Vector3, Color, and Rectangle classes with arithmetic and
+# helper utilities.
+#
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# ==============================================================================
+
+use assert
+use math
+
+# 2D Vector representation
+class Vector2
+    init(x = 0.0, y = 0.0)
+        assert.number(x, "x")
+        assert.number(y, "y")
+        self.x = float(x)
+        self.y = float(y)
+    end
+
+    add(other)
+        assert.instance(other, "other")
+        return new Vector2(self.x + other.x, self.y + other.y)
+    end
+
+    sub(other)
+        assert.instance(other, "other")
+        return new Vector2(self.x - other.x, self.y - other.y)
+    end
+
+    scale(factor)
+        assert.number(factor, "factor")
+        return new Vector2(self.x * factor, self.y * factor)
+    end
+
+    length()
+        return math.sqrt(self.x * self.x + self.y * self.y)
+    end
+
+    distance(other)
+        assert.instance(other, "other")
+        let dx = self.x - other.x
+        let dy = self.y - other.y
+        return math.sqrt(dx * dx + dy * dy)
+    end
+
+    normalize()
+        let len = self.length()
+        if len > 0.0
+            return new Vector2(self.x / len, self.y / len)
+        end
+        return new Vector2(0.0, 0.0)
+    end
+
+    toArray()
+        return [self.x, self.y]
+    end
+end
+
+# 3D Vector representation
+class Vector3
+    init(x = 0.0, y = 0.0, z = 0.0)
+        assert.number(x, "x")
+        assert.number(y, "y")
+        assert.number(z, "z")
+        self.x = float(x)
+        self.y = float(y)
+        self.z = float(z)
+    end
+
+    add(other)
+        assert.instance(other, "other")
+        return new Vector3(self.x + other.x, self.y + other.y, self.z + other.z)
+    end
+
+    sub(other)
+        assert.instance(other, "other")
+        return new Vector3(self.x - other.x, self.y - other.y, self.z - other.z)
+    end
+
+    scale(factor)
+        assert.number(factor, "factor")
+        return new Vector3(self.x * factor, self.y * factor, self.z * factor)
+    end
+
+    toArray()
+        return [self.x, self.y, self.z]
+    end
+end
+
+# RGBA Color representation (0-255 per channel)
+class Color
+    init(r, g, b, a = 255)
+        assert.number(r, "r")
+        assert.number(g, "g")
+        assert.number(b, "b")
+        assert.number(a, "a")
+        self.r = int(r)
+        self.g = int(g)
+        self.b = int(b)
+        self.a = int(a)
+        # Fast array representation for native layer
+        self.raw = [self.r, self.g, self.b, self.a]
+    end
+
+    toArray()
+        return [self.r, self.g, self.b, self.a]
+    end
+end
+
+# 2D Rectangle structure
+class Rectangle
+    init(x = 0.0, y = 0.0, width = 0.0, height = 0.0)
+        assert.number(x, "x")
+        assert.number(y, "y")
+        assert.number(width, "width")
+        assert.number(height, "height")
+        self.x = float(x)
+        self.y = float(y)
+        self.width = float(width)
+        self.height = float(height)
+        self.w = self.width
+        self.h = self.height
+    end
+
+    toArray()
+        return [self.x, self.y, self.width, self.height]
+    end
+end

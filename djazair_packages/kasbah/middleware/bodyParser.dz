@@ -1,0 +1,234 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# bodyParser.dz — Request Body Parsing Middleware
+# ═══════════════════════════════════════════════════════════════════════════════
+# Supports automatic parsing of JSON, URL-encoded forms, and multipart/form-data
+# file uploads into `req.body` and `req.files`.
+
+use json as *
+use os
+use file
+use dir
+use bytes
+import "../helpers/utils.dz" as *
+import "logger.dz" as loggerMod
+
+# Parses JSON payload into `req.body` map or array.
+#
+# @param req {Object} Kasbah request instance
+# @param res {Object} Kasbah response instance
+fn parseJson(req, res)
+    if req.body == ""
+        return
+    end
+    try
+        req.body = decode(req.body)
+    catch err
+        loggerMod.logWarn("Failed to parse JSON request body: ${err}")
+        res.status(400).json({"error": "Invalid JSON body"})
+        return
+    end
+end
+
+# Parses URL-encoded form data (`application/x-www-form-urlencoded`) into `req.body`.
+#
+# @param req {Object} Kasbah request instance
+# @param res {Object} Kasbah response instance
+fn parseUrlEncoded(req, res)
+    let rawBody = req.body
+    req.body = {}
+    if rawBody != ""
+        let parts = rawBody.split("&")
+        for part in parts
+            let eq = part.index("=")
+            if eq != -1
+                req.body[urlDecode(part.slice(0, eq))] = urlDecode(part.slice(eq + 1))
+            elif part != ""
+                req.body[urlDecode(part)] = ""
+            end
+        end
+    end
+end
+
+# Parses multipart/form-data payload, extracting text fields and streaming files to temp storage.
+#
+# @param req         {Object} Kasbah request instance
+# @param res         {Object} Kasbah response instance
+# @param boundary    {String} Multipart boundary marker
+# @param maxBodySize {Number} Maximum upload size limit in MB
+fn parseMultipart(req, res, boundary, maxBodySize = 10)
+    if boundary == "" or boundary.length() > 70 or boundary.contains("\r") or boundary.contains("\n")
+        res.status(400).json({"error": "Missing boundary in multipart/form-data"})
+        return
+    end
+
+    let boundaryChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'()+_,-./:=? "
+    for c in boundary
+        if not boundaryChars.contains(c)
+            res.status(400).json({"error": "Invalid multipart boundary"})
+            return
+        end
+    end
+
+    let rawBody = req.body
+    req.body = {}
+
+    let boundaryPrefix = "--${boundary}"
+    if not rawBody.startsWith(boundaryPrefix)
+        res.status(400).json({"error": "Malformed multipart body"})
+        return
+    end
+    let bodyWithoutFirstBoundary = rawBody.slice(boundaryPrefix.length())
+    if bodyWithoutFirstBoundary.startsWith("--")
+        return
+    end
+    if bodyWithoutFirstBoundary.startsWith("\r\n")
+        bodyWithoutFirstBoundary = bodyWithoutFirstBoundary.slice(2)
+    else
+        res.status(400).json({"error": "Malformed multipart body"})
+        return
+    end
+    let parts = bodyWithoutFirstBoundary.split("\r\n${boundaryPrefix}")
+
+    for part in parts
+        let pLen = part.length()
+        if pLen == 0 or part == "--\r\n" or part == "--\n" or part == "--" or part == "\r\n" or part == "\n"
+            continue
+        end
+
+        let pStart = 0
+        if pLen >= 2 and part.slice(0, 2) == "\r\n"
+            pStart = 2
+        elif pLen >= 1 and part.slice(0, 1) == "\n"
+            pStart = 1
+        end
+
+        let cleanPart = part.slice(pStart)
+        let byteArrAll = bytes.fromString(cleanPart)
+        let headerEnd = -1
+        let contentOffset = 4
+        for i in 0 .. byteArrAll.length() - 4
+            if byteArrAll[i] == 13 and byteArrAll[i+1] == 10 and byteArrAll[i+2] == 13 and byteArrAll[i+3] == 10
+                headerEnd = i
+                break
+            end
+        end
+        if headerEnd == -1
+            contentOffset = 2
+            for i in 0 .. byteArrAll.length() - 2
+                if byteArrAll[i] == 10 and byteArrAll[i+1] == 10
+                    headerEnd = i
+                    break
+                end
+            end
+        end
+
+        if headerEnd <= 0
+            continue
+        end
+
+        let headerSection = bytes.toString(byteArrAll.slice(0, headerEnd))
+        let contentBytes = byteArrAll.slice(headerEnd + contentOffset)
+
+        let cdHeader = ""
+        let ctHeader = "text/plain"
+
+        let hLines = headerSection.split("\n")
+        for hLine in hLines
+            let hClean = hLine.strip()
+            let hLower = hClean.lower()
+            if hLower.length() >= 20 and hLower.slice(0, 20) == "content-disposition:"
+                cdHeader = hClean.slice(20).strip()
+            elif hLower.length() >= 13 and hLower.slice(0, 13) == "content-type:"
+                ctHeader = hClean.slice(13).strip()
+            end
+        end
+
+        let disp = parseContentDisposition(cdHeader)
+        let name = disp["name"]
+        let filename = sanitizeFilename(disp["filename"])
+
+        if name == "" or name.length() > 128 or name.contains("\r") or name.contains("\n")
+            continue
+        end
+
+        if filename != ""
+            let byteLimit = maxBodySize * 1024 * 1024
+            if contentBytes.length() > byteLimit
+                res.status(413).json({
+                    "error": "File too large",
+                    "field": name,
+                    "maxBytes": byteLimit
+                })
+                return
+            end
+
+            let tempDir = "${os.tmpDir()}/kasbah_uploads"
+            if not file.exists(tempDir)
+                dir.createAll(tempDir)
+            end
+            let tempPath = "${tempDir}/${generateId(32)}"
+            file.writeBytes(tempPath, contentBytes)
+
+            let tracked = req.get("uploadedFiles")
+            if isNull(tracked)
+                req.set("uploadedFiles", [tempPath])
+            else
+                tracked.append(tempPath)
+            end
+
+            let fileInfo = {
+                "name":     name,
+                "filename": filename,
+                "type":     ctHeader,
+                "tempPath": tempPath,
+                "size":     contentBytes.length()
+            }
+            if req.files.has(name)
+                if isArray(req.files[name])
+                    req.files[name].append(fileInfo)
+                else
+                    req.files[name] = [req.files[name], fileInfo]
+                end
+            else
+                req.files[name] = fileInfo
+            end
+        else
+            req.body[name] = bytes.toString(contentBytes)
+        end
+    end
+end
+
+# Creates a body parser middleware closure.
+#
+# @param maxBodySize {Number} Maximum permitted body size in MB
+# @return            {Function} Middleware function `fn(req, res)`
+fn bodyParser(maxBodySize = 10)
+    return fn(req, res)
+        if req.method == "GET" or req.method == "HEAD" or req.method == "OPTIONS"
+            return
+        end
+
+        let byteLimit = if maxBodySize > 1024 ? maxBodySize else maxBodySize * 1024 * 1024
+        if bytes.fromString(req.body).length() > byteLimit
+            res.status(413).text("Request body too large")
+            return
+        end
+
+        let ct = req.header("content-type")
+        if ct == ""
+            return
+        end
+
+        let parts = ct.split(";")
+        let mainType = parts[0].strip()
+
+        if mainType == "application/json"
+            parseJson(req, res)
+        elif mainType == "application/x-www-form-urlencoded"
+            parseUrlEncoded(req, res)
+        elif mainType == "multipart/form-data"
+            let parsedCt = parseContentType(ct)
+            parseMultipart(req, res, parsedCt["boundary"], maxBodySize)
+        end
+    end
+end

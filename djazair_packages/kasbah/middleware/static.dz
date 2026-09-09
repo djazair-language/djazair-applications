@@ -1,0 +1,78 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# static.dz — Static Assets Serving Middleware
+# ═══════════════════════════════════════════════════════════════════════════════
+# Serves static assets (CSS, JS, images, fonts) with directory traversal protection,
+# index.html resolution, and optimized HTTP Cache-Control headers.
+
+use file
+use path
+import "../helpers/utils.dz" as * 
+
+# Factory function that creates a static file serving middleware.
+#
+# @param root {String} Directory path to expose
+# @return     {Function} Middleware function `fn(req, res)`
+fn serveStatic(root)
+    let normRoot = path.normalize(root)
+    let normRootLower = normRoot.lower()
+
+    return fn(req, res)
+        if req.method != "GET"
+            return
+        end
+
+        let relPath = req.path
+        let rootBase = path.basename(normRoot).lower()
+        if rootBase != "" and relPath.lower().startsWith("/${rootBase}/")
+            relPath = relPath.slice(rootBase.length() + 1)
+        end
+
+        let filePath = path.normalize("${normRoot}/${relPath}")
+        let filePathLower = filePath.lower()
+
+        # Path traversal guard
+        if filePathLower.slice(0, normRootLower.length()) != normRootLower
+            return
+        end
+
+        if filePath.length() > normRoot.length()
+            let sep = filePathLower[normRootLower.length()]
+            if sep != "/" and sep != "\\"
+                return
+            end
+        end
+
+        # Index.html fallback for directories
+        if file.isDir(filePath)
+            let indexPath = path.normalize("${filePath}/index.html")
+            if file.exists(indexPath)
+                res.header("Cache-Control", "no-cache")
+                res.header("Vary", "Accept-Encoding")
+                res.file(indexPath)
+            end
+            return
+        end
+
+        if not file.exists(filePath)
+            return
+        end
+
+        let ext = path.extname(filePath).lower()
+        if ext == ""
+            return
+        end
+
+        let isImmutable = ext == ".js" or ext == ".css" or ext == ".woff" or ext == ".woff2" or ext == ".ttf" or ext == ".otf" or ext == ".png" or ext == ".jpg" or ext == ".jpeg" or ext == ".gif" or ext == ".webp" or ext == ".svg" or ext == ".ico"
+
+        if isImmutable
+            res.header("Cache-Control", "public, max-age=86400, stale-while-revalidate=3600")
+        else
+            res.header("Cache-Control", "no-cache")
+        end
+
+        res.header("Vary", "Accept-Encoding")
+        res.header("X-Content-Type-Options", "nosniff")
+
+        res.file(filePath)
+    end
+end

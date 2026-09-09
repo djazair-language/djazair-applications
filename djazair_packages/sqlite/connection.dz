@@ -1,0 +1,168 @@
+# connection.dz — SQLite Connection module for Djazair
+let _s = __dynamic("sqlite")
+use assert
+use path
+use process
+import "result_set.dz" as rs
+
+class Connection
+    init(dbPath)
+        assert.string(dbPath, "path")
+        let targetPath = dbPath
+        if dbPath != ":memory:" and dbPath != "" and !dbPath.startsWith("file:") and !path.isAbsolute(dbPath)
+            let sDir = process.scriptDir()
+            if !isNull(sDir) and sDir != ""
+                targetPath = path.resolve(sDir, dbPath)
+            else
+                targetPath = path.resolve(dbPath)
+            end
+        end
+        self.db = _s.open(targetPath)
+        self.connected = !isNull((self.db))
+    end
+
+    isConnected()
+        return self.connected
+    end
+
+    error()
+        if !self.connected return "Database not open" end
+        return _s.error(self.db)
+    end
+
+    # Escape string or number for safe SQL use
+    escape(val)
+        if isString(val)
+            return _s.escape(val)
+        end
+        if isNumber(val)
+            return _s.escape(str(val))
+        end
+        throw "TypeError: sqlite.escape expected string or number, got ${type(val)}"
+    end
+
+    # Execute a query and return new ResultSet(or Null)
+    query(sql)
+        assert.string(sql, "sql query")
+        if !self.connected return Null end
+        let stmt = _s.prepare(self.db, sql)
+        if isNull(stmt) return Null end
+        return new rs.ResultSet(stmt)
+    end
+
+    # Safe parameterized query — replaces ? with escaped values
+    safeQuery(sql, params = [])
+        assert.string(sql, "sql query")
+        assert.array(params, "parameters")
+        if !self.connected return Null end
+
+        let parts = sql.split("?")
+        let built = parts[0]
+        for i, part in parts
+            if i > 0
+                let paramIdx = i - 1
+                if paramIdx < params.length()
+                    let p = params[paramIdx]
+                    if isNull(p)
+                        built = "${built}NULL"
+                    else
+                        built = "${built}'${self.escape(p)}'"
+                    end
+                else
+                    built = "${built}?"
+                end
+                built = "${built}${part}"
+            end
+        end
+
+        return self.query(built)
+    end
+
+    # Execute a non-returning query (returns True/False)
+    execute(sql)
+        assert.string(sql, "sql query")
+        if !self.connected return False end
+        let stmt = _s.prepare(self.db, sql)
+        if isNull(stmt) return False end
+        let rc = _s.step(stmt)
+        _s.finalize(stmt)
+        return rc == rs.SQLITE_DONE or rc == rs.SQLITE_ROW
+    end
+
+    # Safe version of execute() with ? placeholders
+    safeExecute(sql, params = [])
+        assert.string(sql, "sql query")
+        assert.array(params, "parameters")
+        if !self.connected return False end
+
+        let parts = sql.split("?")
+        let built = parts[0]
+        for i, part in parts
+            if i > 0
+                let paramIdx = i - 1
+                if paramIdx < params.length()
+                    let p = params[paramIdx]
+                    if isNull(p)
+                        built = "${built}NULL"
+                    else
+                        built = "${built}'${self.escape(p)}'"
+                    end
+                else
+                    built = "${built}?"
+                end
+                built = "${built}${part}"
+            end
+        end
+
+        return self.execute(built)
+    end
+
+    # --- Transactions ---
+    beginTransaction()
+        return self.execute("BEGIN TRANSACTION")
+    end
+
+    commit()
+        return self.execute("COMMIT")
+    end
+
+    rollback()
+        return self.execute("ROLLBACK")
+    end
+
+    insertId()
+        if !self.connected return 0 end
+        return _s.insertId(self.db)
+    end
+
+    changes()
+        if !self.connected return 0 end
+        return _s.changes(self.db)
+    end
+
+    # Return the raw DB handle (Hybrid)
+    raw()
+        return self.db
+    end
+
+    # Return SQLite engine version string
+    libversion()
+        return _s.libversion()
+    end
+
+    close()
+        if !isNull(self.db)
+            _s.close(self.db)
+            self.db = Null
+            self.connected = False
+        end
+    end
+end
+
+fn connect(path)
+    return new Connection(path)
+end
+
+fn libversion()
+    return _s.libversion()
+end

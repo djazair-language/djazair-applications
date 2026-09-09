@@ -1,0 +1,150 @@
+use webview
+
+let app = webview.createWindow({"title": "Bridge Demo", "debug": True})
+
+app.onReady(fn()
+    # Request/Response handler: JavaScript -> Djazair
+    app.bridge.on("add", fn(payload)
+        return payload["a"] + payload["b"]
+    end)
+
+    app.bridge.on("getUser", fn(payload)
+        return {"name": "Riad", "age": 24}
+    end)
+
+    # Push event: JS requests a push from Djazair
+    app.bridge.on("sendPush", fn(payload)
+        app.bridge.send("notification", {"message": "Hello from backend!"})
+        return True
+    end)
+
+    # Error propagation
+    app.bridge.on("willFail", fn(payload)
+        throw "Something went wrong!"
+    end)
+
+    # Expose native bindings on window.*
+    app.bridge.expose("nativeAdd", fn(args)
+        return args[0] + args[1]
+    end)
+
+    app.bridge.expose("nativeGreet", fn(args)
+        return "Hello, ${args[0]}!"
+    end)
+
+    app.window.setHtml("
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: 'Segoe UI', sans-serif;
+                    background: #0d1117; color: #c9d1d9;
+                    padding: 24px; max-width: 600px; margin: 0 auto;
+                }
+                h1 { color: #58a6ff; margin-bottom: 16px; font-size: 1.3rem; }
+                .card {
+                    background: #161b22; border: 1px solid #30363d;
+                    border-radius: 8px; padding: 16px; margin-bottom: 12px;
+                }
+                .card h3 { color: #e2e8f0; margin-bottom: 8px; font-size: 1rem; }
+                button {
+                    background: #21262d; border: 1px solid #30363d;
+                    color: #c9d1d9; padding: 8px 16px; border-radius: 6px;
+                    cursor: pointer; font-size: 13px; margin: 4px;
+                }
+                button:hover { background: #30363d; }
+                input { 
+                    background: #0d1117; border: 1px solid #30363d;
+                    color: #c9d1d9; padding: 6px 10px; border-radius: 4px;
+                    width: 80px; font-size: 13px;
+                }
+                .output {
+                    margin-top: 8px; padding: 8px; background: #0d1117;
+                    border-radius: 4px; font-family: monospace; font-size: 12px;
+                    color: #3fb950; min-height: 20px; word-break: break-all;
+                }
+                .push { color: #d2a8ff; }
+            </style>
+        </head>
+        <body>
+            <h1>IPC Bridge Demo</h1>
+            
+            <div class='card'>
+                <h3>Request / Response (invoke)</h3>
+                <input id='numA' type='number' value='10'>
+                <span> + </span>
+                <input id='numB' type='number' value='32'>
+                <button onclick='testAdd()'>= ?</button>
+                <div class='output' id='addResult'>Click to calculate</div>
+            </div>
+
+            <div class='card'>
+                <h3>Get User Object</h3>
+                <button onclick='testGetUser()'>Fetch User</button>
+                <div class='output' id='userResult'>Click to fetch</div>
+            </div>
+
+            <div class='card'>
+                <h3>Error Propagation</h3>
+                <button onclick='testError()'>Trigger Error</button>
+                <div class='output' id='errorResult'>Click to test</div>
+            </div>
+
+            <div class='card'>
+                <h3>Exposed Native Bindings</h3>
+                <button onclick='testNativeAdd()'>nativeAdd(10, 32)</button>
+                <button onclick='testNativeGreet()'>nativeGreet('World')</button>
+                <div class='output' id='exposeResult'>Click to test</div>
+            </div>
+
+            <div class='card'>
+                <h3>Push Events (bridge.send)</h3>
+                <button onclick='testPush()'>Send Push Event</button>
+                <div class='output push' id='pushResult'>Click to receive</div>
+            </div>
+
+            <script>
+                var out = function(id, msg) { document.getElementById(id).innerText = msg; };
+
+                async function testAdd() {
+                    var a = parseInt(document.getElementById('numA').value) || 0;
+                    var b = parseInt(document.getElementById('numB').value) || 0;
+                    var r = await window.djazair.invoke('add', {a: a, b: b});
+                    out('addResult', a + ' + ' + b + ' = ' + r);
+                }
+                async function testGetUser() {
+                    var r = await window.djazair.invoke('getUser');
+                    out('userResult', JSON.stringify(r));
+                }
+                async function testError() {
+                    try {
+                        await window.djazair.invoke('willFail');
+                        out('errorResult', 'No error thrown');
+                    } catch(e) {
+                        out('errorResult', 'Error: ' + e.message);
+                    }
+                }
+                async function testNativeAdd() {
+                    var r = await window.nativeAdd(10, 32);
+                    out('exposeResult', 'nativeAdd(10, 32) = ' + r);
+                }
+                async function testNativeGreet() {
+                    var r = await window.nativeGreet('World');
+                    out('exposeResult', 'nativeGreet(\"World\") = ' + r);
+                }
+                async function testPush() {
+                    window.djazair.on('notification', function(data) {
+                        out('pushResult', 'Received: ' + JSON.stringify(data));
+                        window.djazair.off('notification');
+                    });
+                    await window.djazair.invoke('sendPush');
+                }
+            </script>
+        </body>
+        </html>
+    ")
+end)
+
+app.run()

@@ -1,0 +1,87 @@
+# tray.dz
+# System Tray (Notification Area) integration for Djazair Webview
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+let _native = __native("_webview")
+
+# Tray class: Represents an interactive icon in the operating system's system tray notification area.
+class Tray
+    # Creates a new system tray icon.
+    init(tooltip = "", iconPath = "")
+        self.tooltip = tooltip
+        self.iconPath = iconPath
+        self._handle = _native.trayCreate(tooltip, iconPath)
+    end
+
+    # Updates the icon image displayed in the tray.
+    setIcon(iconPath)
+        self.iconPath = iconPath
+        if !isNull(self._handle)
+            _native.traySetIcon(self._handle, iconPath)
+        end
+    end
+
+    # Attaches a context menu to be displayed on right-clicking the tray icon.
+    setMenu(menu)
+        let menuHandle = menu
+        if type(menu) == "Instance" and !isNull(menu._handle)
+            menuHandle = menu._handle
+        end
+        if !isNull(self._handle)
+            _native.traySetMenu(self._handle, menuHandle)
+        end
+    end
+
+    # Updates the tooltip text shown when hovering over the tray icon.
+    setTooltip(tooltip)
+        self.tooltip = tooltip
+        if !isNull(self._handle)
+            _native.traySetTooltip(self._handle, tooltip)
+        end
+    end
+
+    # Displays a system notification balloon near the tray icon.
+    showBalloon(title, message, timeout = 5)
+        if !isNull(self._handle)
+            _native.trayShowBalloon(self._handle, title, message, timeout)
+        end
+    end
+
+    # Removes the tray icon from the system notification area and frees resources.
+    destroy()
+        if !isNull(self._handle)
+            _native.trayDestroy(self._handle)
+            self._handle = Null
+        end
+    end
+end
+
+# ── Backward Compatible Procedural API ──────────────────────────────────────
+
+fn trayCreate(label, iconPath)
+    return _native.trayCreate(label, iconPath)
+end
+
+fn traySetIcon(handle, iconPath)
+    _native.traySetIcon(handle, iconPath)
+end
+
+fn traySetMenu(handle, menuHandle)
+    if type(menuHandle) == "Instance" and !isNull(menuHandle._handle)
+        menuHandle = menuHandle._handle
+    end
+    _native.traySetMenu(handle, menuHandle)
+end
+
+fn traySetTooltip(handle, tooltip)
+    _native.traySetTooltip(handle, tooltip)
+end
+
+fn trayDestroy(handle)
+    _native.trayDestroy(handle)
+end
+
+fn trayShowBalloon(handle, title, message, timeout = 5)
+    _native.trayShowBalloon(handle, title, message, timeout)
+end

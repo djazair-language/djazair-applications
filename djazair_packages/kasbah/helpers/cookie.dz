@@ -1,0 +1,141 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# cookie.dz — RFC 6265 Cookie Parser & Serializer Helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+# Handles parsing of HTTP Cookie headers and serialization of Set-Cookie directives.
+
+import "utils.dz" as *
+
+# Parses an HTTP Cookie header string into a key-value dictionary.
+# Example: "token=abc123; theme=dark" -> {"token": "abc123", "theme": "dark"}
+#
+# @param header {String} Raw Cookie header string
+# @return       {Map}    Parsed cookies dictionary
+fn parseCookie(header)
+    let cookies = {}
+
+    if isNull(header) or header == ""
+        return cookies
+    end
+
+    for pair in header.split(";")
+        let trimmed = pair.strip()
+        let eqIdx = trimmed.index("=")
+        if eqIdx > 0
+            let k = trimmed.slice(0, eqIdx).strip()
+            let v = trimmed.slice(eqIdx + 1).strip()
+            if k != ""
+                cookies[k] = v
+            end
+        end
+    end
+
+    return cookies
+end
+
+# Percent-encodes characters that are unsafe inside cookie names or values.
+#
+# @param s {String} Raw value
+# @return  {String} Encoded safe string
+fn urlEncodeValue(s)
+    if isNull(s)
+        return ""
+    end
+    let safe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+/:@"
+    let hex = "0123456789ABCDEF"
+    let result = ""
+    let i = 0
+    let len = s.length()
+    while i < len
+        let c = s[i]
+        if safe.contains(c)
+            result += c
+        else
+            let code = ord(c)
+            result += "%${hex[int(code / 16)]}${hex[code % 16]}"
+        end
+        i += 1
+    end
+    return result
+end
+
+# Validates that a cookie attribute value contains no control characters or semicolons.
+#
+# @param value {String} Attribute string (e.g. domain or path)
+# @return      {Boolean} True if safe
+fn isSafeCookieAttribute(value)
+    if not isString(value) or value == "" or value.contains("\r") or value.contains("\n")
+        return False
+    end
+    return not value.contains(";")
+end
+
+# Serializes a cookie name, value, and options into a valid Set-Cookie header string.
+#
+# @param name    {String} Cookie name
+# @param value   {String} Cookie value
+# @param options {Map}    Cookie attributes (domain, path, expires, maxAge, httpOnly, secure, sameSite)
+# @return        {String} Formatted Set-Cookie header directive
+fn serializeCookie(name, value, options = {})
+    if isNull(options)
+        options = {}
+    end
+    if not isValidHttpToken(name)
+        return ""
+    end
+    if isString(value) and (value.contains("\r") or value.contains("\n"))
+        return ""
+    end
+    let encodedValue = urlEncodeValue(str(value))
+    let parts = ["${name}=${encodedValue}"]
+
+    if options.has("domain") and options["domain"] != ""
+        if not isSafeCookieAttribute(options["domain"])
+            return ""
+        end
+        parts.append("Domain=${options["domain"]}")
+    end
+
+    if options.has("path") and options["path"] != ""
+        if not isSafeCookieAttribute(options["path"])
+            return ""
+        end
+        parts.append("Path=${options["path"]}")
+    end
+
+    if options.has("expires") and options["expires"] != ""
+        if not isSafeCookieAttribute(options["expires"])
+            return ""
+        end
+        parts.append("Expires=${options["expires"]}")
+    end
+
+    if options.has("maxAge") and isNumber(options["maxAge"])
+        parts.append("Max-Age=${options["maxAge"]}")
+    end
+
+    if options.has("httpOnly") and options["httpOnly"]
+        parts.append("HttpOnly")
+    end
+
+    if options.has("secure") and options["secure"]
+        parts.append("Secure")
+    end
+
+    if options.has("sameSite") and options["sameSite"] != ""
+        let sameSite = str(options["sameSite"]).lower()
+        if sameSite == "lax"
+            parts.append("SameSite=Lax")
+        elif sameSite == "strict"
+            parts.append("SameSite=Strict")
+        elif sameSite == "none"
+            if not (options.has("secure") and options["secure"])
+                return ""
+            end
+            parts.append("SameSite=None")
+        else
+            return ""
+        end
+    end
+
+    return parts.join("; ")
+end

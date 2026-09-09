@@ -1,0 +1,36 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# 07_filters.dz — Template Filters & Piping Example
+# ═══════════════════════════════════════════════════════════════════════════════
+
+use qalam
+
+# 1. Built-in String & Math Filters
+let tpl1 = `
+Name:       {{ user.name | upper }}
+Title:      {{ user.job | capitalize }}
+Biography:  {{ user.bio | default('No biography provided.') }}
+Joined:     {{ tags | join(' • ') | upper }}
+Price:      \${{ price | round(2) }}
+`
+
+let data1 = {
+    "user": {
+        "name": "riad harizi",
+        "job": "software engineer",
+        "bio": ""
+    },
+    "tags": ["djazair", "qalam", "kasbah"],
+    "price": 49.999
+}
+
+print(qalam.renderString(tpl1, data1))
+
+# 2. Custom Filter Registration
+let viewInstance = new qalam.view({})
+viewInstance.registerFilter("currency", fn(val, args = [])
+    let symbol = if args.length() > 0 ? str(args[0]) else "DZD"
+    return "${val} ${symbol}"
+end)
+
+let tpl2 = "<p>Total Amount: {{ total | currency('DZD') }}</p>"
+print(viewInstance.renderString(tpl2, {"total": 15000}))

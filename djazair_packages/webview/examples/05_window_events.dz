@@ -1,0 +1,51 @@
+use webview
+
+let app = webview.createWindow({"title": "Events Demo", "debug": True})
+
+app.onReady(fn()
+    app.window.onMove(fn(x, y)
+        print("Window moved to ${x}, ${y}")
+    end)
+
+    app.window.onResize(fn(width, height)
+        print("Window resized to ${width}x${height}")
+    end)
+
+    app.window.onFocus(fn()
+        print("Window gained focus")
+    end)
+
+    app.window.onBlur(fn()
+        print("Window lost focus")
+    end)
+
+    app.window.onMaximize(fn()
+        print("Window maximized")
+    end)
+
+    app.window.onMinimize(fn()
+        print("Window minimized")
+    end)
+
+    app.window.onRestore(fn()
+        print("Window restored")
+    end)
+
+    app.window.onClose(fn()
+        print("Window closing")
+    end)
+
+    app.window.onLoad(fn()
+        print("Page fully loaded: ${app.window.getUrl()}")
+    end)
+
+    app.window.onNavigate(fn(url)
+        print("Navigating to: ${url}")
+    end)
+
+    app.window.onTitleChange(fn(title)
+        print("Document title changed: ${title}")
+    end)
+end)
+
+app.run()

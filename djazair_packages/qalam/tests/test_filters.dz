@@ -1,0 +1,125 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_filters.dz — Comprehensive Tests for Template Filters & Pipes
+# ═══════════════════════════════════════════════════════════════════════════════
+# Validates string filters, math filters, collection filters, filter chaining
+# (piping), and custom user-registered filters.
+
+use qalam
+
+let passed = 0
+let failed = 0
+
+fn test(name, result, expected)
+    if result == expected
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected: ${expected}")
+        print("  Got:      ${result}")
+    end
+end
+
+# ── 1. String Transformation Filters ──────────────────────────────────────────
+test("FILTER: upper",
+    qalam.renderString("{{ name | upper }}", {"name": "riad"}),
+    "RIAD")
+
+test("FILTER: lower",
+    qalam.renderString("{{ name | lower }}", {"name": "RIAD"}),
+    "riad")
+
+test("FILTER: capitalize",
+    qalam.renderString("{{ title | capitalize }}", {"title": "hello world"}),
+    "Hello world")
+
+test("FILTER: title",
+    qalam.renderString("{{ title | title }}", {"title": "hello world"}),
+    "Hello World")
+
+test("FILTER: trim",
+    qalam.renderString("{{ '  hello  ' | trim }}", {}),
+    "hello")
+
+test("FILTER: replace",
+    qalam.renderString("{{ text | replace('world', 'djazair') }}", {"text": "hello world"}),
+    "hello djazair")
+
+test("FILTER: reverse string",
+    qalam.renderString("{{ 'abc' | reverse }}", {}),
+    "cba")
+
+# ── 2. Collection & Sequence Filters ──────────────────────────────────────────
+test("FILTER: length on array",
+    qalam.renderString("{{ items | length }}", {"items": [10, 20, 30]}),
+    "3")
+
+test("FILTER: length on string",
+    qalam.renderString("{{ text | length }}", {"text": "hello"}),
+    "5")
+
+test("FILTER: first item",
+    qalam.renderString("{{ items | first }}", {"items": ["apple", "banana"]}),
+    "apple")
+
+test("FILTER: last item",
+    qalam.renderString("{{ items | last }}", {"items": ["apple", "banana"]}),
+    "banana")
+
+test("FILTER: join array with delimiter",
+    qalam.renderString("{{ items | join(' - ') }}", {"items": ["a", "b", "c"]}),
+    "a - b - c")
+
+# ── 3. Utility & Math Filters ─────────────────────────────────────────────────
+test("FILTER: default when empty/null",
+    qalam.renderString("{{ bio | default('No bio provided') }}", {"bio": ""}),
+    "No bio provided")
+
+test("FILTER: default when present",
+    qalam.renderString("{{ bio | default('No bio provided') }}", {"bio": "Engineer"}),
+    "Engineer")
+
+test("FILTER: raw json serialization",
+    qalam.renderString("{{{ user | json }}}", {"user": {"name": "Ali", "age": 25}}),
+    "{\"age\":25,\"name\":\"Ali\"}")
+
+test("FILTER: escaped json serialization in html",
+    qalam.renderString("{{ user | json }}", {"user": {"name": "Ali", "age": 25}}),
+    "{&quot;age&quot;:25,&quot;name&quot;:&quot;Ali&quot;}")
+
+test("FILTER: abs number",
+    qalam.renderString("{{ val | abs }}", {"val": -42}),
+    "42")
+
+test("FILTER: round number",
+    qalam.renderString("{{ val | round(2) }}", {"val": 3.14159}),
+    "3.14")
+
+# ── 4. Chained Filter Piping ──────────────────────────────────────────────────
+test("PIPING: trim | upper",
+    qalam.renderString("{{ '   algeria   ' | trim | upper }}", {}),
+    "ALGERIA")
+
+test("PIPING: array join | upper",
+    qalam.renderString("{{ fruits | join(', ') | upper }}", {"fruits": ["apple", "orange"]}),
+    "APPLE, ORANGE")
+
+# ── 5. Custom Registered Filters ──────────────────────────────────────────────
+let v = new qalam.view({})
+v.registerFilter("currency", fn(val, args = [])
+    return "\$${val}.00"
+end)
+
+test("CUSTOM FILTER: currency registered on view",
+    v.renderString("{{ price | currency }}", {"price": 100}),
+    "$100.00")
+
+# ── Report ────────────────────────────────────────────────────────────────────
+print("\n══════════════════════════════════════")
+print("Qalam Filters Tests")
+print("  Passed : ${passed}")
+print("  Failed : ${failed}")
+if failed == 0
+    print("  Result : ALL PASSED")
+end
+print("══════════════════════════════════════")

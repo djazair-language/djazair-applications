@@ -1,0 +1,377 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# router.dz — Kasbah Standalone Router & Route Group Engine
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides URL pattern matching (static and dynamic :params), HTTP verb dispatching,
+# route groups with scoped middleware, and sub-router composition.
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 1. Router Group Class
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class routerGroup
+    # Initializes a route group with a path prefix and scoped middleware list.
+    #
+    # @param router      {Object} Parent router or app instance
+    # @param prefix      {String} URL path prefix (e.g. "/trades")
+    # @param middlewares {Array}  List of middleware functions for this group
+    init(router, prefix, middlewares = [])
+        self.router = router
+        self.prefix = prefix
+        self.middlewares = middlewares
+    end
+
+    # Wraps a route handler with the group's middleware pipeline and route-level middlewares.
+    #
+    # @param middleware_or_handler {Function|Array} Middleware fn/list or final handler
+    # @param handler               {Function|Null}  Final handler if middleware provided
+    # @return                      {Function}       Composed middleware handler
+    wrapHandler(middleware_or_handler, handler = Null)
+        let routeMws = []
+        let finalHandler = middleware_or_handler
+        if not isNull(handler)
+            if isArray(middleware_or_handler)
+                routeMws = middleware_or_handler
+            else
+                routeMws = [middleware_or_handler]
+            end
+            finalHandler = handler
+        end
+
+        let allMws = []
+        for mw in self.middlewares
+            allMws.append(mw)
+        end
+        for mw in routeMws
+            allMws.append(mw)
+        end
+
+        if allMws.length() == 0
+            return finalHandler
+        end
+
+        return fn(req, res)
+            for mw in allMws
+                mw(req, res)
+                if res.sentFlag
+                    return
+                end
+            end
+            finalHandler(req, res)
+        end
+    end
+
+    # Normalizes sub-path with the group prefix.
+    #
+    # @param pattern {String} Relative pattern (e.g. "/:id" or "")
+    # @return        {String} Prefixed path (e.g. "/trades/:id")
+    fullPath(pattern)
+        let p = self.prefix + pattern
+        if p.length() > 1 and p.endsWith("/")
+            p = p.slice(0, p.length() - 1)
+        end
+        return p
+    end
+
+    # Registers a GET route within this group (supports optional route-level middleware).
+    get(pattern, middleware_or_handler, handler = Null)
+        self.router.get(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a POST route within this group (supports optional route-level middleware).
+    post(pattern, middleware_or_handler, handler = Null)
+        self.router.post(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a PUT route within this group (supports optional route-level middleware).
+    put(pattern, middleware_or_handler, handler = Null)
+        self.router.put(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a DELETE route within this group (supports optional route-level middleware).
+    delete(pattern, middleware_or_handler, handler = Null)
+        self.router.delete(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a PATCH route within this group (supports optional route-level middleware).
+    patch(pattern, middleware_or_handler, handler = Null)
+        self.router.patch(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a HEAD route within this group (supports optional route-level middleware).
+    head(pattern, middleware_or_handler, handler = Null)
+        self.router.head(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers an OPTIONS route within this group (supports optional route-level middleware).
+    options(pattern, middleware_or_handler, handler = Null)
+        self.router.options(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a route for all standard HTTP methods within this group.
+    all(pattern, middleware_or_handler, handler = Null)
+        self.router.all(self.fullPath(pattern), self.wrapHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Creates a nested sub-group with additional prefix and middlewares.
+    group(prefix, middlewares_or_callback, callback = Null)
+        let mws = []
+        let cb = callback
+        if isNull(callback)
+            cb = middlewares_or_callback
+        else
+            mws = middlewares_or_callback
+        end
+
+        let combinedMws = []
+        for mw in self.middlewares
+            combinedMws.append(mw)
+        end
+        for mw in mws
+            combinedMws.append(mw)
+        end
+
+        let g = new routerGroup(self.router, self.prefix + prefix, combinedMws)
+        cb(g)
+        return self
+    end
+end
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 2. Standalone Router Class
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class router
+    # Initializes empty route tables for all standard HTTP verbs.
+    init()
+        self.staticRoutes = {
+            "GET": {}, "POST": {}, "PUT": {}, "DELETE": {}, "PATCH": {}, "HEAD": {}, "OPTIONS": {}
+        }
+        self.dynamicRoutes = {
+            "GET": [], "POST": [], "PUT": [], "DELETE": [], "PATCH": [], "HEAD": [], "OPTIONS": []
+        }
+        self.subRouters = []
+    end
+
+    # Internal helper to add a route pattern to static or dynamic tables.
+    #
+    # @param method  {String}   HTTP method ("GET", "POST", etc.)
+    # @param pattern {String}   Route URL pattern (e.g. "/trades/:id")
+    # @param handler {Function} Handler callback `fn(req, res)`
+    addRoute(method, pattern, handler)
+        if pattern.length() > 1 and pattern.endsWith("/")
+            pattern = pattern.slice(0, pattern.length() - 1)
+        end
+
+        if pattern.contains(":")
+            self.dynamicRoutes[method].append({
+                "pattern": pattern,
+                "segs": pattern.split("/"),
+                "handler": handler
+            })
+        else
+            self.staticRoutes[method][pattern] = handler
+        end
+    end
+
+    # Resolves route-level middleware list and final handler into a composed handler.
+    #
+    # @param middleware_or_handler {Function|Array} Middleware fn/list or final handler
+    # @param handler               {Function|Null}  Final handler if middleware provided
+    # @return                      {Function}       Resolved/composed route handler
+    resolveHandler(middleware_or_handler, handler = Null)
+        if isNull(handler)
+            return middleware_or_handler
+        end
+
+        let routeMws = []
+        if isArray(middleware_or_handler)
+            routeMws = middleware_or_handler
+        else
+            routeMws = [middleware_or_handler]
+        end
+
+        let finalHandler = handler
+        return fn(req, res)
+            for mw in routeMws
+                mw(req, res)
+                if res.sentFlag
+                    return
+                end
+            end
+            finalHandler(req, res)
+        end
+    end
+
+    # Registers a GET route (supports optional route-level middleware).
+    get(pattern, middleware_or_handler, handler = Null)
+        self.addRoute("GET", pattern, self.resolveHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a POST route (supports optional route-level middleware).
+    post(pattern, middleware_or_handler, handler = Null)
+        self.addRoute("POST", pattern, self.resolveHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a PUT route (supports optional route-level middleware).
+    put(pattern, middleware_or_handler, handler = Null)
+        self.addRoute("PUT", pattern, self.resolveHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a DELETE route (supports optional route-level middleware).
+    delete(pattern, middleware_or_handler, handler = Null)
+        self.addRoute("DELETE", pattern, self.resolveHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a PATCH route (supports optional route-level middleware).
+    patch(pattern, middleware_or_handler, handler = Null)
+        self.addRoute("PATCH", pattern, self.resolveHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a HEAD route (supports optional route-level middleware).
+    head(pattern, middleware_or_handler, handler = Null)
+        self.addRoute("HEAD", pattern, self.resolveHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers an OPTIONS route (supports optional route-level middleware).
+    options(pattern, middleware_or_handler, handler = Null)
+        self.addRoute("OPTIONS", pattern, self.resolveHandler(middleware_or_handler, handler))
+        return self
+    end
+
+    # Registers a route for all supported HTTP methods.
+    all(pattern, middleware_or_handler, handler = Null)
+        let resolved = self.resolveHandler(middleware_or_handler, handler)
+        let methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+        for m in methods
+            self.addRoute(m, pattern, resolved)
+        end
+        return self
+    end
+
+    # Mounts a sub-router with a URL prefix.
+    #
+    # @param prefix    {String} Sub-router mount prefix (e.g. "/api")
+    # @param subRouter {Object} Kasbah router instance
+    mount(prefix, subRouter)
+        self.subRouters.append({
+            "prefix": prefix,
+            "router": subRouter
+        })
+        return self
+    end
+
+    # Registers a route group with an optional middleware pipeline.
+    #
+    # @param prefix                  {String}   URL group prefix (e.g. "/trades")
+    # @param middlewares_or_callback {Array|Fn} Middleware list or callback fn
+    # @param callback                {Fn|Null}  Group registration callback `fn(g)`
+    group(prefix, middlewares_or_callback, callback = Null)
+        let mws = []
+        let cb = callback
+        if isNull(callback)
+            cb = middlewares_or_callback
+        else
+            mws = middlewares_or_callback
+        end
+        let g = new routerGroup(self, prefix, mws)
+        cb(g)
+        return self
+    end
+
+    # Matches an incoming HTTP method and URL path against registered routes.
+    #
+    # @param method  {String} HTTP method ("GET", "POST", etc.)
+    # @param pathStr {String} Request path (e.g. "/trades/42")
+    # @return        {Map|Null} {"handler": fn, "params": {"id": "42"}} or Null
+    matchRoute(method, pathStr)
+        if pathStr.length() > 1 and pathStr.endsWith("/")
+            pathStr = pathStr.slice(0, pathStr.length() - 1)
+        end
+
+        # 1. Check exact static route match
+        if self.staticRoutes.has(method) and self.staticRoutes[method].has(pathStr)
+            return {"handler": self.staticRoutes[method][pathStr], "params": {}}
+        end
+
+        # 2. Check dynamic parameterized routes
+        let pathSegs = pathStr.split("/")
+
+        if self.dynamicRoutes.has(method)
+            for route in self.dynamicRoutes[method]
+                let patternSegs = route["segs"]
+                if patternSegs.length() != pathSegs.length()
+                    continue
+                end
+
+                let params = {}
+                let matched = True
+
+                let segCount = patternSegs.length()
+                let i = 0
+                while i < segCount
+                    let ps = patternSegs[i]
+                    let rs = pathSegs[i]
+
+                    if ps.length() > 0 and ps[0] == ":"
+                        params[ps.slice(1)] = rs
+                    elif ps != rs
+                        matched = False
+                        break
+                    end
+                    i = i + 1
+                end
+
+                if matched
+                    return {"handler": route["handler"], "params": params}
+                end
+            end
+        end
+
+        # 3. Check mounted sub-routers
+        for sub in self.subRouters
+            let pfx = sub["prefix"]
+            if pathStr.startsWith(pfx)
+                let subPath = pathStr.slice(pfx.length())
+                if subPath == "" or subPath[0] == "/"
+                    if subPath == "" subPath = "/" end
+                    let subMatch = sub["router"].matchRoute(method, subPath)
+                    if not isNull(subMatch)
+                        return subMatch
+                    end
+                end
+            end
+        end
+
+        return Null
+    end
+
+    # Dispatches incoming request to matching route handler.
+    #
+    # @param req {Object}  Kasbah request instance
+    # @param res {Object}  Kasbah response instance
+    # @return    {Boolean} True if matched and dispatched, False if 404
+    dispatch(req, res)
+        let route = self.matchRoute(req.method, req.path)
+        if isNull(route)
+            return False
+        end
+
+        req.params = route["params"]
+        route["handler"](req, res)
+        return True
+    end
+end

@@ -1,0 +1,65 @@
+# 05_full_sandbox.dz — Complete interactive demo
+use raylib as rl
+
+let win = new rl.Window(800, 600, "Djazair Raylib Sandbox")
+win.setFPS(60)
+
+let ballX = 400.0
+let ballY = 300.0
+let ballRadius = 25.0
+let speed = 4.0
+let score = 0
+
+while win.isOpen()
+    # Movement
+    if rl.isKeyDown(rl.KEY_LEFT) ballX = ballX - speed end
+    if rl.isKeyDown(rl.KEY_RIGHT) ballX = ballX + speed end
+    if rl.isKeyDown(rl.KEY_UP) ballY = ballY - speed end
+    if rl.isKeyDown(rl.KEY_DOWN) ballY = ballY + speed end
+
+    # Boundaries
+    if ballX < ballRadius ballX = ballRadius end
+    if ballX > 800 - ballRadius ballX = 800 - ballRadius end
+    if ballY < ballRadius ballY = ballRadius end
+    if ballY > 600 - ballRadius ballY = 600 - ballRadius end
+
+    # Click to score
+    if rl.isMouseButtonPressed(rl.MOUSE_LEFT_BUTTON)
+        let mx = rl.getMouseX()
+        let my = rl.getMouseY()
+        let dx = mx - ballX
+        let dy = my - ballY
+        if dx * dx + dy * dy <= ballRadius * ballRadius
+            score = score + 1
+        end
+    end
+
+    win.begin()
+    win.clear(rl.BLACK)
+
+    # Background grid
+    let gx = 0.0
+    while gx <= 800.0
+        rl.drawLine(gx, 0.0, gx, 600.0, rl.DARKGRAY)
+        gx = gx + 50.0
+    end
+    let gy = 0.0
+    while gy <= 600.0
+        rl.drawLine(0.0, gy, 800.0, gy, rl.DARKGRAY)
+        gy = gy + 50.0
+    end
+
+    # Ball
+    rl.drawCircle(ballX, ballY, ballRadius, rl.SKYBLUE)
+    rl.drawCircleLines(ballX, ballY, ballRadius, rl.WHITE)
+
+    # HUD
+    rl.drawText("Score: ${score}", 10, 10, 20, rl.WHITE)
+    rl.drawText("Click the ball to score!", 10, 40, 16, rl.LIME)
+    rl.drawText("Arrow keys to move", 10, 60, 16, rl.GRAY)
+    rl.drawText("FPS: ${win.getFPS()}", 720, 10, 16, rl.GOLD)
+
+    win.finish()
+end
+
+win.close()

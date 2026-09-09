@@ -1,0 +1,82 @@
+# init.dz
+# Public Entry Point for Djazair Webview Desktop Framework Extension
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+let _native = __dynamic("webview")
+
+use json as *
+import "utils/utils.dz" as *
+import "application/application.dz"
+import "window/window.dz" as *
+import "bridge/bridge.dz" as *
+import "menu/menu.dz" as *
+import "tray/tray.dz" as *
+import "notification/notification.dz" as *
+import "protocol/protocol.dz" as *
+
+# Re-export core classes
+let App = application.App
+let Window = Window
+let Bridge = Bridge
+let Menu = Menu
+let Tray = Tray
+let Notification = Notification
+
+# Creates a new application instance with an initial primary window.
+# Primary entry point for Djazair Webview applications.
+fn createWindow(options = {})
+    sysLog("App", "Initializing new window application...")
+    return new application.App(options)
+end
+
+# ── Public Logging API ──────────────────────────────────────────────────────
+
+fn log(message, level = "info")
+    sysLog("App", message, level)
+end
+
+# ── Native Dialogs API ──────────────────────────────────────────────────────
+
+fn showMessageBox(options = {})
+    let type = getOpt(options, "type", "info")
+    let title = getOpt(options, "title", "")
+    let message = getOpt(options, "message", "")
+    let detail = getOpt(options, "detail", "")
+    let buttons = getOpt(options, "buttons", "ok")
+    let defaultId = getOpt(options, "defaultId", 0)
+    let cancelId = getOpt(options, "cancelId", 0)
+    sysLog("Dialog", "showMessageBox: ${title}")
+    return _native.dialogMessage(type, title, message, detail, buttons, defaultId, cancelId)
+end
+
+fn showOpenFileDialog(options = {})
+    let title = getOpt(options, "title", "Open File")
+    let defaultPath = getOpt(options, "defaultPath", "")
+    let filters = getOpt(options, "filters", [{"name": "All Files", "extensions": ["*"]}])
+    let multi = getOpt(options, "multiSelections", False)
+    let properties = getOpt(options, "properties", [])
+    sysLog("Dialog", "showOpenFileDialog: ${title}")
+    return _native.dialogOpenFile(title, defaultPath, filters, multi, properties)
+end
+
+fn showSaveFileDialog(options = {})
+    let title = getOpt(options, "title", "Save File")
+    let defaultPath = getOpt(options, "defaultPath", "")
+    let filters = getOpt(options, "filters", [{"name": "All Files", "extensions": ["*"]}])
+    sysLog("Dialog", "showSaveFileDialog: ${title}")
+    return _native.dialogSaveFile(title, defaultPath, filters)
+end
+
+fn showOpenFolderDialog(options = {})
+    let title = getOpt(options, "title", "Select Folder")
+    let defaultPath = getOpt(options, "defaultPath", "")
+    sysLog("Dialog", "showOpenFolderDialog: ${title}")
+    return _native.dialogOpenFolder(title, defaultPath)
+end
+
+fn showColorPicker(options = {})
+    let title = getOpt(options, "title", "Pick Color")
+    sysLog("Dialog", "showColorPicker: ${title}")
+    return _native.dialogPickColor(title)
+end

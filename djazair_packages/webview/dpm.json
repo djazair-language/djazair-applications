@@ -1,0 +1,11 @@
+{
+  "source": "github:djazair-language/djazair-extensions/webview",
+  "description": "Desktop WebView2 window application framework extension for Djazair",
+  "type": "hybrid",
+  "developer": {
+    "name": "Harizi Riyadh",
+    "email": "hariziriyadh@gmail.com"
+  },
+  "name": "webview",
+  "version": "0.1.0"
+}

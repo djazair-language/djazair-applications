@@ -1,0 +1,18 @@
+use webview
+
+# Custom URL Protocol
+webview.protocolRegister("myapp", fn(request)
+    return "Custom response"
+end)
+
+webview.protocolUnregister("myapp")
+
+# Logging System
+webview.setLogLevel("debug")
+webview.setLogColors(True)
+webview.setLogFile("app.log")
+webview.setLogTimeFormat("%Y-%m-%d %H:%M:%S")
+webview.log("Application started")
+webview.log("Something suspicious", "warn")
+webview.log("Database connection failed", "error")
+webview.log("Verbose debug info", "debug")

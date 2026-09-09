@@ -1,0 +1,32 @@
+use sqlite
+
+let db = sqlite.connect("test.db")
+
+if db.isConnected()
+    db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, score REAL)")
+
+    db.safeExecute("INSERT INTO users (name, score) VALUES (?, ?)", ["Riad", 98.5])
+    db.safeExecute("INSERT INTO users (name, score) VALUES (?, ?)", ["Anis", 89.0])
+
+    print("Inserted ${db.changes()} row(s), last ID: ${db.insertId()}")
+
+    let res = db.safeQuery("SELECT * FROM users WHERE score > ?", [90.0])
+    if !isNull(res)
+        print("Columns: ${res.columns()}")
+
+        let users = res.fetchAllAssoc()
+        let i = 0
+        while i < users.length()
+            let user = users[i]
+            print("User [ID: ${user[\"id\"]}, Name: ${user[\"name\"]}, Score: ${user[\"score\"]}]")
+            i += 1
+        end
+
+        res.close()
+    end
+
+    db.close()
+    print("Done.")
+else
+    print("Failed: ${db.error()}")
+end

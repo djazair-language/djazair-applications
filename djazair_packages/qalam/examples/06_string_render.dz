@@ -1,0 +1,36 @@
+# ── Example 06: In-Memory String Rendering ────────────────────────────────────
+# Demonstrates renderString() — renders templates without any files on disk.
+# Useful for email bodies, generated code, API responses, and CLI tools.
+
+use qalam
+
+# ── Email template ────────────────────────────────────────────────────────────
+let emailBody = qalam.renderString(
+    "Hello {{ user.name }},\n\nYour activation code is: {{ code }}\n\nExpires in {{ ttl }} minutes.",
+    {"user": {"name": "Riad"}, "code": "XK-4921", "ttl": 15}
+)
+print(emailBody)
+
+# ── HTML snippet without a file ───────────────────────────────────────────────
+let card = qalam.renderString(
+    "<div class='card'>{% for tag in tags %}<span class='tag'>{{ tag }}</span>{% endfor %}</div>",
+    {"tags": ["djazair", "web", "opensource"]}
+)
+print(card)
+# → <div class='card'><span class='tag'>djazair</span>...</div>
+
+# ── Conditional snippet ───────────────────────────────────────────────────────
+let alert = qalam.renderString(
+    "{% if error %}<div class='alert'>{{ error }}</div>{% endif %}",
+    {"error": "Session expired"}
+)
+print(alert)
+# → <div class='alert'>Session expired</div>
+
+# ── No error = no output ──────────────────────────────────────────────────────
+let noAlert = qalam.renderString(
+    "{% if error %}<div class='alert'>{{ error }}</div>{% endif %}",
+    {"error": Null}
+)
+print("Alert when no error: '${noAlert}'")
+# → Alert when no error: ''

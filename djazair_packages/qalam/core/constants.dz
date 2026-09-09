@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# constants.dz — Token & AST Node Type Constants
+# ═══════════════════════════════════════════════════════════════════════════════
+# Defines standard constant identifiers used across the Lexer, Parser, and
+# Evaluator stages to ensure consistency and eliminate raw magic strings.
+
+# ── Token Types ────────────────────────────────────────────────────────────────
+let TOKEN_TEXT     = "TEXT"
+let TOKEN_VAR      = "VAR"
+let TOKEN_RAW      = "RAW"
+let TOKEN_TAG      = "TAG"
+let TOKEN_COMMENT  = "COMMENT"
+
+# ── AST Node Types ─────────────────────────────────────────────────────────────
+let NODE_TEXT      = "TEXT"
+let NODE_VAR       = "ESC"
+let NODE_RAW       = "RAW"
+let NODE_IF        = "IF"
+let NODE_FOR       = "FOR"
+let NODE_INCLUDE   = "INCLUDE"
+let NODE_EXTENDS   = "EXTENDS"
+let NODE_BLOCK     = "BLOCK"

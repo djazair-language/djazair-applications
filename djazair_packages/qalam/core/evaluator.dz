@@ -1,0 +1,813 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# evaluator.dz — AST Execution & Expression Evaluator
+# ═══════════════════════════════════════════════════════════════════════════════
+# Traverses and executes AST node hierarchies against runtime data contexts.
+# Fully compatible with Djazair language syntax, operators, truthiness, and filters:
+# - Logical operators: `and`, `&&`, `or`, `||`, `not`, `!`
+# - Comparison operators: `==`, `!=`, `<`, `<=`, `>`, `>=`
+# - Membership operators: `in`, `not in`
+# - Identity operators: `is`, `is not`
+# - Ternary operators: `if cond ? a else b` and `cond ? a : b`
+# - Arithmetic & string concatenation: `+`, `-`, `*`, `/`, `%`
+# - Dot paths and bracket indexing: `user.profile.name`, `items[0]`
+# - Filter piping: `value | filter1 | filter2(args)`
+
+import "constants.dz" as consts
+import "escaper.dz" as escaperMod
+import "filters.dz" as filtersMod
+
+class evaluator
+    # Initializes the Evaluator with a shared filter registry.
+    #
+    # @param filterRegistry {FilterRegistry} Registry containing filters
+    init(filterRegistry = Null)
+        self.filters = if isNull(filterRegistry) ? new filtersMod.filterRegistry() else filterRegistry
+        self.viewEngine = Null
+    end
+
+    # Sets the parent View engine reference for partial includes and rendering.
+    #
+    # @param engine {View} Parent View engine instance
+    setViewEngine(engine)
+        self.viewEngine = engine
+    end
+
+    # Determines truthiness of any value according to Djazair language conventions.
+    # Falsy values: Null, False, 0, 0.0, "", empty array `[]`, empty map `{}`.
+    #
+    # @param val {Any} Value to test
+    # @return    {Boolean} True if truthy, False if falsy
+    isTruthy(val)
+        if isNull(val)
+            return False
+        end
+        if isBool(val)
+            return val
+        end
+        if isNumber(val)
+            return val != 0
+        end
+        if isString(val)
+            return val != ""
+        end
+        if isArray(val)
+            return val.length() > 0
+        end
+        if isMap(val)
+            return val.length() > 0
+        end
+        return True
+    end
+
+    # Finds the index of an operator in an expression, respecting quotes and parentheses.
+    # Returns -1 if not found at parenDepth == 0.
+    #
+    # @param expr {String} Expression string
+    # @param op   {String} Operator to locate
+    # @return     {Number} Character index or -1
+    findOp(expr, op)
+        let inQuote = False
+        let quoteChar = ""
+        let parenDepth = 0
+        let opLen = op.length()
+        let exprLen = expr.length()
+        let i = 0
+
+        while i <= exprLen - opLen
+            let c = expr[i]
+            if (c == "\"" or c == "'")
+                if not inQuote
+                    inQuote = True
+                    quoteChar = c
+                elif c == quoteChar
+                    inQuote = False
+                end
+            elif not inQuote
+                if c == "("
+                    parenDepth += 1
+                elif c == ")"
+                    if parenDepth > 0
+                        parenDepth -= 1
+                    end
+                elif parenDepth == 0
+                    if expr.slice(i, i + opLen) == op
+                        return i
+                    end
+                end
+            end
+            i += 1
+        end
+        return -1
+    end
+
+    # Evaluates literal constants (strings, numbers, booleans, null, arrays) or paths/arithmetic.
+    #
+    # @param tokenStr {String} Literal string, identifier, or arithmetic expression
+    # @param data     {Map}    Variable context map
+    # @return         {Any}    Resolved runtime value
+    evalLiteral(tokenStr, data)
+        let s = tokenStr.strip()
+        if s.length() == 0
+            return Null
+        end
+
+        # Parenthesized expression unwrap: `(expr)`
+        if s.startsWith("(") and s.endsWith(")")
+            # Verify the opening paren matches the closing paren at end
+            let depth = 0
+            let isOuterMatch = True
+            let i = 0
+            let slen = s.length()
+            while i < slen - 1
+                let c = s[i]
+                if c == "(" depth += 1
+                elif c == ")"
+                    depth -= 1
+                    if depth == 0
+                        isOuterMatch = False
+                        break
+                    end
+                end
+                i += 1
+            end
+            if isOuterMatch
+                return self.evalExpression(s.slice(1, slen - 1), data)
+            end
+        end
+
+        # Djazair Ternary Expression: `if cond ? a else b`
+        if s.startsWith("if ") and s.contains(" ? ") and s.contains(" else ")
+            let qIdx = self.findOp(s, " ? ")
+            let elseIdx = self.findOp(s, " else ")
+            if qIdx > 3 and elseIdx > qIdx
+                let condStr = s.slice(3, qIdx).strip()
+                let thenStr = s.slice(qIdx + 3, elseIdx).strip()
+                let elseStr = s.slice(elseIdx + 6).strip()
+                let condVal = self.evalCondition(condStr, data)
+                return if self.isTruthy(condVal) ? self.evalExpression(thenStr, data) else self.evalExpression(elseStr, data)
+            end
+        end
+
+        # Standard Ternary Expression: `cond ? a : b`
+        let ternaryQ = self.findOp(s, " ? ")
+        let ternaryColon = self.findOp(s, " : ")
+        if ternaryQ > 0 and ternaryColon > ternaryQ
+            let condStr = s.slice(0, ternaryQ).strip()
+            let thenStr = s.slice(ternaryQ + 3, ternaryColon).strip()
+            let elseStr = s.slice(ternaryColon + 3).strip()
+            let condVal = self.evalCondition(condStr, data)
+            return if self.isTruthy(condVal) ? self.evalExpression(thenStr, data) else self.evalExpression(elseStr, data)
+        end
+
+        # String literals: "..." or '...'
+        if (s.startsWith("\"") and s.endsWith("\"")) or (s.startsWith("'") and s.endsWith("'"))
+            if s.length() >= 2
+                return s.slice(1, s.length() - 1)
+            end
+            return ""
+        end
+
+        # Boolean literals
+        if s == "True" or s == "true"
+            return True
+        end
+        if s == "False" or s == "false"
+            return False
+        end
+
+        # Null literals
+        if s == "Null" or s == "null" or s == "nil"
+            return Null
+        end
+
+        # Inline Array Literal: [a, b, c]
+        if s.startsWith("[") and s.endsWith("]")
+            let inner = s.slice(1, s.length() - 1).strip()
+            if inner.length() == 0
+                return []
+            end
+            return self.parseArgs(inner, data)
+        end
+
+        # Additive & Subtractive operators: ` + `, ` - `
+        let plusIdx = self.findOp(s, " + ")
+        if plusIdx > 0
+            let leftVal = self.evalLiteral(s.slice(0, plusIdx), data)
+            let rightVal = self.evalLiteral(s.slice(plusIdx + 3), data)
+            if isString(leftVal) or isString(rightVal)
+                let lStr = if isNull(leftVal) ? "" else leftVal
+                let rStr = if isNull(rightVal) ? "" else rightVal
+                return "${lStr}${rStr}"
+            end
+            return num(leftVal) + num(rightVal)
+        end
+
+        let minusIdx = self.findOp(s, " - ")
+        if minusIdx > 0
+            let leftVal = self.evalLiteral(s.slice(0, minusIdx), data)
+            let rightVal = self.evalLiteral(s.slice(minusIdx + 3), data)
+            return num(leftVal) - num(rightVal)
+        end
+
+        # Multiplicative operators: ` * `, ` / `, ` % `
+        let mulIdx = self.findOp(s, " * ")
+        if mulIdx > 0
+            let leftVal = self.evalLiteral(s.slice(0, mulIdx), data)
+            let rightVal = self.evalLiteral(s.slice(mulIdx + 3), data)
+            return num(leftVal) * num(rightVal)
+        end
+
+        let divIdx = self.findOp(s, " / ")
+        if divIdx > 0
+            let leftVal = self.evalLiteral(s.slice(0, divIdx), data)
+            let rightVal = self.evalLiteral(s.slice(divIdx + 3), data)
+            let rNum = num(rightVal)
+            return if rNum != 0 ? num(leftVal) / rNum else 0
+        end
+
+        let modIdx = self.findOp(s, " % ")
+        if modIdx > 0
+            let leftVal = self.evalLiteral(s.slice(0, modIdx), data)
+            let rightVal = self.evalLiteral(s.slice(modIdx + 3), data)
+            let rNum = int(rightVal)
+            return if rNum != 0 ? int(leftVal) % rNum else 0
+        end
+
+        # Numeric literal check
+        let isNum = True
+        let dotCount = 0
+        let i = 0
+        let sLen = s.length()
+        while i < sLen
+            let c = s[i]
+            if c == "."
+                dotCount += 1
+                if dotCount > 1
+                    isNum = False
+                    break
+                end
+            elif c == "-" and i == 0
+                # Leading negative sign
+            elif c < "0" or c > "9"
+                isNum = False
+                break
+            end
+            i += 1
+        end
+
+        if isNum and sLen > 0 and s != "-" and s != "."
+            return if dotCount > 0 ? float(s) else int(s)
+        end
+
+        # Direct function / method call invocation (e.g. `formatDate(user.createdAt, "YYYY-MM-DD")` or `greet(name)`)
+        if s.contains("(") and s.endsWith(")")
+            let parenIdx = s.index("(")
+            let funcPath = s.slice(0, parenIdx).strip()
+            let rawArgs = s.slice(parenIdx + 1, s.length() - 1).strip()
+            let funcObj = self.resolveValue(funcPath, data)
+            if not isNull(funcObj)
+                let args = if rawArgs.length() > 0 ? self.parseArgs(rawArgs, data) else []
+                let argc = args.length()
+                if argc == 0
+                    return funcObj()
+                elif argc == 1
+                    return funcObj(args[0])
+                elif argc == 2
+                    return funcObj(args[0], args[1])
+                elif argc == 3
+                    return funcObj(args[0], args[1], args[2])
+                elif argc == 4
+                    return funcObj(args[0], args[1], args[2], args[3])
+                elif argc == 5
+                    return funcObj(args[0], args[1], args[2], args[3], args[4])
+                elif argc == 6
+                    return funcObj(args[0], args[1], args[2], args[3], args[4], args[5])
+                else
+                    return funcObj(args[0], args[1], args[2], args[3], args[4], args[5], args[6])
+                end
+            end
+        end
+
+        return self.resolveValue(s, data)
+    end
+
+    # Resolves a variable identifier or path with dot notation or brackets from context data.
+    #
+    # @param pathExpr {String} Variable path (e.g. "user.profile.name" or "items[0]")
+    # @param data     {Map}    Runtime variable context
+    # @return         {Any}    Resolved value or Null if missing
+    resolveValue(pathExpr, data)
+        if isNull(data) or not isMap(data)
+            return Null
+        end
+
+        let expr = pathExpr.strip()
+        if expr.length() == 0
+            return Null
+        end
+
+        # Direct map lookup
+        if data.has(expr)
+            return data[expr]
+        end
+
+        # Normalized segment extraction for dot & bracket access
+        let segments = []
+        let currentSeg = ""
+        let inBracket = False
+        let inQuote = False
+        let quoteChar = ""
+
+        let i = 0
+        let len = expr.length()
+        while i < len
+            let c = expr[i]
+            if (c == "\"" or c == "'") and inBracket
+                if not inQuote
+                    inQuote = True
+                    quoteChar = c
+                elif c == quoteChar
+                    inQuote = False
+                end
+            elif c == "[" and not inQuote
+                if currentSeg.length() > 0
+                    segments.append(currentSeg)
+                    currentSeg = ""
+                end
+                inBracket = True
+            elif c == "]" and not inQuote
+                if currentSeg.length() > 0
+                    segments.append(currentSeg)
+                    currentSeg = ""
+                end
+                inBracket = False
+            elif c == "." and not inBracket and not inQuote
+                if currentSeg.length() > 0
+                    segments.append(currentSeg)
+                    currentSeg = ""
+                end
+            else
+                currentSeg += c
+            end
+            i += 1
+        end
+        if currentSeg.length() > 0
+            segments.append(currentSeg)
+        end
+
+        # Traverse target object
+        let current = data
+        for seg in segments
+            if isNull(current)
+                return Null
+            end
+
+            # Unquote segment if needed
+            let cleanSeg = seg.strip()
+            if (cleanSeg.startsWith("\"") and cleanSeg.endsWith("\"")) or (cleanSeg.startsWith("'") and cleanSeg.endsWith("'"))
+                if cleanSeg.length() >= 2
+                    cleanSeg = cleanSeg.slice(1, cleanSeg.length() - 1)
+                end
+            end
+
+            if isMap(current)
+                if cleanSeg in current
+                    current = current[cleanSeg]
+                else
+                    return Null
+                end
+            elif isArray(current)
+                let isInteger = True
+                for ch in cleanSeg
+                    if ch < "0" or ch > "9"
+                        isInteger = False
+                        break
+                    end
+                end
+                if isInteger and cleanSeg.length() > 0
+                    let idx = int(cleanSeg)
+                    if idx >= 0 and idx < current.length()
+                        current = current[idx]
+                    else
+                        return Null
+                    end
+                else
+                    return Null
+                end
+            else
+                return Null
+            end
+        end
+
+        return current
+    end
+
+    # Evaluates a condition or boolean sub-expression.
+    # Supports `or`, `||`, `and`, `&&`, `not`, `!`, comparisons, `in`, `not in`, `is`, `is not`.
+    #
+    # @param expr {String} Expression string
+    # @param data {Map}    Variable context map
+    # @return     {Any}    Evaluated result
+    evalCondition(expr, data)
+        expr = expr.strip()
+        if expr.length() == 0
+            return False
+        end
+
+        # Unparenthesize if wrapped in `( ... )`
+        if expr.startsWith("(") and expr.endsWith(")")
+            let depth = 0
+            let isOuterMatch = True
+            let i = 0
+            let elen = expr.length()
+            while i < elen - 1
+                let c = expr[i]
+                if c == "(" depth += 1
+                elif c == ")"
+                    depth -= 1
+                    if depth == 0
+                        isOuterMatch = False
+                        break
+                    end
+                end
+                i += 1
+            end
+            if isOuterMatch
+                return self.evalCondition(expr.slice(1, elen - 1), data)
+            end
+        end
+
+        # ── 1. Logical OR / || ──
+        let orIdx = self.findOp(expr, " or ")
+        if orIdx == -1
+            orIdx = self.findOp(expr, " || ")
+        end
+        if orIdx > 0
+            let opLen = if expr.slice(orIdx, orIdx + 4) == " or " ? 4 else 4
+            let leftPart = expr.slice(0, orIdx).strip()
+            let rightPart = expr.slice(orIdx + opLen).strip()
+            return self.isTruthy(self.evalCondition(leftPart, data)) or self.isTruthy(self.evalCondition(rightPart, data))
+        end
+
+        # ── 2. Logical AND / && ──
+        let andIdx = self.findOp(expr, " and ")
+        if andIdx == -1
+            andIdx = self.findOp(expr, " && ")
+        end
+        if andIdx > 0
+            let opLen = if expr.slice(andIdx, andIdx + 5) == " and " ? 5 else 4
+            let leftPart = expr.slice(0, andIdx).strip()
+            let rightPart = expr.slice(andIdx + opLen).strip()
+            return self.isTruthy(self.evalCondition(leftPart, data)) and self.isTruthy(self.evalCondition(rightPart, data))
+        end
+
+        # ── 3. Unary Negation `not ` or `!` ──
+        if expr.startsWith("not ")
+            return not self.isTruthy(self.evalCondition(expr.slice(4), data))
+        end
+        if expr.startsWith("!")
+            return not self.isTruthy(self.evalCondition(expr.slice(1), data))
+        end
+
+        # ── 4. Membership: `not in` and `in` ──
+        let notInIdx = self.findOp(expr, " not in ")
+        if notInIdx > 0
+            let leftVal = self.evalLiteral(expr.slice(0, notInIdx), data)
+            let rightVal = self.evalLiteral(expr.slice(notInIdx + 8), data)
+            return not self.checkContains(rightVal, leftVal)
+        end
+
+        let inIdx = self.findOp(expr, " in ")
+        if inIdx > 0
+            let leftVal = self.evalLiteral(expr.slice(0, inIdx), data)
+            let rightVal = self.evalLiteral(expr.slice(inIdx + 4), data)
+            return self.checkContains(rightVal, leftVal)
+        end
+
+        # ── 5. Identity: `is not` and `is` ──
+        let isNotIdx = self.findOp(expr, " is not ")
+        if isNotIdx > 0
+            let leftVal = self.evalLiteral(expr.slice(0, isNotIdx), data)
+            let rightVal = self.evalLiteral(expr.slice(isNotIdx + 8), data)
+            return leftVal != rightVal
+        end
+
+        let isIdx = self.findOp(expr, " is ")
+        if isIdx > 0
+            let leftVal = self.evalLiteral(expr.slice(0, isIdx), data)
+            let rightVal = self.evalLiteral(expr.slice(isIdx + 4), data)
+            return leftVal == rightVal
+        end
+
+        # ── 6. Binary Comparisons ──
+        let eqIdx = self.findOp(expr, " == ")
+        if eqIdx > 0
+            let leftVal = self.evalLiteral(expr.slice(0, eqIdx), data)
+            let rightVal = self.evalLiteral(expr.slice(eqIdx + 4), data)
+            return leftVal == rightVal
+        end
+
+        let neqIdx = self.findOp(expr, " != ")
+        if neqIdx > 0
+            let leftVal = self.evalLiteral(expr.slice(0, neqIdx), data)
+            let rightVal = self.evalLiteral(expr.slice(neqIdx + 4), data)
+            return leftVal != rightVal
+        end
+
+        let gteIdx = self.findOp(expr, " >= ")
+        if gteIdx > 0
+            let leftVal = num(self.evalLiteral(expr.slice(0, gteIdx), data))
+            let rightVal = num(self.evalLiteral(expr.slice(gteIdx + 4), data))
+            return leftVal >= rightVal
+        end
+
+        let lteIdx = self.findOp(expr, " <= ")
+        if lteIdx > 0
+            let leftVal = num(self.evalLiteral(expr.slice(0, lteIdx), data))
+            let rightVal = num(self.evalLiteral(expr.slice(lteIdx + 4), data))
+            return leftVal <= rightVal
+        end
+
+        let gtIdx = self.findOp(expr, " > ")
+        if gtIdx > 0
+            let leftVal = num(self.evalLiteral(expr.slice(0, gtIdx), data))
+            let rightVal = num(self.evalLiteral(expr.slice(gtIdx + 3), data))
+            return leftVal > rightVal
+        end
+
+        let ltIdx = self.findOp(expr, " < ")
+        if ltIdx > 0
+            let leftVal = num(self.evalLiteral(expr.slice(0, ltIdx), data))
+            let rightVal = num(self.evalLiteral(expr.slice(ltIdx + 3), data))
+            return leftVal < rightVal
+        end
+
+        return self.evalLiteral(expr, data)
+    end
+
+    # Helper to check if a collection or string contains a target item (for `in` operator).
+    #
+    # @param haystack {Any} Collection, map, or string
+    # @param needle   {Any} Target to search for
+    # @return         {Boolean} True if contained
+    checkContains(haystack, needle)
+        if isNull(haystack)
+            return False
+        end
+        if isArray(haystack)
+            return haystack.contains(needle)
+        end
+        if isMap(haystack)
+            return haystack.has(str(needle))
+        end
+        if isString(haystack)
+            return str(haystack).contains(str(needle))
+        end
+        return False
+    end
+
+    # Splits an expression by pipe `|` while respecting quotation marks and parentheses.
+    #
+    # @param expr {String} Expression string
+    # @return     {Array}  Pipe segments
+    splitPipes(expr)
+        let parts = []
+        let current = ""
+        let inQuote = False
+        let quoteChar = ""
+        let parenDepth = 0
+
+        let i = 0
+        let len = expr.length()
+        while i < len
+            let c = expr[i]
+            if (c == "\"" or c == "'")
+                if not inQuote
+                    inQuote = True
+                    quoteChar = c
+                elif c == quoteChar
+                    inQuote = False
+                end
+                current += c
+            elif not inQuote
+                if c == "("
+                    parenDepth += 1
+                    current += c
+                elif c == ")"
+                    if parenDepth > 0 parenDepth -= 1 end
+                    current += c
+                elif c == "|" and parenDepth == 0
+                    if current.strip().length() > 0
+                        parts.append(current.strip())
+                    end
+                    current = ""
+                else
+                    current += c
+                end
+            else
+                current += c
+            end
+            i += 1
+        end
+
+        if current.strip().length() > 0
+            parts.append(current.strip())
+        end
+
+        return parts
+    end
+
+    # Parses comma-separated arguments while respecting quotes and nested structures.
+    #
+    # @param argStr {String} Raw argument list
+    # @param data   {Map}    Variable context map
+    # @return       {Array}  Evaluated argument values
+    parseArgs(argStr, data)
+        let args = []
+        let current = ""
+        let inQuote = False
+        let quoteChar = ""
+        let bracketDepth = 0
+
+        let i = 0
+        let len = argStr.length()
+        while i < len
+            let c = argStr[i]
+            if (c == "\"" or c == "'")
+                if not inQuote
+                    inQuote = True
+                    quoteChar = c
+                elif c == quoteChar
+                    inQuote = False
+                end
+                current += c
+            elif not inQuote
+                if c == "["
+                    bracketDepth += 1
+                    current += c
+                elif c == "]"
+                    if bracketDepth > 0 bracketDepth -= 1 end
+                    current += c
+                elif c == "," and bracketDepth == 0
+                    if current.strip().length() > 0
+                        args.append(self.evalLiteral(current.strip(), data))
+                    end
+                    current = ""
+                else
+                    current += c
+                end
+            else
+                current += c
+            end
+            i += 1
+        end
+
+        if current.strip().length() > 0
+            args.append(self.evalLiteral(current.strip(), data))
+        end
+
+        return args
+    end
+
+    # Evaluates an expression with support for filter pipelines (e.g. `name | upper | default('Guest')`).
+    #
+    # @param expr {String} Expression string
+    # @param data {Map}    Variable context map
+    # @return     {Any}    Evaluated value
+    evalExpression(expr, data)
+        expr = expr.strip()
+        if expr.length() == 0
+            return ""
+        end
+
+        let pipes = self.splitPipes(expr)
+        if pipes.length() == 0
+            return ""
+        end
+
+        # Base value evaluation
+        let val = self.evalLiteral(pipes[0], data)
+
+        # Sequential filter applications
+        let pIdx = 1
+        let pipeCount = pipes.length()
+        while pIdx < pipeCount
+            let filterCall = pipes[pIdx].strip()
+            let filterName = filterCall
+            let args = []
+
+            # Check for arguments: `filterName(arg1, arg2)`
+            if filterCall.contains("(") and filterCall.endsWith(")")
+                let parenIdx = filterCall.index("(")
+                if parenIdx > 0
+                    filterName = filterCall.slice(0, parenIdx).strip()
+                    let rawArgs = filterCall.slice(parenIdx + 1, filterCall.length() - 1).strip()
+                    if rawArgs.length() > 0
+                        args = self.parseArgs(rawArgs, data)
+                    end
+                end
+            end
+
+            val = self.filters.apply(filterName, val, args)
+            pIdx += 1
+        end
+
+        return val
+    end
+
+    # Evaluates an AST node list recursively against context data and layout block definitions.
+    #
+    # @param nodes     {Array} AST node list
+    # @param data      {Map}   Variable context map
+    # @param blocksMap {Map}   Block overrides map
+    # @return          {String} Rendered HTML output
+    evalNodes(nodes, data, blocksMap = {})
+        let out = ""
+        for node in nodes
+            let nodeType = node["type"]
+
+            # Literal Text Node
+            if nodeType == consts.NODE_TEXT
+                out += node["val"]
+
+            # Variable Node (Auto-Escaped against XSS)
+            elif nodeType == consts.NODE_VAR
+                let evaluated = self.evalExpression(node["val"], data)
+                out += escaperMod.escapeHtml(evaluated)
+
+            # Raw Markup Node (Unescaped)
+            elif nodeType == consts.NODE_RAW
+                let evaluated = self.evalExpression(node["val"], data)
+                out += if isNull(evaluated) ? "" else str(evaluated)
+
+            # Conditional Node (`if` / `elif` / `else`)
+            elif nodeType == consts.NODE_IF
+                let matched = False
+                for branch in node["branches"]
+                    let condExpr = branch["cond"]
+                    # `else` branch has null condition
+                    if isNull(condExpr) or self.isTruthy(self.evalCondition(condExpr, data))
+                        out += self.evalNodes(branch["body"], data, blocksMap)
+                        matched = True
+                        break
+                    end
+                end
+
+            # Loop Node (`for` / `else`)
+            elif nodeType == consts.NODE_FOR
+                let iterVar = if "var" in node ? node["var"] else node["iterVar"]
+                let listExpr = if "list" in node ? node["list"] else node["listExpr"]
+                let collection = self.evalExpression(listExpr, data)
+
+                if isArray(collection) and collection.length() > 0
+                    let totalLen = collection.length()
+                    let idx = 0
+                    while idx < totalLen
+                        let item = collection[idx]
+                        let loopContext = {
+                            "index":   idx + 1,
+                            "index0":  idx,
+                            "first":   idx == 0,
+                            "last":    idx == totalLen - 1,
+                            "length":  totalLen,
+                            "even":    (idx + 1) % 2 == 0,
+                            "odd":     (idx + 1) % 2 != 0
+                        }
+
+                        # Inherit parent data and inject loop variables
+                        let itemData = data.copy()
+                        itemData[iterVar] = item
+                        itemData["loop"] = loopContext
+
+                        out += self.evalNodes(node["body"], itemData, blocksMap)
+                        idx += 1
+                    end
+                else
+                    # Fallback for empty collections
+                    if "elseBody" in node and isArray(node["elseBody"]) and node["elseBody"].length() > 0
+                        out += self.evalNodes(node["elseBody"], data, blocksMap)
+                    end
+                end
+
+            # Template Block Node
+            elif nodeType == consts.NODE_BLOCK
+                let blockName = node["name"]
+                if isMap(blocksMap) and blockName in blocksMap
+                    out += self.evalNodes(blocksMap[blockName], data, blocksMap)
+                else
+                    out += self.evalNodes(node["body"], data, blocksMap)
+                end
+
+            # Partial Include Node
+            elif nodeType == consts.NODE_INCLUDE
+                let partialName = if "val" in node ? node["val"] else node["name"]
+                if not isNull(self.viewEngine)
+                    let partialAst = self.viewEngine.loader.loadAST(partialName, self.viewEngine.lexer, self.viewEngine.parser)
+                    out += self.evalNodes(partialAst, data, blocksMap)
+                end
+            end
+        end
+
+        return out
+    end
+end

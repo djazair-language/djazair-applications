@@ -1,0 +1,46 @@
+# 02_shapes.dz — Drawing various 2D shapes
+use raylib as rl
+
+let win = new rl.Window(800, 600, "Shapes with Djazair")
+win.setFPS(60)
+
+let cx = 400.0
+let cy = 300.0
+
+while win.isOpen()
+    win.begin()
+    win.clear(rl.BLACK)
+
+    # Rectangle
+    rl.drawRectangle(50, 50, 150, 100, rl.RED)
+
+    # Rectangle with lines
+    rl.drawRectangleLines(50, 200, 150, 100, rl.GREEN)
+
+    # Rounded rectangle
+    rl.drawRectangleRounded(50, 350, 150, 100, 0.3, 8, rl.BLUE)
+
+    # Circle
+    rl.drawCircle(400, 100, 60, rl.YELLOW)
+
+    # Circle lines
+    rl.drawCircleLines(400, 250, 60, rl.ORANGE)
+
+    # Ellipse
+    rl.drawEllipse(400, 400, 80, 40, rl.PURPLE)
+
+    # Lines
+    rl.drawLine(600, 50, 750, 150, rl.SKYBLUE)
+    rl.drawLineEx(600, 200, 750, 300, 5.0, rl.PINK)
+
+    # Triangle
+    rl.drawTriangle(600, 350, 700, 500, 550, 450, rl.LIME)
+    rl.drawTriangleLines(600, 370, 700, 480, 570, 440, rl.GOLD)
+
+    # Polygon
+    rl.drawPoly(700, 150, 6, 50, 0.0, rl.MAGENTA)
+
+    win.finish()
+end
+
+win.close()

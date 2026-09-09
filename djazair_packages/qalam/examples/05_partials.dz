@@ -1,0 +1,35 @@
+# ── Example 05: Partials (include) ────────────────────────────────────────────
+# Demonstrates {% include "partial" %} for reusable sub-templates.
+
+use qalam
+use os
+use file
+use dir
+
+let tmpDir = "${os.tmpDir()}/qalam_example_05"
+if not file.exists(tmpDir)
+    dir.createAll(tmpDir)
+end
+if not file.exists("${tmpDir}/components")
+    dir.createAll("${tmpDir}/components")
+end
+
+# ── Write reusable card component ─────────────────────────────────────────────
+file.write("${tmpDir}/components/card.html",
+    "<div class=\"card\"><h3>{{ card.title }}</h3><p>{{ card.body }}</p></div>")
+
+# ── Write page template that includes the card ────────────────────────────────
+file.write("${tmpDir}/page.html",
+    "<section>{% include \"components/card\" %}</section>")
+
+# ── Render ────────────────────────────────────────────────────────────────────
+let v = new qalam.view({"views": tmpDir})
+let html = v.render("page", {
+    "card": {"title": "Welcome", "body": "This is a reusable card component."}
+})
+print(html)
+
+# ── Cleanup ───────────────────────────────────────────────────────────────────
+file.delete("${tmpDir}/components/card.html")
+file.delete("${tmpDir}/page.html")
+print("Done.")

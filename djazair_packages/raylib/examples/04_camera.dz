@@ -1,0 +1,67 @@
+# 04_camera.dz — Camera2D scrolling with world/screen coordinates
+use raylib as rl
+
+let win = new rl.Window(800, 600, "Camera2D Example")
+win.setFPS(60)
+
+let camera = new rl.Camera2D()
+camera.offset_x = 400.0
+camera.offset_y = 300.0
+camera.zoom = 1.0
+
+let rect = new rl.Rectangle(-100, -50, 200, 100, rl.GREEN)
+let ballX = 0.0
+let ballY = 150.0
+
+while win.isOpen()
+    # Camera controls
+    if rl.isKeyDown(rl.KEY_A) camera.target_x = camera.target_x - 5.0 end
+    if rl.isKeyDown(rl.KEY_D) camera.target_x = camera.target_x + 5.0 end
+    if rl.isKeyDown(rl.KEY_W) camera.target_y = camera.target_y - 5.0 end
+    if rl.isKeyDown(rl.KEY_S) camera.target_y = camera.target_y + 5.0 end
+    if rl.isKeyDown(rl.KEY_Q) camera.zoom = camera.zoom - 0.02 end
+    if rl.isKeyDown(rl.KEY_E) camera.zoom = camera.zoom + 0.02 end
+    if rl.isKeyDown(rl.KEY_R) camera.rotation = camera.rotation + 1.0 end
+
+    # Mouse world coords
+    let wx = 0.0
+    let wy = 0.0
+    let worldCoords = camera.toWorld(rl.getMouseX(), rl.getMouseY())
+    wx = worldCoords[0]
+    wy = worldCoords[1]
+
+    # Collision check
+    let hit = rl.checkCollisionCircleRec(ballX, ballY, 20.0, rect.x, rect.y, rect.w, rect.h)
+    if hit
+        rect.color = rl.RED
+    else
+        rect.color = rl.GREEN
+    end
+
+    win.begin()
+    win.clear(rl.BLACK)
+
+    camera.begin()
+
+    # Grid
+    let gx = -400.0
+    while gx <= 400.0
+        rl.drawLine(gx, -400.0, gx, 400.0, rl.DARKGRAY)
+        rl.drawLine(-400.0, gx, 400.0, gx, rl.DARKGRAY)
+        gx = gx + 100.0
+    end
+
+    rect.draw()
+    rl.drawCircle(ballX, ballY, 20.0, rl.PURPLE)
+
+    camera.finish()
+
+    # HUD
+    rl.drawText("A/D/W/S: move camera, Q/E: zoom, R: rotate", 10, 10, 16, rl.WHITE)
+    rl.drawText("World: [${int(wx)}, ${int(wy)}]", 10, 30, 16, rl.SKYBLUE)
+    rl.drawText("Zoom: ${camera.zoom}", 10, 50, 16, rl.SKYBLUE)
+
+    win.finish()
+end
+
+win.close()

@@ -1,0 +1,117 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_conditions_loops.dz — Tests for Conditionals, Logic, Loops & Lexer
+# ═══════════════════════════════════════════════════════════════════════════════
+# Validates elif/else if branches, logical operators (and/or/not), loop metadata
+# (loop.index, loop.first, loop.last), template comments, and whitespace control.
+
+use qalam
+
+let passed = 0
+let failed = 0
+
+fn test(name, result, expected)
+    if result == expected
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected: ${expected}")
+        print("  Got:      ${result}")
+    end
+end
+
+# ── 1. Conditionals: elif and else if ─────────────────────────────────────────
+test("ELIF: first branch taken",
+    qalam.renderString("{% if score >= 90 %}A{% elif score >= 80 %}B{% else %}C{% endif %}", {"score": 95}),
+    "A")
+
+test("ELIF: second branch taken",
+    qalam.renderString("{% if score >= 90 %}A{% elif score >= 80 %}B{% else %}C{% endif %}", {"score": 85}),
+    "B")
+
+test("ELIF: fallback else taken",
+    qalam.renderString("{% if score >= 90 %}A{% elif score >= 80 %}B{% else %}C{% endif %}", {"score": 70}),
+    "C")
+
+test("ELSE IF: syntax variant works",
+    qalam.renderString("{% if role == 'admin' %}ADMIN{% else if role == 'editor' %}EDITOR{% else %}USER{% endif %}", {"role": "editor"}),
+    "EDITOR")
+
+# ── 2. Logical Operators: and, or, not ────────────────────────────────────────
+test("LOGIC: and (true + true)",
+    qalam.renderString("{% if isActive and isVerified %}OK{% else %}NO{% endif %}", {"isActive": True, "isVerified": True}),
+    "OK")
+
+test("LOGIC: and (true + false)",
+    qalam.renderString("{% if isActive and isVerified %}OK{% else %}NO{% endif %}", {"isActive": True, "isVerified": False}),
+    "NO")
+
+test("LOGIC: or (false + true)",
+    qalam.renderString("{% if isAdmin or isOwner %}ALLOWED{% else %}DENIED{% endif %}", {"isAdmin": False, "isOwner": True}),
+    "ALLOWED")
+
+test("LOGIC: or (false + false)",
+    qalam.renderString("{% if isAdmin or isOwner %}ALLOWED{% else %}DENIED{% endif %}", {"isAdmin": False, "isOwner": False}),
+    "DENIED")
+
+test("LOGIC: not keyword",
+    qalam.renderString("{% if not isBanned %}WELCOME{% endif %}", {"isBanned": False}),
+    "WELCOME")
+
+# ── 3. Loop Metadata (loop context object) ────────────────────────────────────
+test("LOOP: loop.index (1-based)",
+    qalam.renderString("{% for x in items %}{{ loop.index }}:{{ x }} {% endfor %}", {"items": ["a", "b", "c"]}),
+    "1:a 2:b 3:c ")
+
+test("LOOP: loop.index0 (0-based)",
+    qalam.renderString("{% for x in items %}{{ loop.index0 }}:{{ x }} {% endfor %}", {"items": ["a", "b"]}),
+    "0:a 1:b ")
+
+test("LOOP: loop.first and loop.last",
+    qalam.renderString("{% for x in items %}{% if loop.first %}[{% endif %}{{ x }}{% if loop.last %}]{% else %},{% endif %}{% endfor %}", {"items": [1, 2, 3]}),
+    "[1,2,3]")
+
+test("LOOP: loop.length",
+    qalam.renderString("{% for x in items %}{{ loop.index }}/{{ loop.length }} {% endfor %}", {"items": ["x", "y"]}),
+    "1/2 2/2 ")
+
+test("LOOP: for-else when empty",
+    qalam.renderString("{% for x in items %}{{ x }}{% else %}NO_ITEMS{% endfor %}", {"items": []}),
+    "NO_ITEMS")
+
+# ── 4. Comments {# ... #} ─────────────────────────────────────────────────────
+test("COMMENT: stripped from output",
+    qalam.renderString("Hello {# this is hidden #}World", {}),
+    "Hello World")
+
+# ── 5. Whitespace Trimming {{- -}} and {%- -%} ────────────────────────────────
+test("TRIM: variable whitespace strip",
+    qalam.renderString("Hello   {{- name -}}   World", {"name": "Riad"}),
+    "HelloRiadWorld")
+
+test("TRIM: tag whitespace strip",
+    qalam.renderString("Start\n  {%- if True -%}  \nMiddle\n  {%- endif -%}  \nEnd", {}),
+    "StartMiddleEnd")
+
+# ── 6. Djazair Native 'end' Tag Syntax ─────────────────────────────────────────
+test("END: if with end",
+    qalam.renderString("{% if True %}YES{% end %}", {}),
+    "YES")
+
+test("END: if/elif/else with end",
+    qalam.renderString("{% if status == 1 %}ONE{% elif status == 2 %}TWO{% else %}OTHER{% end %}", {"status": 2}),
+    "TWO")
+
+test("END: for with end",
+    qalam.renderString("{% for n in nums %}{{ n }}{% end %}", {"nums": [1, 2, 3]}),
+    "123")
+
+# ── Report ────────────────────────────────────────────────────────────────────
+print("\n══════════════════════════════════════")
+print("Qalam Conditions & Loops Tests")
+print("  Passed : ${passed}")
+print("  Failed : ${failed}")
+if failed == 0
+    print("  Result : ALL PASSED")
+end
+print("══════════════════════════════════════")

@@ -1,0 +1,20 @@
+use webview
+
+let app = webview.createWindow({
+    "title": "Hello Djazair",
+    "width": 800,
+    "height": 600
+})
+
+app.onReady(fn()
+    app.window.setHtml("
+        <html>
+        <body style='display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;
+                     background:#1a1a2e;color:#eee;margin:0'>
+            <h1>Hello from Djazair!</h1>
+        </body>
+        </html>
+    ")
+end)
+
+app.run()

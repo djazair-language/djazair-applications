@@ -1,0 +1,180 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# logger.dz — Production-Grade Request & Error Logging Middleware
+# ═══════════════════════════════════════════════════════════════════════════════
+# Implements international logging standards (RFC 5424 severity levels & ISO 8601
+# timestamps). Provides structured HTTP access telemetry, latency tracking in ms,
+# and centralized exception formatting across the entire framework.
+
+use datetime
+import "../helpers/utils.dz" as *
+
+# Generates an ISO 8601 formatted timestamp string: `YYYY-MM-DD HH:mm:ss`.
+#
+# @return {String} Normalized ISO 8601 date-time string
+fn formatTimestamp()
+    let d = datetime.now()
+    let yr = str(d.year())
+    let mo = str(d.month())
+    let da = str(d.day())
+    let h = str(d.hour())
+    let m = str(d.minute())
+    let s = str(d.second())
+
+    if mo.length() < 2 mo = "0${mo}" end
+    if da.length() < 2 da = "0${da}" end
+    if h.length() < 2  h = "0${h}" end
+    if m.length() < 2  m = "0${m}" end
+    if s.length() < 2  s = "0${s}" end
+
+    return "${yr}-${mo}-${da} ${h}:${m}:${s}"
+end
+
+# Standardized global logging helper for informational messages.
+#
+# @param msg {String} Log message
+fn logInfo(msg)
+    print("${formatTimestamp()} [INFO] [Kasbah] ${msg}")
+end
+
+# Standardized global logging helper for warning messages.
+#
+# @param msg {String} Log message
+fn logWarn(msg)
+    print("${formatTimestamp()} [WARN] [Kasbah] ${msg}")
+end
+
+# Standardized global logging helper for error messages.
+#
+# @param msg {String} Log message
+fn logError(msg)
+    print("${formatTimestamp()} [ERROR] [Kasbah] ${msg}")
+end
+
+# Standardized global logging helper for fatal server exceptions.
+#
+# @param msg {String} Log message
+fn logFatal(msg)
+    print("${formatTimestamp()} [FATAL] [Kasbah] ${msg}")
+end
+
+class kasbahLogger
+    # Initializes a logger instance with formatting options and minimum log level.
+    #
+    # @param options {Map} Options ("level": "debug"|"info"|"warn"|"error"|"none", "format": "dev"|"combined")
+    init(options = {})
+        let defaults = {
+            "level":  "info",
+            "format": "dev"
+        }
+        self.configMap = merge(defaults, options)
+        self.levelsMap = {
+            "debug": 10,
+            "info":  20,
+            "warn":  30,
+            "error": 40,
+            "fatal": 50,
+            "none":  100
+        }
+        let levelName = self.configMap["level"].lower()
+        if not self.levelsMap.has(levelName)
+            levelName = "info"
+        end
+        self.currentLevel = self.levelsMap[levelName]
+    end
+
+    # Returns formatted ISO 8601 timestamp string.
+    #
+    # @return {String} Formatted timestamp
+    timestampStr()
+        return formatTimestamp()
+    end
+
+    # Core log message dispatcher conforming to RFC 5424 log levels.
+    #
+    # @param levelName  {String} Level identifier ("INFO", "WARN", "ERROR", "FATAL", "DEBUG")
+    # @param levelValue {Number} Numeric severity
+    # @param msg        {String} Log message text
+    logMsg(levelName, levelValue, msg)
+        if levelValue >= self.currentLevel
+            let lvl = levelName.upper()
+            let ts = self.timestampStr()
+            print("${ts} [${lvl}] [Kasbah] ${msg}")
+        end
+    end
+
+    # Logs a debug message.
+    debug(msg)
+        self.logMsg("debug", self.levelsMap["debug"], msg)
+    end
+
+    # Logs an informational message.
+    info(msg)
+        self.logMsg("info", self.levelsMap["info"], msg)
+    end
+
+    # Logs a warning message.
+    warn(msg)
+        self.logMsg("warn", self.levelsMap["warn"], msg)
+    end
+
+    # Logs an error message.
+    error(msg)
+        self.logMsg("error", self.levelsMap["error"], msg)
+    end
+
+    # Logs a fatal server error message.
+    fatal(msg)
+        self.logMsg("fatal", self.levelsMap["fatal"], msg)
+    end
+
+    # Lifecycle hook: called at start of HTTP request.
+    onRequest(req)
+        req.set("logStart", datetime.ticks())
+        req.set("logMethod", req.method)
+        req.set("logPath", req.path)
+        req.set("logIp", req.ip)
+    end
+
+    # Lifecycle hook: called after response completion.
+    onComplete(req, res)
+        if self.currentLevel > self.levelsMap["info"]
+            return
+        end
+
+        let start = req.get("logStart")
+        if isNull(start)
+            return
+        end
+
+        let elapsed = (datetime.ticks() - start) / 1000
+        let method = req.get("logMethod")
+        let url = req.get("logPath")
+        let status = res.statusCode
+
+        let msg = ""
+        if self.configMap["format"] == "combined"
+            let ip = req.get("logIp")
+            msg = "${ip} - \"${method} ${url}\" ${status} (${elapsed} ms)"
+        else
+            msg = "\"${method} ${url}\" ${status} (${elapsed} ms)"
+        end
+
+        self.logMsg("info", 20, msg)
+    end
+
+    # Lifecycle hook: called on runtime error.
+    onError(req, err)
+        let method = if not isNull(req) and not isNull(req.get("logMethod")) ? req.get("logMethod") else (if not isNull(req) ? req.method else "UNKNOWN")
+        let url = if not isNull(req) and not isNull(req.get("logPath")) ? req.get("logPath") else (if not isNull(req) ? req.path else "/")
+        let ip = if not isNull(req) and not isNull(req.get("logIp")) ? req.get("logIp") else (if not isNull(req) ? req.ip else "127.0.0.1")
+
+        let msg = ""
+        if self.configMap["format"] == "combined"
+            msg = "${ip} - \"${method} ${url}\" -> ${err}"
+        else
+            msg = "\"${method} ${url}\" -> ${err}"
+        end
+
+        self.logMsg("error", 40, msg)
+    end
+end

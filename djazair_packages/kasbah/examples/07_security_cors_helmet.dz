@@ -1,0 +1,59 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah Example 07 — Security Middlewares (CORS & Helmet)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Demonstrates enterprise-grade HTTP security configuration:
+# 1. Helmet security headers (Clickjacking defense, MIME-sniffing protection, CSP, HSTS)
+# 2. CORS middleware (origin reflection, credentials, custom headers, preflight handling)
+#
+# Usage:
+#   Run: djazair examples/07_security_cors_helmet.dz
+#   Endpoints:
+#     GET     /api/data -> Protected with Helmet headers & CORS
+#     OPTIONS /api/data -> Automated 204 No Content preflight resolution
+
+use kasbah
+
+let app = new kasbah.app({
+    "port":   8080,
+    "logger": True
+})
+
+# 1. Configure Helmet Security Headers
+app.middleware(kasbah.helmet({
+    "xFrameOptions":  "SAMEORIGIN",
+    "referrerPolicy": "strict-origin-when-cross-origin",
+    "hsts": {
+        "maxAge":            31536000,
+        "includeSubDomains": True,
+        "preload":           True
+    },
+    "csp": {
+        "default-src": ["'self'"],
+        "script-src":  ["'self'", "https://cdn.jsdelivr.net"],
+        "style-src":   ["'self'", "'unsafe-inline'"]
+    }
+}))
+
+# 2. Configure CORS Middleware with Credentials & Origin Whitelist
+app.middleware(kasbah.cors({
+    "origin":            ["https://app.example.com", "https://admin.example.com", "http://localhost:3000"],
+    "methods":           ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    "allowedHeaders":    ["Content-Type", "Authorization", "X-Requested-With"],
+    "exposedHeaders":    ["X-Total-Count", "Content-Range"],
+    "credentials":       True,
+    "maxAge":            86400,
+    "preflightContinue": False
+}))
+
+# 3. Secure API Endpoint
+app.get("/api/data", fn(req, res)
+    res.ok({
+        "status":   "secure",
+        "message":  "Protected by Helmet & CORS",
+        "origin":   req.header("origin"),
+        "protocol": req.protocol()
+    })
+end)
+
+# Start server listener
+app.listen()

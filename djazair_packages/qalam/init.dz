@@ -1,0 +1,144 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Qalam — AST-based HTML Template Engine for the Djazair Language
+# ═══════════════════════════════════════════════════════════════════════════════
+# Primary entry point exporting the view orchestrator class, in-memory helper
+# functions, and HTML security escaping utilities.
+
+import "core/constants.dz" as consts
+import "core/escaper.dz" as escaperMod
+import "core/lexer.dz" as lexerMod
+import "core/parser.dz" as parserMod
+import "core/loader.dz" as loaderMod
+import "core/filters.dz" as filtersMod
+import "core/evaluator.dz" as evalMod
+
+# ── HTML Security Utilities ────────────────────────────────────────────────────
+let escapeHtml     = escaperMod.escapeHtml
+
+# ── Global Filter Registry ─────────────────────────────────────────────────────
+let filterRegistry = filtersMod.filterRegistry
+
+# ── View Orchestrator Class ────────────────────────────────────────────────────
+class view
+    # Initializes the template view engine with configuration options.
+    #
+    # @param config {Map} Configuration options:
+    #                     - "views" {String} Base directory for template files (default: "views")
+    #                     - "cache" {Boolean} Enable AST caching (default: True)
+    init(config = {})
+        self.configMap = if isMap(config) ? config else {}
+
+        let viewsDir = "views"
+        if self.configMap.has("views") and str(self.configMap["views"]) != ""
+            viewsDir = self.configMap["views"]
+        end
+
+        let cacheEnabled = True
+        if self.configMap.has("cache")
+            cacheEnabled = bool(self.configMap["cache"])
+        end
+
+        self.lexer = new lexerMod.lexer()
+        self.parser = new parserMod.parser()
+        self.filters = new filtersMod.filterRegistry()
+        self.evaluator = new evalMod.evaluator(self.filters)
+        self.evaluator.setViewEngine(self)
+        self.loader = new loaderMod.templateLoader(viewsDir, cacheEnabled)
+    end
+
+    # Resolves and validates absolute filesystem path for a template file.
+    #
+    # @param templateName {String} Template path name
+    # @return             {String} Absolute normalized filesystem path
+    getSafePath(templateName)
+        return self.loader.getSafePath(templateName)
+    end
+
+    # Reads template source file from disk.
+    #
+    # @param templateName {String} Template path name
+    # @return             {String} Template file text content
+    readFile(templateName)
+        return self.loader.readFile(templateName)
+    end
+
+    # Registers a custom template filter.
+    #
+    # @param name     {String}   Filter identifier name (e.g. "money")
+    # @param callback {Function} Transformation function `fn(val, args = [])`
+    registerFilter(name, callback)
+        self.filters.register(name, callback)
+    end
+
+    # Extracts named `{% block %}` definitions from a child template for layout inheritance.
+    #
+    # @param nodes     {Array} AST node list
+    # @param blocksMap {Map}   Target map to populate with block name -> nodes
+    extractBlocks(nodes, blocksMap)
+        for n in nodes
+            if n["type"] == consts.NODE_BLOCK
+                blocksMap[n["name"]] = n["body"]
+            end
+        end
+    end
+
+    # Reads, parses, and renders a template file with a data context.
+    # Supports layout inheritance via `{% extends %}` and partials via `{% include %}`.
+    #
+    # @param templateName {String} Template path name (e.g. "home" or "trades/list")
+    # @param data         {Map}    Template context variables
+    # @return             {String} Rendered HTML string
+    render(templateName, data = {})
+        let nodes = self.loader.loadAST(templateName, self.lexer, self.parser)
+
+        let extendsNode = Null
+        for n in nodes
+            if n["type"] == consts.NODE_EXTENDS
+                extendsNode = n
+                break
+            end
+        end
+
+        if not isNull(extendsNode)
+            let blocksMap = {}
+            self.extractBlocks(nodes, blocksMap)
+            let parentNodes = self.loader.loadAST(extendsNode["val"], self.lexer, self.parser)
+            return self.evaluator.evalNodes(parentNodes, data, blocksMap)
+        else
+            let emptyBlocks = {}
+            return self.evaluator.evalNodes(nodes, data, emptyBlocks)
+        end
+    end
+
+    # Parses and renders an in-memory template string directly with a data context.
+    # Does not require a template file on disk.
+    #
+    # @param templateString {String} Raw template text
+    # @param data           {Map}    Template context variables
+    # @param blocksMap      {Map}    Optional block overrides for inheritance
+    # @return               {String} Rendered HTML string
+    renderString(templateString, data = {}, blocksMap = {})
+        let tokens = self.lexer.tokenize(templateString)
+        let state = {"i": 0}
+        let nodes = self.parser.parse(tokens, state)
+        return self.evaluator.evalNodes(nodes, data, blocksMap)
+    end
+
+    # Clears all cached AST compilation trees from memory.
+    clearCache()
+        self.loader.clearCache()
+    end
+end
+
+# ── Convenience Helpers ────────────────────────────────────────────────────────
+
+# Renders a template string in memory without requiring a file on disk.
+#
+# @param templateString {String} Raw template text (e.g. "Hello, {{ name }}!")
+# @param data           {Map}    Template context variables
+# @param blocksMap      {Map}    Optional block overrides for inheritance
+# @return               {String} Rendered HTML string
+fn renderString(templateString, data = {}, blocksMap = {})
+    let v = new view({})
+    return v.renderString(templateString, data, blocksMap)
+end

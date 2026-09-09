@@ -1,0 +1,60 @@
+# 03_input.dz — Keyboard and mouse input handling
+use raylib as rl
+
+let win = new rl.Window(800, 600, "Input Handling")
+win.setFPS(60)
+
+let x = 400.0
+let y = 300.0
+let speed = 3.0
+let lastKey = "None"
+let lastChar = "None"
+let mouseText = ""
+
+while win.isOpen()
+    # Keyboard movement
+    if rl.isKeyDown(rl.KEY_LEFT) x = x - speed end
+    if rl.isKeyDown(rl.KEY_RIGHT) x = x + speed end
+    if rl.isKeyDown(rl.KEY_UP) y = y - speed end
+    if rl.isKeyDown(rl.KEY_DOWN) y = y + speed end
+
+    # Key pressed (one-shot)
+    let k = rl.getKeyPressed()
+    if k > 0
+        lastKey = "${k}"
+    end
+
+    # Char pressed (unicode)
+    let c = rl.getCharPressed()
+    if c > 0
+        lastChar = "${c}"
+    end
+
+    # Mouse input
+    let mx = rl.getMouseX()
+    let my = rl.getMouseY()
+    if rl.isMouseButtonPressed(rl.MOUSE_LEFT_BUTTON)
+        mouseText = "Left click at [${mx}, ${my}]"
+    end
+    if rl.isMouseButtonDown(rl.MOUSE_RIGHT_BUTTON)
+        mouseText = "Right held at [${mx}, ${my}]"
+    end
+
+    # Escape to quit
+    if rl.isKeyPressed(rl.KEY_ESCAPE)
+        win.close()
+    end
+
+    win.begin()
+    win.clear(rl.RAYWHITE)
+
+    rl.drawCircle(x, y, 30, rl.RED)
+    rl.drawText("Move circle with arrow keys", 250, 50, 16, rl.DARKGRAY)
+    rl.drawText("Last key pressed: ${lastKey}", 10, 100, 16, rl.DARKGRAY)
+    rl.drawText("Last char: ${lastChar}", 10, 120, 16, rl.DARKGRAY)
+    rl.drawText("Mouse: [${mx}, ${my}]", 10, 140, 16, rl.DARKGRAY)
+    rl.drawText(mouseText, 10, 160, 16, rl.DARKGRAY)
+    rl.drawText("Press ESC to exit", 10, 560, 16, rl.GRAY)
+
+    win.finish()
+end

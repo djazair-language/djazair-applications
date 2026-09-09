@@ -1,0 +1,111 @@
+# constants.dz — Raylib constants for Djazair
+
+# Colors
+let WHITE       = [255, 255, 255, 255]
+let RAYWHITE    = [245, 245, 245, 255]
+let BLACK       = [0, 0, 0, 255]
+let RED         = [230, 41, 55, 255]
+let GREEN       = [0, 228, 48, 255]
+let BLUE        = [0, 121, 241, 255]
+let YELLOW      = [253, 249, 0, 255]
+let ORANGE      = [255, 161, 0, 255]
+let PINK        = [255, 109, 194, 255]
+let PURPLE      = [200, 122, 255, 255]
+let GOLD        = [255, 203, 0, 255]
+let LIME        = [0, 158, 47, 255]
+let DARKGRAY    = [80, 80, 80, 255]
+let GRAY        = [130, 130, 130, 255]
+let LIGHTGRAY   = [200, 200, 200, 255]
+let MAROON      = [190, 33, 55, 255]
+let DARKGREEN   = [0, 117, 44, 255]
+let DARKBLUE    = [0, 82, 172, 255]
+let DARKPURPLE  = [112, 31, 126, 255]
+let VIOLET      = [135, 60, 190, 255]
+let BEIGE       = [211, 176, 131, 255]
+let BROWN       = [127, 106, 79, 255]
+let MAGENTA     = [255, 0, 255, 255]
+let SKYBLUE     = [102, 191, 255, 255]
+let BLANK       = [0, 0, 0, 0]
+
+# Keys (Common)
+let KEY_RIGHT       = 262
+let KEY_LEFT        = 263
+let KEY_DOWN        = 264
+let KEY_UP          = 265
+let KEY_SPACE       = 32
+let KEY_ENTER       = 257
+let KEY_ESCAPE      = 256
+let KEY_A           = 65
+let KEY_B           = 66
+let KEY_C           = 67
+let KEY_D           = 68
+let KEY_E           = 69
+let KEY_F           = 70
+let KEY_G           = 71
+let KEY_H           = 72
+let KEY_I           = 73
+let KEY_J           = 74
+let KEY_K           = 75
+let KEY_L           = 76
+let KEY_M           = 77
+let KEY_N           = 78
+let KEY_O           = 79
+let KEY_P           = 80
+let KEY_Q           = 81
+let KEY_R           = 82
+let KEY_S           = 83
+let KEY_T           = 84
+let KEY_U           = 85
+let KEY_V           = 86
+let KEY_W           = 87
+let KEY_X           = 88
+let KEY_Y           = 89
+let KEY_Z           = 90
+
+let KEY_0           = 48
+let KEY_1           = 49
+let KEY_2           = 50
+let KEY_3           = 51
+let KEY_4           = 52
+let KEY_5           = 53
+let KEY_6           = 54
+let KEY_7           = 55
+let KEY_8           = 56
+let KEY_9           = 57
+
+let KEY_BACKSPACE     = 259
+let KEY_TAB           = 258
+let KEY_LEFT_SHIFT    = 340
+let KEY_LEFT_CONTROL  = 341
+let KEY_LEFT_ALT      = 342
+let KEY_RIGHT_SHIFT   = 344
+let KEY_RIGHT_CONTROL = 345
+let KEY_RIGHT_ALT     = 346
+let KEY_DELETE        = 261
+let KEY_INSERT        = 260
+let KEY_HOME          = 268
+let KEY_END           = 269
+let KEY_PAGE_UP       = 266
+let KEY_PAGE_DOWN     = 267
+let KEY_CAPS_LOCK     = 280
+let KEY_NUM_LOCK      = 282
+let KEY_PRINT_SCREEN  = 283
+let KEY_PAUSE         = 284
+
+let KEY_F1  = 290
+let KEY_F2  = 291
+let KEY_F3  = 292
+let KEY_F4  = 293
+let KEY_F5  = 294
+let KEY_F6  = 295
+let KEY_F7  = 296
+let KEY_F8  = 297
+let KEY_F9  = 298
+let KEY_F10 = 299
+let KEY_F11 = 300
+let KEY_F12 = 301
+
+# Mouse
+let MOUSE_LEFT_BUTTON   = 0
+let MOUSE_RIGHT_BUTTON  = 1
+let MOUSE_MIDDLE_BUTTON = 2

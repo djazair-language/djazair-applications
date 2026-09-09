@@ -1,0 +1,499 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# app.dz — Kasbah Central Application Engine
+# ═══════════════════════════════════════════════════════════════════════════════
+# Coordinates middleware pipeline execution, delegating routing to standalone router,
+# request preparation, error handling, session persistence, and HTTP server lifecycle.
+
+use http
+use file
+use path
+use process
+
+import "request.dz" as reqClass
+import "response.dz" as resClass
+import "router.dz" as routerMod
+
+import "../middleware/bodyParser.dz" as *
+import "../middleware/logger.dz" as *
+import "../middleware/session.dz" as *
+import "../middleware/static.dz" as *
+import "../helpers/utils.dz" as *
+import "../helpers/cookie.dz" as *
+import "cookieJar.dz" as *
+
+let KASBAH_SERVER_CONFIG = {}
+
+# Sets global default options for all Kasbah application instances.
+#
+# @param options {Map} Configuration options map
+fn setServerConfig(options)
+    if isMap(options)
+        KASBAH_SERVER_CONFIG = merge(KASBAH_SERVER_CONFIG, options)
+    end
+end
+
+class app
+    # ── 1. Constructor: Configuration & State Initialization ──────────────────
+
+    # Initializes a new Kasbah application instance with configuration options.
+    #
+    # @param config {Map} Application configuration options:
+    #                     - port {Number} HTTP port (default: 3000)
+    #                     - host {String} Host binding (default: "0.0.0.0")
+    #                     - bodyParser {Boolean} Enable multipart/url/json body parser
+    #                     - maxBodySize {Number} Max body size in MB (default: 10)
+    #                     - static {String} Static directory path
+    #                     - views {String} Views directory path (default: "views")
+    #                     - logger {Boolean|Map} Enable request logging
+    #                     - session {Boolean|Map} Enable session support
+    init(config = {})
+        let defaults = {
+            "port":              3000,
+            "host":              "0.0.0.0",
+            "maxBodySize":       10,    # MB
+            "debug":             False, # Development error details
+            "logger":            True,
+            "session":           False,
+            "sessionSecret":     "",
+            "sessionCookieName": "kasbah.sid",
+            "sessionMaxAge":     86400,
+            "sessionSecure":     False,
+            "sessionSameSite":   "Lax",
+            "sessionDir":        "",
+            "trustProxy":        False,
+            "exposeErrors":      False,
+            "static":            "",
+            "views":             "",
+            "keepAlive":             False,
+            "keepAliveTimeout":      30,
+            "maxKeepAliveRequests":  100
+        }
+        self.appConfig = merge(merge(defaults, KASBAH_SERVER_CONFIG), config)
+
+        # Sync debug <-> exposeErrors
+        if self.appConfig["debug"]
+            self.appConfig["exposeErrors"] = True
+        end
+        if self.appConfig["exposeErrors"]
+            self.appConfig["debug"] = True
+        end
+
+        # Sync keepAliveTTL -> keepAliveTimeout and maxRequests -> maxKeepAliveRequests
+        if config.has("keepAliveTTL")
+            self.appConfig["keepAliveTimeout"] = config["keepAliveTTL"]
+        end
+        if config.has("maxRequests")
+            self.appConfig["maxKeepAliveRequests"] = config["maxRequests"]
+        end
+
+        # Smart session config normalization
+        if isString(self.appConfig["session"])
+            self.appConfig["sessionSecret"] = self.appConfig["session"]
+            self.appConfig["session"] = True
+        end
+        if isMap(self.appConfig["session"])
+            let sessOpts = self.appConfig["session"]
+            if sessOpts.has("secret") self.appConfig["sessionSecret"] = sessOpts["secret"] end
+            if sessOpts.has("name") self.appConfig["sessionCookieName"] = sessOpts["name"] end
+            if sessOpts.has("maxAge") self.appConfig["sessionMaxAge"] = sessOpts["maxAge"] end
+            if sessOpts.has("secure") self.appConfig["sessionSecure"] = sessOpts["secure"] end
+            if sessOpts.has("sameSite") self.appConfig["sessionSameSite"] = sessOpts["sameSite"] end
+            if sessOpts.has("dir") self.appConfig["sessionDir"] = sessOpts["dir"] end
+            self.appConfig["session"] = True
+        end
+
+        # Smart server config normalization: "server": {"keepAlive": True, ...}
+        if isMap(self.appConfig.get("server"))
+            let srvOpts = self.appConfig["server"]
+            if srvOpts.has("keepAlive") self.appConfig["keepAlive"] = srvOpts["keepAlive"] end
+            if srvOpts.has("keepAliveTimeout") self.appConfig["keepAliveTimeout"] = srvOpts["keepAliveTimeout"] end
+            if srvOpts.has("keepAliveTTL") self.appConfig["keepAliveTimeout"] = srvOpts["keepAliveTTL"] end
+            if srvOpts.has("maxKeepAliveRequests") self.appConfig["maxKeepAliveRequests"] = srvOpts["maxKeepAliveRequests"] end
+            if srvOpts.has("maxRequests") self.appConfig["maxKeepAliveRequests"] = srvOpts["maxRequests"] end
+            if srvOpts.has("host") self.appConfig["host"] = srvOpts["host"] end
+            if srvOpts.has("port") self.appConfig["port"] = srvOpts["port"] end
+        end
+
+        if self.appConfig["static"] != ""
+            self.appConfig["static"] = path.resolve(self.appConfig["static"])
+        end
+
+        if self.appConfig["views"] != ""
+            self.appConfig["views"] = path.resolve(self.appConfig["views"])
+        end
+
+        # Standalone router instance
+        self.router = new routerMod.router()
+
+        self.middlewaresList = []
+        self.pipelineList    = []
+        self.serverInstance  = Null
+        self.errorHandler    = Null
+        self.notFoundHandler = Null
+
+        self.loggerInstance = Null
+        if self.appConfig["logger"]
+            let logOpts = {}
+            if isMap(self.appConfig["logger"])
+                logOpts = self.appConfig["logger"]
+            end
+            self.loggerInstance = new kasbahLogger(logOpts)
+        end
+    end
+
+    # ── 2. Middleware & Error Handlers ────────────────────────────────────────
+
+    # Registers a global middleware function `fn(req, res)`.
+    #
+    # @param mwFn {Function} Middleware callback
+    # @return     {Object}   Self for chaining
+    middleware(mwFn)
+        self.middlewaresList.append(mwFn)
+        return self
+    end
+
+    # Registers a custom global error handler `onError(err, req, res)`.
+    #
+    # @param handler {Function} Error handler function
+    # @return        {Object}   Self for chaining
+    onError(handler)
+        self.errorHandler = handler
+        return self
+    end
+
+    # Registers a custom 404 Not Found handler `onNotFound(req, res)`.
+    #
+    # @param handler {Function} 404 handler function
+    # @return        {Object}   Self for chaining
+    onNotFound(handler)
+        self.notFoundHandler = handler
+        return self
+    end
+
+    # ── 3. Routing Methods ────────────────────────────────────────────────────
+
+    # Registers a route group with an optional scoped middleware list.
+    #
+    # @param prefix                  {String}   URL prefix (e.g. "/trades")
+    # @param middlewares_or_callback {Array|Fn} Scoped middleware list or group callback
+    # @param callback                {Fn|Null}  Group callback `fn(g)`
+    # @return                        {Object}   Self for chaining
+    group(prefix, middlewares_or_callback, callback = Null)
+        self.router.group(prefix, middlewares_or_callback, callback)
+        return self
+    end
+
+    # Mounts a sub-router onto a path prefix.
+    #
+    # @param prefix    {String} URL path prefix (e.g. "/api")
+    # @param subRouter {Object} Kasbah router instance
+    # @return          {Object} Self for chaining
+    mount(prefix, subRouter)
+        self.router.mount(prefix, subRouter)
+        return self
+    end
+
+    # Registers a GET route handler (supports optional route-level middleware).
+    get(pattern, middleware_or_handler, handler = Null)
+        self.router.get(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Registers a POST route handler (supports optional route-level middleware).
+    post(pattern, middleware_or_handler, handler = Null)
+        self.router.post(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Registers a PUT route handler (supports optional route-level middleware).
+    put(pattern, middleware_or_handler, handler = Null)
+        self.router.put(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Registers a DELETE route handler (supports optional route-level middleware).
+    delete(pattern, middleware_or_handler, handler = Null)
+        self.router.delete(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Registers a PATCH route handler (supports optional route-level middleware).
+    patch(pattern, middleware_or_handler, handler = Null)
+        self.router.patch(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Registers a HEAD route handler (supports optional route-level middleware).
+    head(pattern, middleware_or_handler, handler = Null)
+        self.router.head(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Registers an OPTIONS route handler (supports optional route-level middleware).
+    options(pattern, middleware_or_handler, handler = Null)
+        self.router.options(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Registers a route for all standard HTTP methods.
+    all(pattern, middleware_or_handler, handler = Null)
+        self.router.all(pattern, middleware_or_handler, handler)
+        return self
+    end
+
+    # Dispatches an incoming request using the router.
+    #
+    # @param req {Object}  Kasbah request instance
+    # @param res {Object}  Kasbah response instance
+    # @return    {Boolean} True if route matched and handled
+    dispatchRoute(req, res)
+        return self.router.dispatch(req, res)
+    end
+
+    # Matches an HTTP method and path against registered routes.
+    #
+    # @param method  {String} HTTP method
+    # @param pathStr {String} URL path
+    # @return        {Map|Null} Match result or Null
+    matchRoute(method, pathStr)
+        return self.router.matchRoute(method, pathStr)
+    end
+
+    # ── 4. Lifecycle & Server Execution ───────────────────────────────────────
+
+    # Starts the Kasbah HTTP web server on configured port.
+    #
+    # @param port  {Number|Null} Optional port override
+    # @param quiet {Boolean}     Suppress startup console message
+    listen(port = Null, quiet = False)
+        if not isNull(port)
+            self.appConfig["port"] = port
+        end
+
+        self.pipelineList = []
+
+        # Core body parser (JSON, form-urlencoded, multipart)
+        self.pipelineList.append(bodyParser(self.appConfig["maxBodySize"]))
+        if self.appConfig["session"]
+            let sessionOptions = {
+                "secret":   self.appConfig["sessionSecret"],
+                "name":     self.appConfig["sessionCookieName"],
+                "maxAge":   self.appConfig["sessionMaxAge"],
+                "secure":   self.appConfig["sessionSecure"],
+                "sameSite": self.appConfig["sessionSameSite"]
+            }
+            if self.appConfig["sessionDir"] != ""
+                sessionOptions["dir"] = self.appConfig["sessionDir"]
+            end
+            self.pipelineList.append(session(sessionOptions))
+        end
+        if self.appConfig["static"] != ""
+            self.pipelineList.append(serveStatic(self.appConfig["static"]))
+        end
+
+        for mw in self.middlewaresList
+            self.pipelineList.append(mw)
+        end
+
+        self.pipelineList.append(fn(req, res)
+            let handled = self.dispatchRoute(req, res)
+            if not handled and not res.sentFlag
+                if not isNull(self.notFoundHandler)
+                    self.notFoundHandler(req, res)
+                else
+                    res.status(404).json({
+                        "error":  "Not Found",
+                        "path":   req.path,
+                        "method": req.method
+                    })
+                end
+            end
+        end)
+
+        let host = self.appConfig["host"]
+        let portNum = self.appConfig["port"]
+        if not quiet
+            logInfo("Kasbah server starting on ${host}:${portNum}")
+        end
+
+        let maxBodyBytes = if self.appConfig["maxBodySize"] > 1024 ? self.appConfig["maxBodySize"] else self.appConfig["maxBodySize"] * 1024 * 1024
+        self.serverInstance = http.createServer(self.buildHandler(), {
+            "host":                 host,
+            "maxBody":              maxBodyBytes,
+            "keepAlive":            self.appConfig["keepAlive"],
+            "keepAliveTimeout":     self.appConfig["keepAliveTimeout"],
+            "maxKeepAliveRequests": self.appConfig["maxKeepAliveRequests"]
+        })
+        try
+            self.serverInstance.listen(portNum)
+        catch err
+            logFatal("Failed to start server on port ${portNum} - ${err}")
+            process.exit(1)
+        end
+    end
+
+    # Stops the HTTP server instance.
+    close()
+        if not isNull(self.serverInstance)
+            self.serverInstance.close()
+        end
+    end
+
+    # ── 5. Internal Lifecycle Helpers (Private) ───────────────────────────────
+
+    # Prepares incoming request and response objects (IP detection, path decoding, cookies).
+    prepareRequest(req, res, httpReq)
+        res.req = req
+        req.ip = ""
+        if self.appConfig["trustProxy"]
+            req.ip = httpReq.header("x-forwarded-for")
+            if req.ip.contains(",")
+                req.ip = req.ip.split(",")[0].strip()
+            end
+            if req.ip == ""
+                req.ip = httpReq.header("x-real-ip")
+            end
+        end
+        if req.ip == ""
+            req.ip = httpReq.remoteAddr
+        end
+        if req.ip == ""
+            req.ip = "unknown"
+        end
+
+        req.path = urlDecodePath(req.path)
+        while req.path.contains("//")
+            req.path = req.path.replace("//", "/")
+        end
+
+        let rawCookies = {}
+        let cHeader = httpReq.header("cookie")
+        if cHeader != ""
+            rawCookies = parseCookie(cHeader)
+        end
+        let jar = new cookieJar(rawCookies, res)
+        req.cookies = jar
+        res.cookies = jar
+    end
+
+    # Central application error dispatcher.
+    handleError(err, req, res)
+        let reqMethod = if not isNull(req) ? req.method else "UNKNOWN"
+        let reqPath   = if not isNull(req) ? req.path else "/"
+        let reqIp     = if not isNull(req) and not isNull(req.ip) ? req.ip else "127.0.0.1"
+
+        if not isNull(self.loggerInstance)
+            self.loggerInstance.onError(req, err)
+        else
+            logError("Unhandled exception on \"${reqMethod} ${reqPath}\" (IP: ${reqIp}) -> ${err}")
+        end
+
+        try
+            if not isNull(self.errorHandler)
+                self.errorHandler(err, req, res)
+            else
+                if not res.sentFlag
+                    let errorBody = {
+                        "error":      "Internal Server Error",
+                        "statusCode": 500,
+                        "timestamp":  formatTimestamp()
+                    }
+                    if self.appConfig["exposeErrors"]
+                        errorBody["message"] = str(err)
+                    end
+                    res.status(500).json(errorBody)
+                end
+            end
+        catch handlerErr
+            logFatal("Exception inside custom onError handler: ${handlerErr}")
+            if not res.sentFlag
+                res.status(500).text("Internal Server Error")
+            end
+        end
+    end
+
+    # Builds the primary request-response handler closure for http.createServer().
+    buildHandler()
+        return fn(httpReq, httpRes)
+            let req = Null
+            let res = Null
+            try
+                req = new reqClass.request(httpReq)
+                res = new resClass.response(httpRes, self.appConfig)
+                self.prepareRequest(req, res, httpReq)
+
+                if not isNull(self.loggerInstance)
+                    self.loggerInstance.onRequest(req)
+                end
+
+                for mw in self.pipelineList
+                    mw(req, res)
+                    if res.sentFlag
+                        break
+                    end
+                end
+            catch err
+                if isNull(res)
+                    logFatal("Fatal exception before response initialization: ${err}")
+                    httpRes.status(500).send("Internal Server Error")
+                else
+                    self.handleError(err, req, res)
+                end
+            end
+
+            try
+                if not isNull(req)
+                    self.saveSession(req)
+                    self.cleanupUploads(req)
+                end
+
+                if not isNull(self.loggerInstance) and not isNull(req) and not isNull(res)
+                    self.loggerInstance.onComplete(req, res)
+                end
+            catch postErr
+                logError("Post-request processing error: ${postErr}")
+                if not isNull(self.loggerInstance) and not isNull(req)
+                    self.loggerInstance.onError(req, "Post-request error: ${postErr}")
+                end
+            end
+        end
+    end
+
+    # Cleans up temporary files generated during multipart file uploads.
+    cleanupUploads(req)
+        let files = req.get("uploadedFiles")
+        if not isNull(files)
+            for f in files
+                try
+                    if file.exists(f)
+                        file.delete(f)
+                    end
+                catch err
+                end
+            end
+        end
+    end
+
+    # Persists session data to file storage after request completion.
+    saveSession(req)
+        if self.appConfig["session"]
+            let store = req.get("store")
+            if not isNull(store) and not isNull(req.session)
+                let sid = req.get("sid")
+                let sessData = {}
+                if isMap(req.session)
+                    sessData = req.session
+                else
+                    sid = req.session.id()
+                    sessData = req.session.all()
+                end
+                if not isNull(sid)
+                    store.write(sid, sessData)
+                end
+            end
+        end
+    end
+end
+
+# Backward compatibility aliases
+let kasbahApp = app

@@ -1,0 +1,126 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah Example 05 — Full REST API with Validation, Security & Sessions
+# ═══════════════════════════════════════════════════════════════════════════════
+# Combines core framework capabilities: Helmet security, CORS, Routing, dynamic params,
+# JSON body parsing, input validation DSL, session management, and structured logging.
+#
+# Usage:
+#   Run: djazair examples/05_full_app.dz
+#   Endpoints:
+#     GET  /              -> Application documentation and route directory
+#     GET  /messages      -> List all guestbook messages
+#     POST /messages      -> Submit new message (JSON: {"text": "...", "author": "..."})
+#     GET  /messages/:id  -> Get specific message by numeric ID
+#     GET  /session       -> Inspect session state and visit statistics
+
+use kasbah
+use datetime
+
+# Initialize application instance with complete middleware stack
+let app = new kasbah.app({
+    "port":          8080,
+    "bodyParser":    True,
+    "logger":        True,
+    "session":       True,
+    "sessionSecret": "kasbah-guestbook-secret-key-32-chars-minimum!"
+})
+
+# Attach Global Security Stack
+app.middleware(kasbah.helmet())
+app.middleware(kasbah.cors({
+    "origin":      "*",
+    "credentials": True
+}))
+
+# In-memory messages collection
+let messages = []
+
+# Global Request Timestamp Middleware
+app.middleware(fn(req, res)
+    req.set("timestamp", str(datetime.now()))
+end)
+
+# 1. API Documentation Index
+app.get("/", fn(req, res)
+    res.ok({
+        "app":       "Kasbah Guestbook REST API",
+        "version":   "0.2.0",
+        "endpoints": {
+            "GET  /":             "API documentation & route directory",
+            "GET  /messages":     "List all guestbook entries",
+            "POST /messages":     "Create a new entry with validation",
+            "GET  /messages/:id": "Retrieve an entry by numeric ID",
+            "GET  /session":      "Inspect session state and visit statistics"
+        }
+    })
+end)
+
+# 2. List All Messages
+app.get("/messages", fn(req, res)
+    res.ok({
+        "total":    messages.length(),
+        "messages": messages
+    })
+end)
+
+# 3. Create a Message with Input Validation DSL
+app.post("/messages", fn(req, res)
+    let v = req.validate()
+    v.field("text").required().string().minLength(2).maxLength(500)
+    v.field("author").optional().string().maxLength(50)
+
+    if v.fails()
+        return res.validationError(v.errors())
+    end
+
+    let validated = v.validated()
+    let authorName = if validated.has("author") and str(validated["author"]).strip() != "" ? str(validated["author"]).strip() else "Anonymous"
+
+    let newMsg = {
+        "id":        messages.length() + 1,
+        "text":      str(validated["text"]).strip(),
+        "author":    authorName,
+        "timestamp": req.get("timestamp")
+    }
+    messages.append(newMsg)
+
+    res.created({
+        "message": "Message posted successfully",
+        "entry":   newMsg
+    })
+end)
+
+# 4. Get Message by ID
+app.get("/messages/:id", fn(req, res)
+    let rawId = req.param("id")
+    let targetId = 0
+    try
+        targetId = int(rawId)
+    catch err
+        return res.badRequest("Parameter ':id' must be a valid integer")
+    end
+
+    for m in messages
+        if m["id"] == targetId
+            return res.ok(m)
+        end
+    end
+
+    res.notFound("Message with ID ${targetId} was not found")
+end)
+
+# 5. Session State & Statistics
+app.get("/session", fn(req, res)
+    let visits = req.session.get("visits", 0) + 1
+    req.session.set("visits", visits)
+
+    res.ok({
+        "sessionId":      req.session.id(),
+        "isNewSession":   req.session.isNew(),
+        "visits":         visits,
+        "allSessionData": req.session.all()
+    })
+end)
+
+# Start server listener
+app.listen()

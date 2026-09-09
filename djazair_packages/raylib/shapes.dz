@@ -1,0 +1,85 @@
+# ==============================================================================
+# shapes.dz — Raylib Object-Oriented Shapes for Djazair
+#
+# Provides Circle and Rectangle classes with integrated drawing and collision logic.
+#
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# ==============================================================================
+
+let rl = __dynamic("raylib")
+use assert
+
+class Circle
+    init(x, y, radius, color = [255, 255, 255, 255])
+        assert.number(x, "x")
+        assert.number(y, "y")
+        assert.number(radius, "radius")
+        self.x = float(x)
+        self.y = float(y)
+        self.radius = float(radius)
+        self.color = color
+    end
+
+    draw()
+        rl.drawCircle(self.x, self.y, self.radius, self.color)
+    end
+
+    drawLines()
+        rl.drawCircleLines(self.x, self.y, self.radius, self.color)
+    end
+
+    checkCollision(other)
+        assert.instance(other, "other")
+        return rl.checkCollisionCircles(self.x, self.y, self.radius, other.x, other.y, other.radius)
+    end
+end
+
+class Rectangle
+    init(x, y, width, height, color = [255, 255, 255, 255])
+        assert.number(x, "x")
+        assert.number(y, "y")
+        assert.number(width, "width")
+        assert.number(height, "height")
+        self.x = float(x)
+        self.y = float(y)
+        self.width = float(width)
+        self.height = float(height)
+        self.w = self.width
+        self.h = self.height
+        self.color = color
+    end
+
+    draw()
+        rl.drawRectangle(self.x, self.y, self.width, self.height, self.color)
+    end
+
+    drawLines()
+        rl.drawRectangleLines(self.x, self.y, self.width, self.height, self.color)
+    end
+
+    drawGradientV(colorBottom)
+        rl.drawRectangleGradientV(self.x, self.y, self.width, self.height, self.color, colorBottom)
+    end
+
+    drawRounded(roundness = 0.25, segments = 8)
+        rl.drawRectangleRounded(self.x, self.y, self.width, self.height, roundness, segments, self.color)
+    end
+
+    checkCollision(other)
+        assert.instance(other, "other")
+        return rl.checkCollisionRecs(self.x, self.y, self.width, self.height,
+                                     other.x, other.y, other.width, other.height)
+    end
+
+    checkCollisionCircle(circle)
+        assert.instance(circle, "circle")
+        return rl.checkCollisionCircleRec(circle.x, circle.y, circle.radius,
+                                          self.x, self.y, self.width, self.height)
+    end
+
+    checkCollisionPoint(pointX, pointY)
+        assert.number(pointX, "pointX")
+        assert.number(pointY, "pointY")
+        return rl.checkCollisionPointRec(pointX, pointY, self.x, self.y, self.width, self.height)
+    end
+end

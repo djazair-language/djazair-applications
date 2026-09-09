@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kasbah Web Framework — Official Documentation &amp; Complete API Reference</title>
+
+  <!-- Google Fonts: Inter & Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="docs.css" />
+
+  <!-- jQuery & Docs Logic -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="docs.js"></script>
+</head>
+<body>
+
+  <!-- Top Fixed Header -->
+  <header class="top-header">
+    <a href="#overview" class="logo-area">
+      <div class="logo-icon"><i class="fas fa-cubes"></i></div>
+      <div class="logo-text">Kasbah <span>Framework</span></div>
+      <span class="badge-version">v0.2.0 • 100% Tested</span>
+    </a>
+
+    <div class="header-center">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="apiSearch" placeholder="Search 80+ APIs: get, json, helmet, cors, session, uploader, validator, router..." autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <a href="#quickstart" class="header-link"><i class="fas fa-bolt"></i> Quick Start</a>
+      <a href="#simulator" class="header-link"><i class="fas fa-sliders-h"></i> REST Studio</a>
+      <a href="https://github.com/djazair-language/djazair-extensions" target="_blank" class="icon-btn" title="GitHub Repository"><i class="fab fa-github"></i></a>
+      <button class="icon-btn" id="themeToggleBtn" title="Toggle Theme"><i class="fas fa-moon"></i></button>
+      <button class="icon-btn" id="mobileMenuBtn" style="display:none;" title="Toggle Menu"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar">
+      <div class="nav-group">
+        <div class="nav-group-title">Getting Started</div>
+        <a href="#overview" class="nav-item active"><i class="fas fa-compass"></i> Overview &amp; Architecture <span class="nav-badge">Intro</span></a>
+        <a href="#quickstart" class="nav-item"><i class="fas fa-bolt"></i> Quick Start in 5 Lines</a>
+        <a href="#simulator" class="nav-item"><i class="fas fa-play-circle"></i> Live REST Studio <span class="nav-badge live">Live</span></a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Application &amp; Config</div>
+        <a href="#app-class" class="nav-item"><i class="fas fa-server"></i> Application Instance &amp; Lifecycle</a>
+        <a href="#config-schema" class="nav-item"><i class="fas fa-sliders-h"></i> Configuration Options</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Routing Engine</div>
+        <a href="#routing-basics" class="nav-item"><i class="fas fa-route"></i> HTTP Methods &amp; Handlers</a>
+        <a href="#routing-params" class="nav-item"><i class="fas fa-fingerprint"></i> Dynamic URL Parameters</a>
+        <a href="#routing-middleware" class="nav-item"><i class="fas fa-stream"></i> Route-Level Middleware</a>
+        <a href="#routing-groups" class="nav-item"><i class="fas fa-folder-tree"></i> Route Groups &amp; Sub-Routers <span class="nav-badge new">v0.2</span></a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">HTTP Context</div>
+        <a href="#request-api" class="nav-item"><i class="fas fa-inbox"></i> Request Object (req)</a>
+        <a href="#response-api" class="nav-item"><i class="fas fa-paper-plane"></i> Response Object (res)</a>
+        <a href="#response-helpers" class="nav-item"><i class="fas fa-check-double"></i> 9 Semantic Status Helpers</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Security &amp; Middlewares</div>
+        <a href="#security-helmet" class="nav-item"><i class="fas fa-shield-halved"></i> Helmet Security Headers</a>
+        <a href="#security-cors" class="nav-item"><i class="fas fa-globe"></i> CORS Middleware &amp; Preflight</a>
+        <a href="#body-parser" class="nav-item"><i class="fas fa-envelope-open-text"></i> Body Parser (JSON, Forms)</a>
+        <a href="#file-uploads" class="nav-item"><i class="fas fa-cloud-arrow-up"></i> Multipart File Uploads</a>
+        <a href="#session-cookies" class="nav-item"><i class="fas fa-key"></i> Sessions &amp; CookieJar</a>
+        <a href="#logging-telemetry" class="nav-item"><i class="fas fa-chart-line"></i> Logging &amp; ISO Timestamps</a>
+        <a href="#static-files" class="nav-item"><i class="fas fa-folder-open"></i> Static Files &amp; Assets</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Engines &amp; Architecture</div>
+        <a href="#validator-engine" class="nav-item"><i class="fas fa-spell-check"></i> Schema Validator Engine</a>
+        <a href="#views-qalam" class="nav-item"><i class="fas fa-file-code"></i> Qalam Template Engine</a>
+        <a href="#error-handling" class="nav-item"><i class="fas fa-triangle-exclamation"></i> Centralized Error Handling</a>
+        <a href="#utilities" class="nav-item"><i class="fas fa-wrench"></i> Utilities &amp; Deployment</a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-wrapper">
+      <div id="contentArea" class="content-container">
+
+        <!-- Hero Section -->
+        <section class="hero-section" id="overview">
+          <h1 class="hero-title">Modern, High-Throughput <span>Web Framework</span> for Djazair</h1>
+          <p class="hero-lead">
+            Kasbah is the official, enterprise-ready web application and REST API framework for the Djazair programming language. Engineered from the ground up for high concurrency, rock-solid security, expressive routing, and seamless developer experience.
+          </p>
+
+          <div class="hero-features">
+            <div class="feature-pill">
+              <div class="icon"><i class="fas fa-bolt"></i></div>
+              <div>
+                <h4>Asynchronous High Speed</h4>
+                <p>Native non-blocking HTTP dispatching capable of handling thousands of requests per second.</p>
+              </div>
+            </div>
+
+            <div class="feature-pill">
+              <div class="icon"><i class="fas fa-shield-virus"></i></div>
+              <div>
+                <h4>Enterprise Security</h4>
+                <p>Pre-configured Helmet (8 security headers), strict CORS policies, and HMAC-signed sessions.</p>
+              </div>
+            </div>
+
+            <div class="feature-pill">
+              <div class="icon"><i class="fas fa-layer-group"></i></div>
+              <div>
+                <h4>Expressive Routing</h4>
+                <p>Flexible parameter matching, sub-router nesting, route groups, and multi-tier middleware pipelines.</p>
+              </div>
+            </div>
+
+            <div class="feature-pill">
+              <div class="icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+              <div>
+                <h4>Full-Stack MVC Ready</h4>
+                <p>Integrated with Qalam AST template engine, multipart uploader, and fluent schema validation.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Quick Start -->
+        <section class="doc-section" id="quickstart">
+          <h2 class="section-title"><i class="fas fa-bolt"></i> Quick Start Guide</h2>
+          <p class="section-lead">Create your first production-grade HTTP web server in less than 30 seconds:</p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span><i class="fas fa-terminal"></i> server.dz</span>
+              <button class="copy-btn"><i class="fas fa-copy"></i> Copy</button>
+            </div>
+            <pre><code><span class="kwd">use</span> kasbah
+
+<span class="cmt"># 1. Initialize application</span>
+<span class="kwd">let</span> app = <span class="kwd">new</span> kasbah.<span class="typ">app</span>({
+    <span class="str">"port"</span>: <span class="num">3000</span>,
+    <span class="str">"host"</span>: <span class="str">"127.0.0.1"</span>
+})
+
+<span class="cmt"># 2. Register basic route</span>
+app.<span class="fn">get</span>(<span class="str">"/"</span>, <span class="kwd">fn</span>(req, res)
+    res.<span class="fn">ok</span>({<span class="str">"message"</span>: <span class="str">"Welcome to Kasbah on Djazair!"</span>})
+<span class="kwd">end</span>)
+
+<span class="cmt"># 3. Dynamic parameter route</span>
+app.<span class="fn">get</span>(<span class="str">"/api/users/:id"</span>, <span class="kwd">fn</span>(req, res)
+    res.<span class="fn">ok</span>({
+        <span class="str">"userId"</span>: req.<span class="fn">param</span>(<span class="str">"id"</span>),
+        <span class="str">"clientIp"</span>: req.ip
+    })
+<span class="kwd">end</span>)
+
+<span class="cmt"># 4. Start server</span>
+app.<span class="fn">listen</span>()</code></pre>
+          </div>
+
+          <div class="alert-box alert-tip">
+            <i class="fas fa-lightbulb"></i>
+            <div>
+              <strong>Run with Djazair Compiler:</strong><br />
+              Execute <code>djazair server.dz</code> in your terminal. You'll see the ISO 8601 standardized startup log: <code>2026-09-07 20:00:00 [INFO] [Kasbah] Kasbah server starting on 127.0.0.1:3000</code>.
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Interactive Simulator -->
+        <section class="doc-section" id="simulator">
+          <h2 class="section-title"><i class="fas fa-play-circle"></i> Live Interactive REST API Studio</h2>
+          <p class="section-lead">Test and simulate how Kasbah executes HTTP requests through its pipeline and generates production server code in real time:</p>
+
+          <div class="simulator-box">
+            <div class="sim-header">
+              <div class="sim-title"><i class="fas fa-sliders-h"></i> Request Dispatch Simulator</div>
+              <div id="simStatusBadge">
+                <span class="badge-tag http-get"><i class="fas fa-check-circle"></i> Ready</span>
+              </div>
+            </div>
+
+            <div class="sim-body">
+              <div class="sim-control-row">
+                <select id="simMethod" class="sim-select">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="DELETE">DELETE</option>
+                  <option value="PATCH">PATCH</option>
+                </select>
+                <input type="text" id="simPath" class="sim-input" value="/api/v1/trades" placeholder="Enter endpoint path (e.g. /api/users/:id)" />
+                <button id="simRunBtn" class="sim-btn-run"><i class="fas fa-paper-plane"></i> Send Request</button>
+              </div>
+
+              <!-- Presets -->
+              <div style="margin-bottom: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Presets:</span>
+                <button class="copy-btn sim-preset-btn" data-method="GET" data-path="/api/v1/trades">GET /trades</button>
+                <button class="copy-btn sim-preset-btn" data-method="GET" data-path="/api/users/:id">GET /users/:id</button>
+                <button class="copy-btn sim-preset-btn" data-method="POST" data-path="/api/v1/trades" data-body='{"symbol":"BTCUSD","amount":1.5}'>POST /trades</button>
+                <button class="copy-btn sim-preset-btn" data-method="GET" data-path="/health">GET /health</button>
+              </div>
+
+              <!-- Middleware Options -->
+              <div class="sim-options-grid">
+                <span style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-right: 4px;">Middleware Pipeline:</span>
+                <label class="sim-checkbox-label"><input type="checkbox" id="simUseHelmet" checked /> Helmet (Security)</label>
+                <label class="sim-checkbox-label"><input type="checkbox" id="simUseCors" checked /> CORS Headers</label>
+                <label class="sim-checkbox-label"><input type="checkbox" id="simUseLogger" checked /> Structured Logger</label>
+                <label class="sim-checkbox-label"><input type="checkbox" id="simUseSession" /> Signed Session</label>
+              </div>
+
+              <!-- Payload Input -->
+              <div style="margin-bottom: 18px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Request Body (JSON for POST/PUT):</label>
+                <textarea id="simBodyInput" class="sim-input" style="width: 100%; height: 70px; padding: 10px; resize: vertical;" placeholder='{"key": "value"}'></textarea>
+              </div>
+
+              <!-- Split Output: Code & Response -->
+              <div id="simResponseContainer" class="sim-split-view">
+                <div class="sim-panel">
+                  <div class="sim-panel-title"><span><i class="fas fa-code"></i> Generated Kasbah Server Code</span></div>
+                  <pre class="sim-panel-body" id="simGeneratedCode"></pre>
+                </div>
+
+                <div class="sim-panel">
+                  <div class="sim-panel-title"><span><i class="fas fa-satellite-dish"></i> Live HTTP Response</span></div>
+                  <pre class="sim-panel-body" id="simResponseHeaders" style="color: #38bdf8; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;"></pre>
+                  <pre class="sim-panel-body" id="simResponseBody" style="color: #a7f3d0;"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Application Class & Config -->
+        <section class="doc-section" id="app-class">
+          <h2 class="section-title"><i class="fas fa-server"></i> Application Instance &amp; Lifecycle</h2>
+          <p class="section-lead">The central coordination engine managing routes, middlewares, error dispatchers, and HTTP listeners.</p>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">let app = new kasbah.app(config = {})</div>
+              <span class="badge-tag method-oop">Constructor</span>
+            </div>
+            <p class="method-desc">Initializes a new Kasbah web server application instance with custom configuration options.</p>
+            
+            <div class="code-container">
+              <div class="code-header"><span><i class="fas fa-code"></i> Example</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+              <pre><code><span class="kwd">use</span> kasbah
+
+<span class="kwd">let</span> app = <span class="kwd">new</span> kasbah.<span class="typ">app</span>({
+    <span class="str">"port"</span>: <span class="num">8080</span>,
+    <span class="str">"host"</span>: <span class="str">"0.0.0.0"</span>,
+    <span class="str">"helmet"</span>: <span class="kwd">True</span>,
+    <span class="str">"cors"</span>: <span class="kwd">True</span>,
+    <span class="str">"logger"</span>: {<span class="str">"level"</span>: <span class="str">"info"</span>, <span class="str">"format"</span>: <span class="str">"combined"</span>}
+})</code></pre>
+            </div>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.listen(port = Null, host = Null, quiet = False)</div>
+              <span class="badge-tag method-oop">Method</span>
+            </div>
+            <p class="method-desc">Starts the asynchronous HTTP listener on the configured or supplied host and port.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.close()</div>
+              <span class="badge-tag method-oop">Method</span>
+            </div>
+            <p class="method-desc">Gracefully terminates the HTTP server instance and releases socket bindings.</p>
+          </div>
+        </section>
+
+        <!-- Section: Configuration Schema -->
+        <section class="doc-section" id="config-schema">
+          <h2 class="section-title"><i class="fas fa-sliders-h"></i> Configuration Options Schema</h2>
+          <p class="section-lead">Full reference of all constructor parameters accepted by <code>new kasbah.app(options)</code>:</p>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Option Key</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>port</code></td>
+                  <td>Number</td>
+                  <td><code>3000</code></td>
+                  <td>TCP port number for listening HTTP connections.</td>
+                </tr>
+                <tr>
+                  <td><code>host</code></td>
+                  <td>String</td>
+                  <td><code>"127.0.0.1"</code></td>
+                  <td>Host interface binding (<code>"0.0.0.0"</code> for all network interfaces).</td>
+                </tr>
+                <tr>
+                  <td><code>views</code></td>
+                  <td>String</td>
+                  <td><code>"views"</code></td>
+                  <td>Base directory path containing HTML templates for <code>res.view()</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>cache</code></td>
+                  <td>Boolean</td>
+                  <td><code>True</code></td>
+                  <td>Enables in-memory AST caching for Qalam templates for maximum performance.</td>
+                </tr>
+                <tr>
+                  <td><code>session</code></td>
+                  <td>Boolean | Map</td>
+                  <td><code>False</code></td>
+                  <td>Enables signed HMAC-SHA256 cookie session storage with options.</td>
+                </tr>
+                <tr>
+                  <td><code>logger</code></td>
+                  <td>Boolean | Map</td>
+                  <td><code>False</code></td>
+                  <td>Enables RFC 5424 structured logging (<code>{"level": "info", "format": "dev"}</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>cors</code></td>
+                  <td>Boolean | Map</td>
+                  <td><code>False</code></td>
+                  <td>Cross-Origin Resource Sharing middleware and preflight handlers.</td>
+                </tr>
+                <tr>
+                  <td><code>helmet</code></td>
+                  <td>Boolean | Map</td>
+                  <td><code>False</code></td>
+                  <td>Production security headers (X-Frame-Options, CSP, HSTS, etc.).</td>
+                </tr>
+                <tr>
+                  <td><code>static</code></td>
+                  <td>String</td>
+                  <td><code>""</code></td>
+                  <td>Directory path to serve static public assets automatically.</td>
+                </tr>
+                <tr>
+                  <td><code>bodyParser</code></td>
+                  <td>Boolean</td>
+                  <td><code>True</code></td>
+                  <td>Automatically parses JSON, URL-encoded forms, and multipart uploads.</td>
+                </tr>
+                <tr>
+                  <td><code>maxBodySize</code></td>
+                  <td>Number</td>
+                  <td><code>10</code></td>
+                  <td>Maximum allowable request body size in Megabytes (MB).</td>
+                </tr>
+                <tr>
+                  <td><code>keepAlive</code></td>
+                  <td>Boolean</td>
+                  <td><code>True</code></td>
+                  <td>Enables HTTP Keep-Alive persistent connection reuse.</td>
+                </tr>
+                <tr>
+                  <td><code>keepAliveTimeout</code></td>
+                  <td>Number</td>
+                  <td><code>5000</code></td>
+                  <td>Keep-Alive socket timeout in milliseconds.</td>
+                </tr>
+                <tr>
+                  <td><code>trustProxy</code></td>
+                  <td>Boolean</td>
+                  <td><code>False</code></td>
+                  <td>Trusts <code>X-Forwarded-For</code> and <code>X-Real-IP</code> headers behind reverse proxies.</td>
+                </tr>
+                <tr>
+                  <td><code>env</code></td>
+                  <td>String</td>
+                  <td><code>"development"</code></td>
+                  <td>Application environment (<code>"development"</code> | <code>"production"</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>exposeErrors</code></td>
+                  <td>Boolean</td>
+                  <td><code>True (dev)</code></td>
+                  <td>Exposes raw exception messages in JSON responses (disabled in production).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Section: Routing Engine -->
+        <section class="doc-section" id="routing-basics">
+          <h2 class="section-title"><i class="fas fa-route"></i> Routing Engine &amp; HTTP Methods</h2>
+          <p class="section-lead">Kasbah provides an expressive router supporting all standard HTTP verbs with parameter matching and middleware chaining:</p>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.get(path, ...handlers)</div>
+              <span class="badge-tag http-get">GET</span>
+            </div>
+            <p class="method-desc">Registers a GET route. Handlers can be individual functions, arrays of middlewares, or controller closures.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.post(path, ...handlers)</div>
+              <span class="badge-tag http-post">POST</span>
+            </div>
+            <p class="method-desc">Registers a POST route for resource creation and form submissions.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.put(path, ...handlers)</div>
+              <span class="badge-tag http-put">PUT</span>
+            </div>
+            <p class="method-desc">Registers a PUT route for full resource updates.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.delete(path, ...handlers)</div>
+              <span class="badge-tag http-delete">DELETE</span>
+            </div>
+            <p class="method-desc">Registers a DELETE route for resource removal.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.patch(path, ...handlers)</div>
+              <span class="badge-tag http-patch">PATCH</span>
+            </div>
+            <p class="method-desc">Registers a PATCH route for partial updates.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.all(path, ...handlers)</div>
+              <span class="badge-tag method-oop">ALL VERBS</span>
+            </div>
+            <p class="method-desc">Matches any HTTP verb on the specified route path.</p>
+          </div>
+        </section>
+
+        <!-- Section: Dynamic URL Parameters -->
+        <section class="doc-section" id="routing-params">
+          <h2 class="section-title"><i class="fas fa-fingerprint"></i> Dynamic URL Parameters</h2>
+          <p class="section-lead">Capture dynamic URL segments using colon syntax <code>:paramName</code>:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Parameter Extraction</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code><span class="cmt"># Single Parameter</span>
+app.<span class="fn">get</span>(<span class="str">"/users/:id"</span>, <span class="kwd">fn</span>(req, res)
+    <span class="kwd">let</span> userId = req.<span class="fn">param</span>(<span class="str">"id"</span>)
+    res.<span class="fn">ok</span>({<span class="str">"id"</span>: userId})
+<span class="kwd">end</span>)
+
+<span class="cmt"># Multiple Parameters</span>
+app.<span class="fn">get</span>(<span class="str">"/categories/:category/products/:id"</span>, <span class="kwd">fn</span>(req, res)
+    res.<span class="fn">ok</span>({
+        <span class="str">"category"</span>: req.<span class="fn">param</span>(<span class="str">"category"</span>),
+        <span class="str">"productId"</span>: req.<span class="fn">param</span>(<span class="str">"id"</span>)
+    })
+<span class="kwd">end</span>)</code></pre>
+          </div>
+        </section>
+
+        <!-- Section: Route Groups & Sub-Routers -->
+        <section class="doc-section" id="routing-groups">
+          <h2 class="section-title"><i class="fas fa-folder-tree"></i> Route Groups &amp; Sub-Routers</h2>
+          <p class="section-lead">Group related routes by common URI prefixes and shared middleware pipelines:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Route Groups with Group-Level Middleware</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code><span class="cmt"># Auth Guard Middleware</span>
+<span class="kwd">let</span> requireAuth = <span class="kwd">fn</span>(req, res)
+    <span class="kwd">if</span> req.<span class="fn">token</span>() == <span class="str">""</span>
+        res.<span class="fn">unauthorized</span>(<span class="str">"Authentication required"</span>)
+    <span class="kwd">end</span>
+<span class="kwd">end</span>
+
+<span class="cmt"># Route Group with Prefix and Middleware</span>
+app.<span class="fn">group</span>(<span class="str">"/api/v1"</span>, [requireAuth], <span class="kwd">fn</span>(v1)
+    v1.<span class="fn">get</span>(<span class="str">"/profile"</span>, <span class="kwd">fn</span>(req, res)
+        res.<span class="fn">ok</span>({<span class="str">"user"</span>: <span class="str">"Riad"</span>})
+    <span class="kwd">end</span>)
+
+    <span class="cmt"># Nested Sub-Group</span>
+    v1.<span class="fn">group</span>(<span class="str">"/admin"</span>, <span class="kwd">fn</span>(admin)
+        admin.<span class="fn">get</span>(<span class="str">"/stats"</span>, <span class="kwd">fn</span>(req, res)
+            res.<span class="fn">ok</span>({<span class="str">"activeUsers"</span>: <span class="num">1240</span>})
+        <span class="kwd">end</span>)
+    <span class="kwd">end</span>)
+<span class="kwd">end</span>)</code></pre>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">app.use(prefix, routerInstance)</div>
+              <span class="badge-tag method-oop">Sub-Router Mounting</span>
+            </div>
+            <p class="method-desc">Mounts a modular standalone <code>new kasbah.router()</code> instance under an application path prefix.</p>
+          </div>
+        </section>
+
+        <!-- Section: Request Object -->
+        <section class="doc-section" id="request-api">
+          <h2 class="section-title"><i class="fas fa-inbox"></i> Request Object (<code>req</code>)</h2>
+          <p class="section-lead">Full reference of all properties and extraction helpers provided by the <code>req</code> context object:</p>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Property / Method</th>
+                  <th>Return Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>req.method</code></td>
+                  <td>String</td>
+                  <td>Uppercase HTTP method (<code>"GET"</code>, <code>"POST"</code>, <code>"PUT"</code>, etc.).</td>
+                </tr>
+                <tr>
+                  <td><code>req.path</code></td>
+                  <td>String</td>
+                  <td>Clean normalized URL path without query strings (URL decoded).</td>
+                </tr>
+                <tr>
+                  <td><code>req.ip</code></td>
+                  <td>String</td>
+                  <td>Client remote IP address (supports <code>trustProxy</code> for X-Forwarded-For).</td>
+                </tr>
+                <tr>
+                  <td><code>req.param(name, def = Null)</code></td>
+                  <td>String | Any</td>
+                  <td>Retrieves route parameter by key (e.g. <code>req.param("id")</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>req.query(name, def = Null)</code></td>
+                  <td>String | Any</td>
+                  <td>Retrieves URL query string parameter (e.g. <code>?page=2</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>req.input(name, def = Null)</code></td>
+                  <td>Any</td>
+                  <td>Unified input lookup searching body, then query, then route parameters.</td>
+                </tr>
+                <tr>
+                  <td><code>req.all()</code> / <code>req.inputs()</code></td>
+                  <td>Map</td>
+                  <td>Returns a merged Map of all query parameters, route params, and body fields.</td>
+                </tr>
+                <tr>
+                  <td><code>req.only(keysArray)</code></td>
+                  <td>Map</td>
+                  <td>Filters and returns only the specified whitelist of input fields.</td>
+                </tr>
+                <tr>
+                  <td><code>req.except(keysArray)</code></td>
+                  <td>Map</td>
+                  <td>Returns all inputs excluding the specified blacklist of fields.</td>
+                </tr>
+                <tr>
+                  <td><code>req.has(key)</code></td>
+                  <td>Boolean</td>
+                  <td>Checks if an input parameter exists in the request.</td>
+                </tr>
+                <tr>
+                  <td><code>req.header(name, def = "")</code></td>
+                  <td>String</td>
+                  <td>Retrieves header value with case-insensitive lookup.</td>
+                </tr>
+                <tr>
+                  <td><code>req.token()</code> / <code>req.bearerToken()</code></td>
+                  <td>String</td>
+                  <td>Extracts raw Bearer token from <code>Authorization: Bearer &lt;token&gt;</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>req.isJson()</code></td>
+                  <td>Boolean</td>
+                  <td>Returns True if request <code>Content-Type</code> is <code>application/json</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>req.isAjax()</code></td>
+                  <td>Boolean</td>
+                  <td>Returns True if <code>X-Requested-With: XMLHttpRequest</code> is present.</td>
+                </tr>
+                <tr>
+                  <td><code>req.accepts(type)</code></td>
+                  <td>Boolean</td>
+                  <td>Performs content negotiation against the client's <code>Accept</code> header.</td>
+                </tr>
+                <tr>
+                  <td><code>req.uploader(options = {})</code></td>
+                  <td>fileManager</td>
+                  <td>Returns a file upload manager for processing multipart file uploads.</td>
+                </tr>
+                <tr>
+                  <td><code>req.set(key, value)</code> / <code>req.get(key)</code></td>
+                  <td>Any</td>
+                  <td>Attaches or retrieves custom request-scoped state (e.g. authenticated user).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> File Upload Example</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>app.<span class="fn">post</span>(<span class="str">"/upload"</span>, <span class="kwd">fn</span>(req, res)
+    <span class="kwd">let</span> file = req.<span class="fn">uploader</span>().<span class="fn">single</span>(<span class="str">"avatar"</span>)
+    <span class="kwd">let</span> savedPath = file.saveTo(<span class="str">"./storage/avatars"</span>)
+    res.<span class="fn">created</span>({
+        <span class="str">"filename"</span>: file.filename,
+        <span class="str">"size"</span>:     file.size,
+        <span class="str">"path"</span>:     savedPath
+    })
+<span class="kwd">end</span>)</code></pre>
+          </div>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Uploader Method</th>
+                  <th>Return Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>uploader.single(fieldName)</code></td>
+                  <td>uploadedFile | Null</td>
+                  <td>Extracts and validates a single file upload from the specified field name.</td>
+                </tr>
+                <tr>
+                  <td><code>uploader.array(fieldName)</code></td>
+                  <td>Array&lt;uploadedFile&gt;</td>
+                  <td>Extracts and validates multiple files uploaded under the same field name.</td>
+                </tr>
+                <tr>
+                  <td><code>uploader.all()</code></td>
+                  <td>Map</td>
+                  <td>Returns a dictionary of all uploaded files keyed by form field names.</td>
+                </tr>
+                <tr>
+                  <td><code>uploader.saveAll(destinationDir)</code></td>
+                  <td>Map</td>
+                  <td>Saves all uploaded files to disk and returns a map of results with paths.</td>
+                </tr>
+                <tr>
+                  <td><code>uploader.remove(filePath)</code></td>
+                  <td>Boolean</td>
+                  <td>Safely deletes a file from disk with path validation.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>uploadedFile Property / Method</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>file.name</code></td>
+                  <td>String</td>
+                  <td>Form field name identifier (e.g. <code>"avatar"</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>file.filename</code></td>
+                  <td>String</td>
+                  <td>Sanitized original filename uploaded by the client (e.g. <code>"photo.png"</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>file.type</code></td>
+                  <td>String</td>
+                  <td>MIME content-type of the file (e.g. <code>"image/png"</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>file.size</code></td>
+                  <td>Number</td>
+                  <td>File size in bytes.</td>
+                </tr>
+                <tr>
+                  <td><code>file.tempPath</code></td>
+                  <td>String</td>
+                  <td>Temporary filesystem storage path where bytes are staged.</td>
+                </tr>
+                <tr>
+                  <td><code>file.isValid()</code></td>
+                  <td>Boolean</td>
+                  <td>Verifies that the temporary file exists on disk and is non-empty.</td>
+                </tr>
+                <tr>
+                  <td><code>file.extension()</code></td>
+                  <td>String</td>
+                  <td>Returns lowercase file extension with leading dot (e.g. <code>".png"</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>file.saveTo(destDir, newName = "")</code></td>
+                  <td>String</td>
+                  <td>Persists file to destination directory and removes temporary staging file.</td>
+                </tr>
+                <tr>
+                  <td><code>file.readBytes()</code></td>
+                  <td>Array</td>
+                  <td>Reads raw binary contents into a byte array.</td>
+                </tr>
+                <tr>
+                  <td><code>file.readText()</code></td>
+                  <td>String</td>
+                  <td>Reads contents decoded as a UTF-8 text string.</td>
+                </tr>
+                <tr>
+                  <td><code>file.delete()</code></td>
+                  <td>Boolean</td>
+                  <td>Deletes temporary file from disk immediately.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Section: Response Object -->
+        <section class="doc-section" id="response-api">
+          <h2 class="section-title"><i class="fas fa-paper-plane"></i> Response Object (<code>res</code>)</h2>
+          <p class="section-lead">The fluent response builder for dispatching HTTP status codes, headers, cookies, and payloads:</p>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th>Return Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>res.status(code)</code></td>
+                  <td>Response</td>
+                  <td>Sets HTTP status code fluently (e.g. <code>res.status(201)</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>res.header(name, value)</code></td>
+                  <td>Response</td>
+                  <td>Sets custom HTTP response header.</td>
+                </tr>
+                <tr>
+                  <td><code>res.type(mimeOrExt)</code></td>
+                  <td>Response</td>
+                  <td>Sets <code>Content-Type</code> using MIME type or file extension (e.g. <code>"json"</code>, <code>"pdf"</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>res.cookie(name, val, opts)</code></td>
+                  <td>Response</td>
+                  <td>Queues HTTP cookie with options (<code>maxAge</code>, <code>httpOnly</code>, <code>secure</code>, <code>sameSite</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>res.clearCookie(name, opts)</code></td>
+                  <td>Response</td>
+                  <td>Clears and expires a cookie immediately on the client.</td>
+                </tr>
+                <tr>
+                  <td><code>res.json(data)</code></td>
+                  <td>Response</td>
+                  <td>Encodes and dispatches JSON payload with <code>application/json</code> header.</td>
+                </tr>
+                <tr>
+                  <td><code>res.html(content)</code></td>
+                  <td>Response</td>
+                  <td>Dispatches HTML markup with <code>text/html; charset=utf-8</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>res.text(content)</code></td>
+                  <td>Response</td>
+                  <td>Dispatches plain text with <code>text/plain; charset=utf-8</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>res.xml(content)</code></td>
+                  <td>Response</td>
+                  <td>Dispatches XML document with <code>application/xml; charset=utf-8</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>res.sendFile(filePath)</code></td>
+                  <td>Response</td>
+                  <td>Streams binary or text file from disk with MIME detection and caching headers.</td>
+                </tr>
+                <tr>
+                  <td><code>res.download(filePath, name)</code></td>
+                  <td>Response</td>
+                  <td>Forces browser download with RFC 5987 Unicode filename encoding.</td>
+                </tr>
+                <tr>
+                  <td><code>res.view(template, data)</code></td>
+                  <td>Response</td>
+                  <td>Renders server-side HTML view using the integrated Qalam AST template engine.</td>
+                </tr>
+                <tr>
+                  <td><code>res.redirect(url, code = 302)</code></td>
+                  <td>Response</td>
+                  <td>Issues HTTP redirect with <code>Location</code> header.</td>
+                </tr>
+                <tr>
+                  <td><code>res.links(linksMap)</code></td>
+                  <td>Response</td>
+                  <td>Sets RFC 5988 <code>Link</code> pagination headers.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Section: Semantic Response Helpers -->
+        <section class="doc-section" id="response-helpers">
+          <h2 class="section-title"><i class="fas fa-check-double"></i> 9 Semantic Status Helpers</h2>
+          <p class="section-lead">Expressive, self-documenting response helpers conforming to global RESTful API specifications:</p>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Helper Method</th>
+                  <th>HTTP Status</th>
+                  <th>Default Content</th>
+                  <th>Typical Use Case</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>res.ok(data)</code></td>
+                  <td><code>200 OK</code></td>
+                  <td>JSON / Text / HTML</td>
+                  <td>Successful request with content payload.</td>
+                </tr>
+                <tr>
+                  <td><code>res.created(data)</code></td>
+                  <td><code>201 Created</code></td>
+                  <td>JSON data</td>
+                  <td>New resource created via POST.</td>
+                </tr>
+                <tr>
+                  <td><code>res.noContent()</code></td>
+                  <td><code>204 No Content</code></td>
+                  <td>Empty body</td>
+                  <td>Successful action with no content returned (e.g. DELETE).</td>
+                </tr>
+                <tr>
+                  <td><code>res.badRequest(message)</code></td>
+                  <td><code>400 Bad Request</code></td>
+                  <td><code>{"error": msg}</code></td>
+                  <td>Malformed syntax or invalid client input.</td>
+                </tr>
+                <tr>
+                  <td><code>res.unauthorized(message)</code></td>
+                  <td><code>401 Unauthorized</code></td>
+                  <td><code>{"error": msg}</code></td>
+                  <td>Missing or invalid authentication token.</td>
+                </tr>
+                <tr>
+                  <td><code>res.forbidden(message)</code></td>
+                  <td><code>403 Forbidden</code></td>
+                  <td><code>{"error": msg}</code></td>
+                  <td>Authenticated user lacks permission.</td>
+                </tr>
+                <tr>
+                  <td><code>res.notFound(message)</code></td>
+                  <td><code>404 Not Found</code></td>
+                  <td><code>{"error": msg}</code></td>
+                  <td>Resource or endpoint does not exist.</td>
+                </tr>
+                <tr>
+                  <td><code>res.validationError(errors)</code></td>
+                  <td><code>422 Unprocessable</code></td>
+                  <td><code>{"errors": errors}</code></td>
+                  <td>Input validation failure bag.</td>
+                </tr>
+                <tr>
+                  <td><code>res.serverError(message)</code></td>
+                  <td><code>500 Server Error</code></td>
+                  <td><code>{"error": msg}</code></td>
+                  <td>Unhandled internal server exception.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Section: Security Middlewares -->
+        <section class="doc-section" id="security-helmet">
+          <h2 class="section-title"><i class="fas fa-shield-halved"></i> Helmet Security Headers</h2>
+          <p class="section-lead">Automates the injection of 8 critical security headers to protect against Clickjacking, XSS, and MIME-sniffing:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Helmet Configuration</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code><span class="cmt"># Default Production Security (Recommended)</span>
+app.<span class="fn">middleware</span>(kasbah.<span class="fn">helmet</span>())
+
+<span class="cmt"># Custom Security Directives</span>
+app.<span class="fn">middleware</span>(kasbah.<span class="fn">helmet</span>({
+    <span class="str">"frameguard"</span>: {<span class="str">"action"</span>: <span class="str">"DENY"</span>},
+    <span class="str">"referrerPolicy"</span>: {<span class="str">"policy"</span>: <span class="str">"strict-origin-when-cross-origin"</span>},
+    <span class="str">"contentSecurityPolicy"</span>: {
+        <span class="str">"directives"</span>: {
+            <span class="str">"default-src"</span>: [<span class="str">"'self'"</span>],
+            <span class="str">"script-src"</span>:  [<span class="str">"'self'"</span>, <span class="str">"https://trusted.cdn.com"</span>]
+        }
+    }
+}))</code></pre>
+          </div>
+        </section>
+
+        <!-- Section: CORS Middleware -->
+        <section class="doc-section" id="security-cors">
+          <h2 class="section-title"><i class="fas fa-globe"></i> CORS Middleware &amp; Preflight</h2>
+          <p class="section-lead">Manages Cross-Origin Resource Sharing with automatic <code>OPTIONS</code> preflight resolution (204 No Content):</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> CORS Configuration</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code><span class="cmt"># Permissive API (Open to all origins)</span>
+app.<span class="fn">middleware</span>(kasbah.<span class="fn">cors</span>())
+
+<span class="cmt"># Strict Enterprise Production CORS</span>
+app.<span class="fn">middleware</span>(kasbah.<span class="fn">cors</span>({
+    <span class="str">"origin"</span>:      [<span class="str">"https://app.djazair.com"</span>, <span class="str">"https://admin.djazair.com"</span>],
+    <span class="str">"methods"</span>:     <span class="str">"GET,POST,PUT,DELETE,PATCH,OPTIONS"</span>,
+    <span class="str">"headers"</span>:     <span class="str">"Content-Type,Authorization,X-Requested-With"</span>,
+    <span class="str">"credentials"</span>: <span class="kwd">True</span>,
+    <span class="str">"maxAge"</span>:      <span class="num">86400</span>
+}))</code></pre>
+          </div>
+        </section>
+
+        <!-- Section: Sessions & CookieJar -->
+        <section class="doc-section" id="session-cookies">
+          <h2 class="section-title"><i class="fas fa-key"></i> Sessions &amp; CookieJar Management</h2>
+          <p class="section-lead">Secure, HMAC-SHA256 signed session state management with file storage backing:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Session State Operations</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>app.<span class="fn">get</span>(<span class="str">"/profile"</span>, <span class="kwd">fn</span>(req, res)
+    <span class="cmt"># Read session</span>
+    <span class="kwd">let</span> user = req.session.<span class="fn">get</span>(<span class="str">"user"</span>, <span class="str">"Guest"</span>)
+    
+    <span class="cmt"># Write session</span>
+    req.session.<span class="fn">set</span>(<span class="str">"visits"</span>, req.session.<span class="fn">get</span>(<span class="str">"visits"</span>, <span class="num">0</span>) + <span class="num">1</span>)
+    
+    <span class="cmt"># Regenerate session ID (anti-fixation)</span>
+    req.session.<span class="fn">regenerate</span>()
+
+    <span class="cmt"># CookieJar API</span>
+    req.cookies.<span class="fn">set</span>(<span class="str">"theme"</span>, <span class="str">"dark"</span>, {<span class="str">"maxAge"</span>: <span class="num">86400</span>, <span class="str">"httpOnly"</span>: <span class="kwd">True</span>})
+
+    res.<span class="fn">ok</span>({<span class="str">"user"</span>: user, <span class="str">"visits"</span>: req.session.<span class="fn">get</span>(<span class="str">"visits"</span>)})
+<span class="kwd">end</span>)</code></pre>
+          </div>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Session Method</th>
+                  <th>Return Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>req.session.get(key, def = Null)</code></td>
+                  <td>Any</td>
+                  <td>Retrieves session value by key with optional fallback.</td>
+                </tr>
+                <tr>
+                  <td><code>req.session.set(key, value)</code></td>
+                  <td>Void</td>
+                  <td>Stores a value in the current session state.</td>
+                </tr>
+                <tr>
+                  <td><code>req.session.has(key)</code></td>
+                  <td>Boolean</td>
+                  <td>Checks if a key exists in session data.</td>
+                </tr>
+                <tr>
+                  <td><code>req.session.delete(key)</code></td>
+                  <td>Void</td>
+                  <td>Removes a key from the session dictionary.</td>
+                </tr>
+                <tr>
+                  <td><code>req.session.clear()</code></td>
+                  <td>Void</td>
+                  <td>Removes all keys from the session state.</td>
+                </tr>
+                <tr>
+                  <td><code>req.session.all()</code></td>
+                  <td>Map</td>
+                  <td>Returns a copy of the entire session dictionary.</td>
+                </tr>
+                <tr>
+                  <td><code>req.session.regenerate()</code></td>
+                  <td>String</td>
+                  <td>Rotates the session ID to prevent Session Fixation attacks.</td>
+                </tr>
+                <tr>
+                  <td><code>req.session.id()</code></td>
+                  <td>String</td>
+                  <td>Returns the current active cryptographic session identifier.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>CookieJar Method</th>
+                  <th>Return Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>req.cookies.get(name, def = Null)</code></td>
+                  <td>String | Any</td>
+                  <td>Reads an incoming cookie by name.</td>
+                </tr>
+                <tr>
+                  <td><code>req.cookies.set(name, val, opts = {})</code></td>
+                  <td>Void</td>
+                  <td>Queues a cookie header on response (<code>maxAge</code>, <code>path</code>, <code>secure</code>, <code>httpOnly</code>, <code>sameSite</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>req.cookies.has(name)</code></td>
+                  <td>Boolean</td>
+                  <td>Checks if a cookie was sent in request headers.</td>
+                </tr>
+                <tr>
+                  <td><code>req.cookies.delete(name, opts = {})</code></td>
+                  <td>Void</td>
+                  <td>Queues an expired cookie to clear it from the client browser.</td>
+                </tr>
+                <tr>
+                  <td><code>req.cookies.all()</code></td>
+                  <td>Map</td>
+                  <td>Returns a dictionary of all incoming cookies.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Section: Multipart File Uploads -->
+        <section class="doc-section" id="file-uploads">
+          <h2 class="section-title"><i class="fas fa-cloud-arrow-up"></i> Multipart File Uploads</h2>
+          <p class="section-lead">Stream and validate uploaded files with MIME type restrictions and size constraints:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> File Upload Handler</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>app.<span class="fn">post</span>(<span class="str">"/api/upload"</span>, <span class="kwd">fn</span>(req, res)
+    <span class="kwd">let</span> uploader = req.<span class="fn">uploader</span>({
+        <span class="str">"dest"</span>:         <span class="str">"./storage/uploads"</span>,
+        <span class="str">"maxSize"</span>:      <span class="num">5</span>, <span class="cmt"># 5 MB limit</span>
+        <span class="str">"allowedTypes"</span>: [<span class="str">"image/png"</span>, <span class="str">"image/jpeg"</span>, <span class="str">"application/pdf"</span>]
+    })
+
+    <span class="kwd">let</span> file = uploader.<span class="fn">single</span>(<span class="str">"avatar"</span>)
+    <span class="kwd">if</span> isNull(file)
+        <span class="kwd">return</span> res.<span class="fn">badRequest</span>(<span class="str">"Avatar file is required"</span>)
+    <span class="kwd">end</span>
+
+    <span class="kwd">let</span> savedPath = file.<span class="fn">saveTo</span>(<span class="str">"./storage/avatars"</span>)
+    res.<span class="fn">created</span>({
+        <span class="str">"filename"</span>: file.filename,
+        <span class="str">"size"</span>:     file.size,
+        <span class="str">"path"</span>:     savedPath
+    })
+<span class="kwd">end</span>)</code></pre>
+          </div>
+        <!-- Section: Sessions & CookieJar -->
+        <section class="doc-section" id="session-cookies">
+          <h2 class="section-title"><i class="fas fa-key"></i> Sessions &amp; CookieJar Management</h2>
+          <p class="section-lead">Secure, HMAC-SHA256 signed session state management with file storage backing:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Session State Operations</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>app.<span class="fn">get</span>(<span class="str">"/profile"</span>, <span class="kwd">fn</span>(req, res)
+    <span class="cmt"># Read session</span>
+    <span class="kwd">let</span> user = req.session.<span class="fn">get</span>(<span class="str">"user"</span>, <span class="str">"Guest"</span>)
+    
+    <span class="cmt"># Write session</span>
+    req.session.<span class="fn">set</span>(<span class="str">"visits"</span>, req.session.<span class="fn">get</span>(<span class="str">"visits"</span>, <span class="num">0</span>) + <span class="num">1</span>)
+    
+    <span class="cmt"># Regenerate session ID (anti-fixation)</span>
+    req.session.<span class="fn">regenerate</span>()
+
+    <span class="cmt"># CookieJar API</span>
+    req.cookies.<span class="fn">set</span>(<span class="str">"theme"</span>, <span class="str">"dark"</span>, {<span class="str">"maxAge"</span>: <span class="num">86400</span>, <span class="str">"httpOnly"</span>: <span class="kwd">True</span>})
+
+    res.<span class="fn">ok</span>({<span class="str">"user"</span>: user, <span class="str">"visits"</span>: req.session.<span class="fn">get</span>(<span class="str">"visits"</span>)})
+<span class="kwd">end</span>)</code></pre>
+          </div>
+        </section>
+
+        <!-- Section: Logging & ISO Timestamps -->
+        <section class="doc-section" id="logging-telemetry">
+          <h2 class="section-title"><i class="fas fa-chart-line"></i> Logging &amp; RFC 5424 Telemetry</h2>
+          <p class="section-lead">Standardized observability with RFC 5424 severity levels and ISO 8601 timestamps:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Logger Configuration</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>app.<span class="fn">middleware</span>(kasbah.<span class="fn">logger</span>({
+    <span class="str">"level"</span>:  <span class="str">"info"</span>,    <span class="cmt"># "debug" | "info" | "warn" | "error" | "fatal" | "none"</span>
+    <span class="str">"format"</span>: <span class="str">"combined"</span> <span class="cmt"># "dev" | "combined"</span>
+}))</code></pre>
+          </div>
+
+          <div class="alert-box alert-info">
+            <i class="fas fa-info-circle"></i>
+            <div>
+              <strong>Sample Terminal Log Output:</strong><br />
+              <code>2026-09-07 20:15:32 [INFO] [Kasbah] 127.0.0.1 - "GET /api/v1/trades" 200 (1.42 ms)</code><br />
+              <code>2026-09-07 20:15:33 [ERROR] [Kasbah] Unhandled exception on "POST /api/trades" (IP: 127.0.0.1) -> Database connection timeout</code>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Validator Engine -->
+        <section class="doc-section" id="validator-engine">
+          <h2 class="section-title"><i class="fas fa-spell-check"></i> Schema Validator Engine</h2>
+          <p class="section-lead">Fluent schema validation rules with structured error reporting:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Request Validation Example</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>app.<span class="fn">post</span>(<span class="str">"/api/register"</span>, <span class="kwd">fn</span>(req, res)
+    <span class="kwd">let</span> v = kasbah.<span class="fn">validator</span>(req.body, {
+        <span class="str">"username"</span>: <span class="str">"required|min:3|max:20|alphanumeric"</span>,
+        <span class="str">"email"</span>:    <span class="str">"required|email"</span>,
+        <span class="str">"age"</span>:      <span class="str">"required|numeric|min:18"</span>,
+        <span class="str">"role"</span>:     <span class="str">"required|in:trader,analyst,admin"</span>
+    })
+
+    <span class="kwd">if</span> v.<span class="fn">fails</span>()
+        <span class="kwd">return</span> res.<span class="fn">validationError</span>(v.<span class="fn">errors</span>())
+    <span class="kwd">end</span>
+
+    <span class="kwd">let</span> cleanData = v.<span class="fn">validated</span>()
+    res.<span class="fn">created</span>({<span class="str">"status"</span>: <span class="str">"User registered"</span>, <span class="str">"data"</span>: cleanData})
+<span class="kwd">end</span>)</code></pre>
+          </div>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Validation Rule</th>
+                  <th>Example</th>
+                  <th>Constraint Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>required</code></td>
+                  <td><code>"name": "required"</code></td>
+                  <td>Field must exist and not be Null, False, or empty string.</td>
+                </tr>
+                <tr>
+                  <td><code>email</code></td>
+                  <td><code>"email": "required|email"</code></td>
+                  <td>Field must match valid email syntax containing @ and domain.</td>
+                </tr>
+                <tr>
+                  <td><code>min:N</code></td>
+                  <td><code>"password": "min:8"</code></td>
+                  <td>String length &gt;= N characters, or numeric value &gt;= N.</td>
+                </tr>
+                <tr>
+                  <td><code>max:N</code></td>
+                  <td><code>"bio": "max:500"</code></td>
+                  <td>String length &lt;= N characters, or numeric value &lt;= N.</td>
+                </tr>
+                <tr>
+                  <td><code>numeric</code></td>
+                  <td><code>"amount": "numeric"</code></td>
+                  <td>Field must be an integer or floating point number.</td>
+                </tr>
+                <tr>
+                  <td><code>alpha</code></td>
+                  <td><code>"firstName": "alpha"</code></td>
+                  <td>Field must contain letters only (a-z, A-Z).</td>
+                </tr>
+                <tr>
+                  <td><code>alphanumeric</code></td>
+                  <td><code>"code": "alphanumeric"</code></td>
+                  <td>Field must contain letters and digits only.</td>
+                </tr>
+                <tr>
+                  <td><code>in:a,b,c</code></td>
+                  <td><code>"role": "in:trader,admin"</code></td>
+                  <td>Field value must match one of the allowed whitelist values.</td>
+                </tr>
+                <tr>
+                  <td><code>regex:pattern</code></td>
+                  <td><code>"sku": "regex:^[A-Z]{3}-[0-9]+$"</code></td>
+                  <td>Field must match custom regular expression.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-responsive">
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Validator Method</th>
+                  <th>Return Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>v.passes()</code></td>
+                  <td>Boolean</td>
+                  <td>Returns True if all validation rules passed.</td>
+                </tr>
+                <tr>
+                  <td><code>v.fails()</code></td>
+                  <td>Boolean</td>
+                  <td>Returns True if any validation rule failed.</td>
+                </tr>
+                <tr>
+                  <td><code>v.errors()</code></td>
+                  <td>Map</td>
+                  <td>Returns dictionary of all errors: <code>{"field": ["message"]}</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>v.firstError(field)</code></td>
+                  <td>String</td>
+                  <td>Returns the first error message string for a field.</td>
+                </tr>
+                <tr>
+                  <td><code>v.errorFor(field)</code></td>
+                  <td>Array&lt;String&gt;</td>
+                  <td>Returns an array of all errors for a field.</td>
+                </tr>
+                <tr>
+                  <td><code>v.validated()</code></td>
+                  <td>Map</td>
+                  <td>Returns a map containing only fields that were validated.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Section: Static File Serving -->
+        <section class="doc-section" id="static-files">
+          <h2 class="section-title"><i class="fas fa-folder-open"></i> Static File Serving &amp; Caching</h2>
+          <p class="section-lead">Serve public assets, CSS, images, and JavaScript with automated MIME detection and Cache-Control headers:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Static Assets Middleware</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code><span class="cmt"># Serve static files from './public' directory</span>
+app.<span class="fn">middleware</span>(kasbah.<span class="fn">serveStatic</span>(<span class="str">"./public"</span>, {
+    <span class="str">"maxAge"</span>: <span class="num">86400</span>, <span class="cmt"># Cache-Control: max-age=86400</span>
+    <span class="str">"index"</span>:  <span class="str">"index.html"</span>
+}))</code></pre>
+          </div>
+        </section>
+
+        <!-- Section: Qalam Template Engine -->
+        <section class="doc-section" id="views-qalam">
+          <h2 class="section-title"><i class="fas fa-file-code"></i> Qalam Template Engine Integration</h2>
+          <p class="section-lead">Full-featured Server-Side Rendering (SSR) using the native Qalam AST engine:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> views/trades/index.html</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>{% extends "layouts/main" %}
+
+{% block content %}
+  &lt;h1&gt;{{ title | upper }}&lt;/h1&gt;
+  &lt;ul&gt;
+    {% for trade in trades %}
+      &lt;li&gt;
+        &lt;strong&gt;{{ trade.symbol }}&lt;/strong&gt;: 
+        &lt;span class="{{ if trade.profit &gt; 0 ? 'green' else 'red' }}"&gt;
+          {{ trade.profit }}
+        &lt;/span&gt;
+      &lt;/li&gt;
+    {% else %}
+      &lt;li&gt;No active trades found.&lt;/li&gt;
+    {% endfor %}
+  &lt;/ul&gt;
+{% endblock %}</code></pre>
+          </div>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Controller Handler</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code>app.<span class="fn">get</span>(<span class="str">"/trades"</span>, <span class="kwd">fn</span>(req, res)
+    res.<span class="fn">view</span>(<span class="str">"trades/index"</span>, {
+        <span class="str">"title"</span>: <span class="str">"Live Trades"</span>,
+        <span class="str">"trades"</span>: [
+            {<span class="str">"symbol"</span>: <span class="str">"EURUSD"</span>, <span class="str">"profit"</span>: <span class="num">240</span>},
+            {<span class="str">"symbol"</span>: <span class="str">"BTCUSD"</span>, <span class="str">"profit"</span>: <span class="num">1250</span>}
+        ]
+    })
+<span class="kwd">end</span>)</code></pre>
+          </div>
+        </section>
+
+        <!-- Section: Error Handling -->
+        <section class="doc-section" id="error-handling">
+          <h2 class="section-title"><i class="fas fa-triangle-exclamation"></i> Centralized Error Handling</h2>
+          <p class="section-lead">Catch-all 404 handlers and global exception dispatchers ensuring zero swallowed errors:</p>
+
+          <div class="code-container">
+            <div class="code-header"><span><i class="fas fa-code"></i> Custom 404 &amp; 500 Dispatchers</span><button class="copy-btn"><i class="fas fa-copy"></i> Copy</button></div>
+            <pre><code><span class="cmt"># 1. Custom 404 Not Found Handler</span>
+app.<span class="fn">onNotFound</span>(<span class="kwd">fn</span>(req, res)
+    <span class="kwd">if</span> req.<span class="fn">isJson</span>()
+        res.<span class="fn">notFound</span>(<span class="str">"API route '${req.path}' does not exist"</span>)
+    <span class="kwd">else</span>
+        res.<span class="fn">status</span>(<span class="num">404</span>).<span class="fn">html</span>(<span class="str">"&lt;h1&gt;404 Not Found&lt;/h1&gt;&lt;p&gt;Path: ${req.path}&lt;/p&gt;"</span>)
+    <span class="kwd">end</span>
+<span class="kwd">end</span>)
+
+<span class="cmt"># 2. Custom 500 Global Exception Handler</span>
+app.<span class="fn">onError</span>(<span class="kwd">fn</span>(err, req, res)
+    <span class="fn">print</span>(<span class="str">"[ERROR] ${req.method} ${req.path} -&gt; ${err}"</span>)
+
+    <span class="kwd">if</span> res.sentFlag <span class="kwd">return</span> <span class="kwd">end</span>
+
+    res.<span class="fn">status</span>(<span class="num">500</span>).<span class="fn">json</span>({
+        <span class="str">"error"</span>:      <span class="str">"Internal Server Error"</span>,
+        <span class="str">"statusCode"</span>: <span class="num">500</span>,
+        <span class="str">"message"</span>:    <span class="str">"${err}"</span>
+    })
+<span class="kwd">end</span>)</code></pre>
+          </div>
+        </section>
+
+        <!-- Section: Utilities & Recipes -->
+        <section class="doc-section" id="utilities">
+          <h2 class="section-title"><i class="fas fa-wrench"></i> Framework Utilities &amp; Deployment</h2>
+          <p class="section-lead">Production deployment recipes and standalone helper functions:</p>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">kasbah.generateId(length = 32)</div>
+              <span class="badge-tag method-oop">Helper</span>
+            </div>
+            <p class="method-desc">Generates a cryptographically secure random hexadecimal identifier for session tokens and unique upload filenames.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">kasbah.urlEncodeFilename(name)</div>
+              <span class="badge-tag method-oop">Helper</span>
+            </div>
+            <p class="method-desc">Encodes Unicode filenames according to RFC 5987 for safe attachment downloads.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">kasbah.urlEncode(string) / kasbah.urlDecode(string)</div>
+              <span class="badge-tag method-oop">Helper</span>
+            </div>
+            <p class="method-desc">Percent-encodes or decodes arbitrary strings, query strings, and URL path components.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">kasbah.setServerConfig(optionsMap)</div>
+              <span class="badge-tag method-oop">Configuration</span>
+            </div>
+            <p class="method-desc">Configures global framework defaults (host, keepAlive, session, logging) applied to all subsequent application instances.</p>
+          </div>
+
+          <div class="method-card">
+            <div class="method-header">
+              <div class="method-signature">kasbah.formatTimestamp()</div>
+              <span class="badge-tag method-oop">Telemetry</span>
+            </div>
+            <p class="method-desc">Returns normalized ISO 8601 current timestamp string: <code>YYYY-MM-DD HH:mm:ss</code>.</p>
+          </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+          <p><strong>Kasbah Web Framework</strong> — Enterprise Web Engine for the <strong>Djazair</strong> Programming Language 🇩🇿</p>
+          <p style="margin-top: 6px; font-size: 12.5px;">Author: Harizi Riyadh &copy; 2026. Licensed under the MIT License.</p>
+        </footer>
+
+      </div>
+    </main>
+  </div>
+
+</body>
+</html>

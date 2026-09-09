@@ -1,0 +1,189 @@
+﻿# test_validator.dz
+# Comprehensive validator DSL tests for Kasbah
+
+import "../core/validator.dz" as v
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed += 1
+    else
+        print("  FAIL: ${name}")
+        failed += 1
+    end
+end
+
+print("=== Kasbah Validator Tests ===")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 1: required / optional
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 1: required / optional ---")
+
+let v1 = new v.validator({"name": "Alice"})
+v1.field("name").required().string()
+test("present required field passes", v1.passes())
+
+let v2 = new v.validator({})
+v2.field("name").required()
+test("missing required field fails", v2.fails())
+test("missing required field has error", v2.errors().has("name"))
+
+let v3 = new v.validator({})
+v3.field("bio").optional().string()
+test("optional absent field passes", v3.passes())
+
+let v4 = new v.validator({"bio": 42})
+v4.field("bio").optional().string()
+test("optional present field with wrong type fails", v4.fails())
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 2: type checks
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 2: Type checks ---")
+
+let v5 = new v.validator({"age": 25, "active": True, "tags": ["a", "b"]})
+v5.field("age").required().number()
+v5.field("active").required().boolean()
+v5.field("tags").required().array()
+test("number/boolean/array types pass", v5.passes())
+
+let v6 = new v.validator({"age": "not-a-number"})
+v6.field("age").required().number()
+test("number() fails on string", v6.fails())
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 3: string constraints
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 3: String constraints ---")
+
+let v7 = new v.validator({"username": "ali"})
+v7.field("username").required().string().minLength(3).maxLength(20)
+test("minLength(3) passes for length-3 string", v7.passes())
+
+let v8 = new v.validator({"username": "ab"})
+v8.field("username").required().string().minLength(3)
+test("minLength(3) fails for length-2 string", v8.fails())
+
+let v9 = new v.validator({"username": "this_is_a_very_long_username_exceeding"})
+v9.field("username").required().string().maxLength(20)
+test("maxLength(20) fails for too-long string", v9.fails())
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 4: numeric constraints
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 4: Numeric constraints ---")
+
+let v10 = new v.validator({"score": 50})
+v10.field("score").required().number().min(0).max(100)
+test("min/max passes in range", v10.passes())
+
+let v11 = new v.validator({"score": -1})
+v11.field("score").required().number().min(0)
+test("min(0) fails for -1", v11.fails())
+
+let v12 = new v.validator({"score": 101})
+v12.field("score").required().number().max(100)
+test("max(100) fails for 101", v12.fails())
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 5: email / url / matches
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 5: Format validators ---")
+
+let v13 = new v.validator({"email": "user@example.com"})
+v13.field("email").required().email()
+test("email() passes for valid email", v13.passes())
+
+let v14 = new v.validator({"email": "not-an-email"})
+v14.field("email").required().email()
+test("email() fails for invalid email", v14.fails())
+
+let v15 = new v.validator({"site": "https://example.com"})
+v15.field("site").required().url()
+test("url() passes for https URL", v15.passes())
+
+let v16 = new v.validator({"site": "ftp://not-http.com"})
+v16.field("site").required().url()
+test("url() fails for ftp URL", v16.fails())
+
+let v17 = new v.validator({"code": "ABC123"})
+v17.field("code").required().matches("^[A-Z]{3}[0-9]{3}$")
+test("matches() passes for correct pattern", v17.passes())
+
+let v18 = new v.validator({"code": "abc123"})
+v18.field("code").required().matches("^[A-Z]{3}[0-9]{3}$")
+test("matches() fails for wrong pattern", v18.fails())
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 6: oneOf / custom
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 6: oneOf / custom ---")
+
+let v19 = new v.validator({"role": "admin"})
+v19.field("role").required().oneOf(["admin", "user", "guest"])
+test("oneOf passes for valid value", v19.passes())
+
+let v20 = new v.validator({"role": "superuser"})
+v20.field("role").required().oneOf(["admin", "user", "guest"])
+test("oneOf fails for invalid value", v20.fails())
+
+let v21 = new v.validator({"price": 9.99})
+v21.field("price").required().custom(fn(val)
+    if val > 0
+        return True
+    end
+    return "must be positive"
+end)
+test("custom() passes when fn returns True", v21.passes())
+
+let v22 = new v.validator({"price": -5})
+v22.field("price").required().custom(fn(val)
+    if val > 0
+        return True
+    end
+    return "must be positive"
+end)
+test("custom() fails when fn returns message", v22.fails())
+test("custom() error message propagates", v22.firstError() == "must be positive")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 7: error extraction
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 7: Error extraction ---")
+
+let v23 = new v.validator({"a": "", "b": 0})
+v23.field("a").required()
+v23.field("b").required().number().min(1)
+test("fails() is True when there are errors", v23.fails())
+test("errorFor returns array for field", isArray(v23.errorFor("a")))
+test("firstError() returns a string", isString(v23.firstError()))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 8: validated() returns clean data only on pass
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 8: validated() ---")
+
+let v24 = new v.validator({"name": "Riad", "age": 30})
+v24.field("name").required().string()
+v24.field("age").required().number()
+let clean = v24.validated()
+test("validated() returns name", clean.has("name") && clean["name"] == "Riad")
+test("validated() returns age", clean.has("age") && clean["age"] == 30)
+
+let v25 = new v.validator({"name": ""})
+v25.field("name").required()
+let empty = v25.validated()
+test("validated() returns {} on failure", empty.keys().length() == 0)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n=== Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+if failed > 0
+    process.exit(1)
+end

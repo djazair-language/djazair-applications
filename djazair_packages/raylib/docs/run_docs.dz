@@ -1,0 +1,25 @@
+# run_docs.dz
+# Standalone Desktop Runner for Djazair Raylib Interactive Documentation
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+use webview
+
+let app = webview.createWindow({
+    "title": "Djazair Raylib - Official Documentation & Interactive Guide",
+    "width": 1280,
+    "height": 840,
+    "minWidth": 880,
+    "minHeight": 640,
+    "center": True,
+    "darkTitleBar": True,
+    "debug": True,
+    "singleInstance": True,
+    "appId": "com.djazair.raylib.docs"
+})
+
+app.onReady(fn()
+    app.window.navigate("index.html")
+end)
+
+app.run()

@@ -1,0 +1,437 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# response.dz — HTTP Response Wrapper Class
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides a fluent response builder API: status codes, headers, cookie management,
+# content types (HTML, JSON, Text, XML), streaming file downloads,
+# redirects, and semantic HTTP responses (ok, created, noContent, notFound, etc.).
+
+use json as *
+use http
+use file
+use path
+use bytes
+import "../helpers/cookie.dz" as *
+import "../helpers/utils.dz" as *
+import "view.dz" as viewMod
+import "../middleware/logger.dz" as loggerMod
+
+class response
+    # ── 1. Constructor: Properties & Initialization ───────────────────────────
+
+    # Initializes a new response wrapper around low-level HTTP response object.
+    #
+    # @param httpRes   {Object} Standard library HTTP response object
+    # @param appConfig {Map}    Application configuration options
+    init(httpRes, appConfig = {})
+        self.httpObj    = httpRes
+        self.statusCode = 200
+        self.headersMap = {}
+        self.cookieList = []
+        self.sentFlag   = False
+        self.configMap  = appConfig
+        self.cookies    = Null
+        self.session    = Null
+        self.req        = Null
+    end
+
+    # ── 2. Status & Headers ───────────────────────────────────────────────────
+
+    # Sets the HTTP response status code.
+    #
+    # @param code {Number} HTTP status code (e.g. 200, 404, 500)
+    # @return     {Object} Self for chaining
+    status(code)
+        self.statusCode = code
+        self.httpObj.status(code)
+        return self
+    end
+
+    # Fluent getter/setter for HTTP response headers.
+    #
+    # @param name  {String}   Header name (case-insensitive)
+    # @param value {Any|Null} Header value (if provided, sets the header)
+    # @return      {Object|String} Self (if setting) or header string (if getting)
+    header(name, value = Null)
+        if not isNull(value)
+            if not isValidHttpToken(name)
+                return self
+            end
+            let headerValue = str(value)
+            if headerValue.contains("\r") or headerValue.contains("\n")
+                return self
+            end
+            self.headersMap[name.lower()] = headerValue
+            return self
+        end
+        if self.headersMap.has(name.lower())
+            return self.headersMap[name.lower()]
+        end
+        return ""
+    end
+
+    # Removes an HTTP response header by name.
+    #
+    # @param name {String} Header name
+    # @return     {Object} Self for chaining
+    removeHeader(name)
+        if self.headersMap.has(name.lower())
+            self.headersMap.pop(name.lower())
+        end
+        return self
+    end
+
+    # Sets status code and sends standard HTTP status text as response body.
+    #
+    # @param code {Number} HTTP status code
+    # @return     {Object} Self for chaining
+    sendStatus(code)
+        self.status(code)
+        self.text(httpStatusText(code))
+        return self
+    end
+
+    # Sets Content-Type header by MIME type or file extension.
+    #
+    # @param mimeOrExt {String} MIME type (e.g. "application/json") or extension (e.g. "html" or ".html")
+    # @return          {Object} Self for chaining
+    type(mimeOrExt)
+        let val = str(mimeOrExt).strip()
+        if val == ""
+            return self
+        end
+        if val.contains("/")
+            return self.header("Content-Type", val)
+        end
+        if not val.startsWith(".")
+            val = ".${val}"
+        end
+        return self.header("Content-Type", mimeType(val))
+    end
+
+    # Sets HTTP Link header for Web Linking (RFC 5988).
+    #
+    # @param linkMap {Map} Rel-to-URI map (e.g. {"next": "/trades?page=2"})
+    # @return        {Object} Self for chaining
+    links(linkMap)
+        let parts = []
+        for rel, href in linkMap
+            parts.append("<${href}>; rel=\"${rel}\"")
+        end
+        self.header("Link", parts.join(", "))
+        return self
+    end
+
+    # ── 3. Content Sending Methods ────────────────────────────────────────────
+
+    # Sends string response body.
+    #
+    # @param body {String} Body content
+    # @return     {Object} Self for chaining
+    send(body)
+        self.sendRaw(body)
+        return self
+    end
+
+    # Sends plain text response body (`text/plain; charset=utf-8`).
+    #
+    # @param body {String} Text content
+    # @return     {Object} Self for chaining
+    text(body)
+        self.header("Content-Type", "text/plain; charset=utf-8")
+        return self.send(body)
+    end
+
+    # Sends HTML response body (`text/html; charset=utf-8`).
+    #
+    # @param body {String} HTML content
+    # @return     {Object} Self for chaining
+    html(body)
+        self.header("Content-Type", "text/html; charset=utf-8")
+        return self.send(body)
+    end
+
+    # Serializes data as JSON and sends response (`application/json; charset=utf-8`).
+    #
+    # @param data {Any} Data to serialize
+    # @return     {Object} Self for chaining
+    json(data)
+        self.header("Content-Type", "application/json; charset=utf-8")
+        let strData = encode(data)
+        self.sendRaw(strData)
+        return self
+    end
+
+    # Sends an XML response (`application/xml; charset=utf-8`).
+    #
+    # @param body {String} XML string
+    # @return     {Object} Self for chaining
+    xml(body)
+        self.header("Content-Type", "application/xml; charset=utf-8")
+        return self.send(body)
+    end
+
+    # Renders an HTML template view using the Qalam template adapter and sends it as response.
+    # Similar to Laravel's return view('name', $data).
+    #
+    # @param templateName {String} Template path (e.g. "home" or "trades/list")
+    # @param data         {Map}    Template context variables
+    # @return             {Object} Self for chaining
+    view(templateName, data = {})
+        try
+            let v = new viewMod.view(self.configMap)
+            let content = v.render(templateName, data)
+            return self.html(content)
+        catch err
+            loggerMod.logError("Failed to render template '${templateName}': ${err}")
+            if str(err).startsWith("Template not found") or str(err).startsWith("View not found")
+                self.status(404).send("View not found: ${templateName}")
+            else
+                self.status(500).send("Internal Server Error")
+            end
+            return self
+        end
+    end
+
+    # ── 4. File Streaming & Downloads ─────────────────────────────────────────
+
+    # Streams a binary or text file to the client with appropriate MIME type and Content-Length.
+    #
+    # @param filePath {String} Path to file
+    # @return         {Object} Self for chaining
+    file(filePath)
+        let safePath = path.normalize(filePath)
+
+        if not file.exists(safePath)
+            self.status(404).send("File not found")
+            return self
+        end
+
+        if not self.headersMap.has("content-type")
+            let ext = path.extname(safePath)
+            self.header("Content-Type", mimeType(ext))
+        end
+
+        let fileData = file.readBytes(safePath)
+
+        let builder = new http.httpResponseBuilder()
+        builder.status(self.statusCode)
+
+        for key, val in self.headersMap
+            builder.setHeader(key, val)
+        end
+        builder.setHeader("Content-Length", str(fileData.length()))
+
+        let headerStr = builder.build("")
+        headerStr = self.injectCookies(headerStr, True)
+
+        self.httpObj.sendWithBytes(headerStr, fileData)
+        self.sentFlag = True
+        return self
+    end
+
+    # Triggers a file download in the browser with Content-Disposition header.
+    #
+    # @param filePath {String}      Path to file on disk
+    # @param filename {String|Null} Optional override for download filename
+    # @return         {Object}      Self for chaining
+    download(filePath, filename = Null)
+        if isNull(filename)
+            filename = path.basename(filePath)
+        end
+        filename = sanitizeFilename(filename)
+        if filename == ""
+            filename = "download"
+        end
+        let encodedName = urlEncodeFilename(filename)
+        self.header("Content-Disposition",
+            "attachment; filename=\"${filename}\"; filename*=UTF-8''${encodedName}")
+        return self.file(filePath)
+    end
+
+    # ── 5. Redirects & Cookie Handling ────────────────────────────────────────
+
+    # Sends a redirect response to the target URL.
+    #
+    # @param url  {String} Target URL
+    # @param code {Number} HTTP redirect status (default: 302)
+    # @return     {Object} Self for chaining
+    redirect(url, code = 302)
+        let safeUrl = str(url)
+        if safeUrl.contains("\r") or safeUrl.contains("\n")
+            self.status(400).text("Bad Request")
+            return self
+        end
+        self.status(code)
+        self.header("Location", safeUrl)
+        self.sendRaw("")
+        return self
+    end
+
+    # Redirects the client back to their previous Referer URL.
+    #
+    # @param fallback {String} Fallback path if no Referer header is present
+    # @return         {Object} Self for chaining
+    back(fallback = "/")
+        let ref = fallback
+        if not isNull(self.req)
+            let reqRef = self.req.referer()
+            if reqRef != ""
+                ref = reqRef
+            end
+        end
+        return self.redirect(ref)
+    end
+
+    # Queues a Set-Cookie header on the response.
+    #
+    # @param name    {String} Cookie name
+    # @param value   {String} Cookie value
+    # @param options {Map}    Options (maxAge, path, domain, secure, httpOnly, sameSite)
+    # @return        {Object} Self for chaining
+    cookie(name, value, options = {})
+        self.cookieList.append({"name": name, "value": value, "options": options})
+        return self
+    end
+
+    # Queues a Set-Cookie clear header on the response.
+    #
+    # @param name {String} Cookie name to clear
+    # @return     {Object} Self for chaining
+    clearCookie(name)
+        return self.cookie(name, "", {
+            "maxAge":  0,
+            "path":    "/",
+            "expires": "Thu, 01 Jan 1970 00:00:00 GMT"
+        })
+    end
+
+    # Alias for clearCookie()
+    deleteCookie(name)
+        return self.clearCookie(name)
+    end
+
+    # ── 6. Semantic Response Helpers ──────────────────────────────────────────
+
+    # Sends 200 OK.
+    ok(data = Null)
+        self.status(200)
+        if isNull(data)
+            return self.send("")
+        end
+        return self.json(data)
+    end
+
+    # Sends 201 Created.
+    created(data = Null)
+        self.status(201)
+        if isNull(data)
+            return self.send("")
+        end
+        return self.json(data)
+    end
+
+    # Sends 204 No Content.
+    noContent()
+        self.status(204).send("")
+        return self
+    end
+
+    # Sends 400 Bad Request JSON.
+    badRequest(message = "Bad Request")
+        return self.status(400).json({"error": message})
+    end
+
+    # Sends 401 Unauthorized JSON.
+    unauthorized(message = "Unauthorized")
+        return self.status(401).json({"error": message})
+    end
+
+    # Sends 403 Forbidden JSON.
+    forbidden(message = "Forbidden")
+        return self.status(403).json({"error": message})
+    end
+
+    # Sends 404 Not Found JSON.
+    notFound(message = "Not Found")
+        return self.status(404).json({"error": message})
+    end
+
+    # Sends 422 Unprocessable Entity with validation errors map.
+    validationError(errors)
+        return self.status(422).json({"errors": errors})
+    end
+
+    # Sends 500 Internal Server Error JSON.
+    serverError(message = "Internal Server Error")
+        return self.status(500).json({"error": message})
+    end
+
+    # ── 7. Internal Helpers (Private) ─────────────────────────────────────────
+
+    # Builds the raw Set-Cookie header lines string for all queued cookies.
+    #
+    # @return {String} Formatted Set-Cookie headers
+    buildCookieLines()
+        if self.cookieList.length() == 0
+            return ""
+        end
+        let lines = ""
+        for c in self.cookieList
+            let serialized = serializeCookie(c["name"], c["value"], c["options"])
+            if serialized != ""
+                lines += "set-cookie: ${serialized}\r\n"
+            end
+        end
+        return lines
+    end
+
+    # Injects queued Set-Cookie headers into a raw HTTP response string.
+    #
+    # @param raw        {String}  Raw HTTP response string
+    # @param headerOnly {Boolean} If True, only builds headers (for binary file streaming)
+    # @return           {String}  HTTP response with cookies injected
+    injectCookies(raw, headerOnly = False)
+        let lines = self.buildCookieLines()
+        if lines == ""
+            return raw
+        end
+        let sepIdx = raw.index("\r\n\r\n")
+        if sepIdx == -1
+            return raw
+        end
+        if headerOnly
+            return raw.slice(0, sepIdx) + "\r\n" + lines + "\r\n"
+        end
+        return raw.slice(0, sepIdx) + "\r\n" + lines + "\r\n" + raw.slice(sepIdx + 4)
+    end
+
+    # Sends a raw string body with status line and all queued headers and cookies.
+    #
+    # @param body {String} Response body string
+    sendRaw(body)
+        if self.sentFlag
+            return
+        end
+        self.sentFlag = True
+
+        # Byte-accurate Content-Length (UTF-8 byte count, not character count)
+        if not self.headersMap.has("content-length")
+            let bodyBytes = bytes.fromString(body)
+            self.headersMap["content-length"] = str(bodyBytes.length())
+        end
+
+        let builder = new http.httpResponseBuilder()
+        builder.status(self.statusCode)
+
+        for key, val in self.headersMap
+            builder.setHeader(key, val)
+        end
+
+        let raw = builder.build(body)
+        raw = self.injectCookies(raw)
+        self.httpObj.sendRaw(raw)
+    end
+end
+
+# Backward compatibility alias
+let kasbahResponse = response

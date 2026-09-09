@@ -1,0 +1,57 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# run_docs.dz — Standalone Interactive Documentation Runner for Kasbah Framework
+# ═══════════════════════════════════════════════════════════════════════════════
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+#
+# Launches the official Kasbah documentation in an ultra-modern desktop window
+# via WebView, or serves it via a local Kasbah web server.
+
+use os
+use path
+
+let hasWebview = True
+try
+    use webview
+    let app = webview.createWindow({
+        "title":          "Kasbah Web Framework — Complete Official Documentation & API Reference",
+        "width":          1260,
+        "height":         840,
+        "minWidth":       850,
+        "minHeight":      600,
+        "center":         True,
+        "darkTitleBar":   True,
+        "debug":          True,
+        "singleInstance": True,
+        "appId":          "com.djazair.kasbah.docs"
+    })
+
+    app.onReady(fn()
+        app.window.navigate("index.html")
+    end)
+
+    app.run()
+catch err
+    hasWebview = False
+end
+
+if not hasWebview
+    use kasbah
+    print("[Kasbah Docs] Starting local documentation server at http://127.0.0.1:4000 ...")
+    let server = new kasbah.app({
+        "port": 4000,
+        "host": "127.0.0.1",
+        "logger": False
+    })
+    server.middleware(kasbah.serveStatic("."))
+    server.get("/", fn(req, res)
+        res.sendFile("index.html")
+    end)
+
+    try
+        os.execute("start http://127.0.0.1:4000")
+    catch e
+    end
+
+    server.listen(4000)
+end

@@ -1,0 +1,18 @@
+# 01_basic_window.dz — Minimal raylib window with text
+use raylib as rl
+
+let win = new rl.Window(800, 600, "Djazair + Raylib")
+win.setFPS(60)
+
+while win.isOpen()
+    win.begin()
+    win.clear(rl.RAYWHITE)
+
+    rl.drawText("Hello from Djazair!", 200, 200, 30, rl.BLUE)
+    rl.drawText("Press ESC to close", 250, 400, 20, rl.GRAY)
+    rl.drawText("FPS: ${win.getFPS()}", 10, 10, 16, rl.DARKGRAY)
+
+    win.finish()
+end
+
+win.close()

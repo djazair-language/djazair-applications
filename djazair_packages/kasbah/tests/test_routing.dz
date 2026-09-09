@@ -1,0 +1,225 @@
+# test_routing.dz
+# Comprehensive routing tests for Kasbah App and Standalone Router
+
+import "../init.dz" as kasbah
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Kasbah Routing Tests ===")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 1: Static route matching
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 1: Static Routes ---")
+
+let app = new kasbah.kasbahApp({"logger": False})
+
+app.get("/", fn(req, res) end)
+let m1 = app.matchRoute("GET", "/")
+test("matches root /", not isNull(m1))
+test("root returns empty params", not isNull(m1) and m1["params"].keys().length() == 0)
+
+app.get("/hello", fn(req, res) end)
+let m2 = app.matchRoute("GET", "/hello")
+test("matches static /hello", not isNull(m2))
+
+let m3 = app.matchRoute("GET", "/notfound")
+test("returns Null for unknown path", isNull(m3))
+
+let m4 = app.matchRoute("POST", "/hello")
+test("returns Null for wrong method on static route", isNull(m4))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 2: Dynamic route matching with :params
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 2: Dynamic Routes ---")
+
+app.get("/users/:id", fn(req, res) end)
+app.get("/users/:id/posts/:postId", fn(req, res) end)
+
+let m5 = app.matchRoute("GET", "/users/42")
+test("matches single :param", not isNull(m5))
+test(":id param is extracted", not isNull(m5) and m5["params"]["id"] == "42")
+
+let m6 = app.matchRoute("GET", "/users/john/posts/99")
+test("matches two :params", not isNull(m6))
+test(":id is john", not isNull(m6) and m6["params"]["id"] == "john")
+test(":postId is 99", not isNull(m6) and m6["params"]["postId"] == "99")
+
+let m7 = app.matchRoute("GET", "/users/42/extra/segment")
+test("does not match wrong segment count", isNull(m7))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 3: Trailing slash normalization
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 3: Trailing Slash ---")
+
+app.get("/about", fn(req, res) end)
+let m8 = app.matchRoute("GET", "/about/")
+test("trailing slash on static route is normalized", not isNull(m8))
+
+app.get("/items/:id", fn(req, res) end)
+let m9 = app.matchRoute("GET", "/items/5/")
+test("trailing slash on dynamic route is normalized", not isNull(m9) and m9["params"]["id"] == "5")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 4: HTTP method registration
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 4: HTTP Methods ---")
+
+app.post("/create", fn(req, res) end)
+app.put("/update", fn(req, res) end)
+app.delete("/remove", fn(req, res) end)
+app.patch("/patch", fn(req, res) end)
+
+test("POST route matches", not isNull(app.matchRoute("POST", "/create")))
+test("PUT route matches", not isNull(app.matchRoute("PUT", "/update")))
+test("DELETE route matches", not isNull(app.matchRoute("DELETE", "/remove")))
+test("PATCH route matches", not isNull(app.matchRoute("PATCH", "/patch")))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 5: app.all() registers all methods
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 5: app.all() ---")
+
+let appAll = new kasbah.kasbahApp({"logger": False})
+appAll.all("/any", fn(req, res) end)
+
+let methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+for mth in methods
+    test("app.all() registers ${mth}", not isNull(appAll.matchRoute(mth, "/any")))
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 6: OPTIONS dynamicRoutes regression
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 6: OPTIONS dynamicRoutes regression ---")
+
+let appOpts = new kasbah.kasbahApp({"logger": False})
+appOpts.all("/resource/:id", fn(req, res) end)
+let mOpts = appOpts.matchRoute("OPTIONS", "/resource/99")
+test("OPTIONS dynamic route resolves correctly", not isNull(mOpts))
+test("OPTIONS :id param extracted", not isNull(mOpts) and mOpts["params"]["id"] == "99")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 7: Standalone Router and Sub-Router Mount
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 7: Standalone Router & Sub-Router Mount ---")
+
+let standaloneRouter = new kasbah.router()
+standaloneRouter.get("/trades", fn(req, res) end)
+standaloneRouter.get("/trades/:id", fn(req, res) end)
+
+test("standalone router matches static route", not isNull(standaloneRouter.matchRoute("GET", "/trades")))
+let rParam = standaloneRouter.matchRoute("GET", "/trades/101")
+test("standalone router matches dynamic route", not isNull(rParam) and rParam["params"]["id"] == "101")
+
+let mainApp = new kasbah.kasbahApp({"logger": False})
+let apiRouter = new kasbah.router()
+apiRouter.get("/version", fn(req, res) end)
+apiRouter.get("/items/:itemId", fn(req, res) end)
+
+mainApp.mount("/api/v1", apiRouter)
+
+test("mainApp routes to mounted sub-router static route", not isNull(mainApp.matchRoute("GET", "/api/v1/version")))
+let subParam = mainApp.matchRoute("GET", "/api/v1/items/456")
+test("mainApp routes to mounted sub-router dynamic route with params", not isNull(subParam) and subParam["params"]["itemId"] == "456")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 8: Route-Level Middleware
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 8: Route-Level Middleware ---")
+
+let mwOrder = []
+let mw1 = fn(req, res)
+    mwOrder.append("mw1")
+end
+let mw2 = fn(req, res)
+    mwOrder.append("mw2")
+end
+
+let appMw = new kasbah.kasbahApp({"logger": False})
+
+# 1. Single middleware on route
+appMw.get("/single-mw", mw1, fn(req, res)
+    mwOrder.append("handler")
+end)
+
+let matchSingle = appMw.matchRoute("GET", "/single-mw")
+test("single route-level middleware route matches", not isNull(matchSingle))
+let dummyReq = {"method": "GET", "path": "/single-mw"}
+let dummyRes = {"sentFlag": False}
+mwOrder = []
+matchSingle["handler"](dummyReq, dummyRes)
+test("single route-level middleware executed in order", mwOrder.length() == 2 and mwOrder[0] == "mw1" and mwOrder[1] == "handler")
+
+# 2. Array of middlewares on route
+appMw.post("/array-mw", [mw1, mw2], fn(req, res)
+    mwOrder.append("handler")
+end)
+let matchArray = appMw.matchRoute("POST", "/array-mw")
+mwOrder = []
+matchArray["handler"](dummyReq, dummyRes)
+test("array route-level middlewares executed in order", mwOrder.length() == 3 and mwOrder[0] == "mw1" and mwOrder[1] == "mw2" and mwOrder[2] == "handler")
+
+# 3. Short-circuiting when middleware sends response
+let stopMw = fn(req, res)
+    mwOrder.append("stop")
+    res["sentFlag"] = True
+end
+appMw.get("/blocked", stopMw, fn(req, res)
+    mwOrder.append("should_not_run")
+end)
+let matchBlocked = appMw.matchRoute("GET", "/blocked")
+mwOrder = []
+let dummyResBlocked = {"sentFlag": False}
+matchBlocked["handler"](dummyReq, dummyResBlocked)
+test("middleware short-circuits execution when res.sentFlag is True", mwOrder.length() == 1 and mwOrder[0] == "stop")
+
+# 4. Group middleware combined with route-level middleware
+let groupOrder = []
+let gMw = fn(req, res) groupOrder.append("groupMw") end
+let rMw = fn(req, res) groupOrder.append("routeMw") end
+
+appMw.group("/scoped", [gMw], fn(g)
+    g.get("/item", rMw, fn(req, res)
+        groupOrder.append("handler")
+    end)
+end)
+
+let matchGroupRoute = appMw.matchRoute("GET", "/scoped/item")
+test("group + route middleware route matches", not isNull(matchGroupRoute))
+groupOrder = []
+let dummyResGroup = {"sentFlag": False}
+matchGroupRoute["handler"](dummyReq, dummyResGroup)
+test("group and route middlewares execute in correct sequence", groupOrder.length() == 3 and groupOrder[0] == "groupMw" and groupOrder[1] == "routeMw" and groupOrder[2] == "handler")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────────────────────────────
+let total = passed + failed
+print("")
+print("=== Results: ${passed} passed, ${failed} failed / ${total} total ===")
+if failed > 0
+    process.exit(1)
+end

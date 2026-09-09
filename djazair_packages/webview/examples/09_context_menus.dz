@@ -1,0 +1,55 @@
+use webview
+
+let app = webview.createWindow({"title": "Menu Demo", "debug": True})
+
+app.onReady(fn()
+    let menu = webview.menuCreate("My Menu")
+
+    webview.menuAddItem(menu, "Option A", fn()
+        print("Option A clicked")
+    end)
+
+    webview.menuAddItem(menu, "Option B", fn()
+        print("Option B clicked")
+    end)
+
+    webview.menuAddSeparator(menu)
+
+    let sub = webview.menuCreateSubmenu(menu, "More Options")
+    webview.menuAddItem(sub, "Sub Item 1", fn()
+        print("Sub item clicked")
+    end)
+
+    app.window.setHtml("
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {
+                    font-family: 'Segoe UI', sans-serif;
+                    display: flex; align-items: center; justify-content: center;
+                    height: 100vh; margin: 0;
+                    background: #1a1a2e; color: #e2e8f0;
+                    user-select: none;
+                }
+                .msg { text-align: center; }
+                .msg h2 { color: #a78bfa; margin-bottom: 8px; }
+                .msg p { color: #94a3b8; font-size: 14px; }
+            </style>
+        </head>
+        <body oncontextmenu='event.preventDefault(); window.djazair.invoke(\"showContextMenu\")'>
+            <div class='msg'>
+                <h2>Right-Click Anywhere</h2>
+                <p>Try the native context menu!</p>
+            </div>
+        </body>
+        </html>
+    ")
+
+    app.bridge.on("showContextMenu", fn(data)
+        webview.menuPopup(app.window._handle, menu)
+        return True
+    end)
+end)
+
+app.run()

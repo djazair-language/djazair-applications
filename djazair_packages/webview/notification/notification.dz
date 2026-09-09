@@ -1,0 +1,19 @@
+# notification.dz
+# Native system desktop notification support for Djazair Webview
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+let _native = __native("_webview")
+
+# Notification class: Utility for displaying desktop system notifications.
+class Notification
+    # Displays a desktop notification balloon or toast.
+    show(title, message, subtitle = "", sound = False, icon = "", timeout = 5)
+        _native.notificationShow(title, message, subtitle, sound, icon, timeout)
+    end
+end
+
+# Helper function to trigger a system notification (procedural API)
+fn notificationShow(title, message, subtitle = "", sound = False, icon = "", timeout = 5)
+    _native.notificationShow(title, message, subtitle, sound, icon, timeout)
+end

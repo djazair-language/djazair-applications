@@ -1,0 +1,239 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_cors.dz — Comprehensive Tests for Kasbah CORS Middleware
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import "../init.dz" as kasbah
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Kasbah CORS Middleware Tests ===")
+
+# Mock Request & Response for Unit Testing
+class mockReq
+    init(method = "GET", path = "/", headers = {})
+        self.method     = method
+        self.path       = path
+        self.headersMap = {}
+        for k, v in headers
+            self.headersMap[k.lower()] = v
+        end
+        self.stateMap = {}
+    end
+
+    header(name)
+        let k = name.lower()
+        if self.headersMap.has(k)
+            return self.headersMap[k]
+        end
+        return ""
+    end
+
+    get(key)
+        if self.stateMap.has(key) return self.stateMap[key] end
+        return Null
+    end
+
+    set(key, value)
+        self.stateMap[key] = value
+        return self
+    end
+end
+
+class mockRes
+    init()
+        self.statusCode = 200
+        self.headersMap = {}
+        self.sentFlag   = False
+        self.body       = Null
+    end
+
+    status(code)
+        self.statusCode = code
+        return self
+    end
+
+    header(name, value = Null)
+        let k = name.lower()
+        if not isNull(value)
+            self.headersMap[k] = str(value)
+            return self
+        end
+        if self.headersMap.has(k)
+            return self.headersMap[k]
+        end
+        return ""
+    end
+
+    removeHeader(name)
+        let k = name.lower()
+        if self.headersMap.has(k)
+            self.headersMap.pop(k)
+        end
+        return self
+    end
+
+    noContent()
+        self.statusCode = 204
+        self.sentFlag = True
+        return self
+    end
+
+    json(data)
+        self.body = data
+        self.sentFlag = True
+        return self
+    end
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 1: Default CORS Options
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 1: Default Options ---")
+
+let defaultCors = kasbah.cors()
+let req1 = new mockReq("GET", "/api/data", {"Origin": "https://example.com"})
+let res1 = new mockRes()
+defaultCors(req1, res1)
+
+test("default allow-origin is *", res1.header("Access-Control-Allow-Origin") == "*")
+test("default does not set allow-credentials", res1.header("Access-Control-Allow-Credentials") == "")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 2: Specific Origin Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 2: Specific Origins ---")
+
+let specificCors = kasbah.cors({"origin": "https://myapp.com"})
+
+# Matching origin
+let req2 = new mockReq("GET", "/", {"Origin": "https://myapp.com"})
+let res2 = new mockRes()
+specificCors(req2, res2)
+test("specific origin matches", res2.header("Access-Control-Allow-Origin") == "https://myapp.com")
+test("specific origin sets Vary: Origin", res2.header("Vary").contains("Origin"))
+
+# Non-matching origin
+let req3 = new mockReq("GET", "/", {"Origin": "https://evil.com"})
+let res3 = new mockRes()
+specificCors(req3, res3)
+test("non-matching origin does not set allow-origin", res3.header("Access-Control-Allow-Origin") == "")
+
+# Array of allowed origins
+let multiCors = kasbah.cors({
+    "origin": ["https://site1.com", "https://site2.com"]
+})
+
+let req4 = new mockReq("GET", "/", {"Origin": "https://site2.com"})
+let res4 = new mockRes()
+multiCors(req4, res4)
+test("array origin matches site2", res4.header("Access-Control-Allow-Origin") == "https://site2.com")
+
+let req5 = new mockReq("GET", "/", {"Origin": "https://site3.com"})
+let res5 = new mockRes()
+multiCors(req5, res5)
+test("array origin rejects site3", res5.header("Access-Control-Allow-Origin") == "")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 3: Credentials & Dynamic Origin Reflection
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 3: Credentials ---")
+
+let credCors = kasbah.cors({
+    "origin": "*",
+    "credentials": True
+})
+
+let req6 = new mockReq("GET", "/profile", {"Origin": "https://client.com"})
+let res6 = new mockRes()
+credCors(req6, res6)
+
+test("credentials reflect request origin instead of wildcard", res6.header("Access-Control-Allow-Origin") == "https://client.com")
+test("credentials header is true", res6.header("Access-Control-Allow-Credentials") == "true")
+test("credentials set Vary: Origin", res6.header("Vary").contains("Origin"))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 4: Preflight (OPTIONS) Handling
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 4: Preflight OPTIONS ---")
+
+let preflightCors = kasbah.cors({
+    "origin": "https://frontend.com",
+    "methods": ["GET", "POST", "PUT"],
+    "allowedHeaders": ["Content-Type", "Authorization"],
+    "exposedHeaders": ["X-Custom-Header"],
+    "maxAge": 86400
+})
+
+let reqOptions = new mockReq("OPTIONS", "/api/upload", {
+    "Origin": "https://frontend.com",
+    "Access-Control-Request-Headers": "Content-Type, Authorization"
+})
+let resOptions = new mockRes()
+preflightCors(reqOptions, resOptions)
+
+test("preflight status is 204 No Content", resOptions.statusCode == 204)
+test("preflight sentFlag is True", resOptions.sentFlag == True)
+test("preflight sets Allow-Methods", resOptions.header("Access-Control-Allow-Methods") == "GET, POST, PUT")
+test("preflight sets Allow-Headers", resOptions.header("Access-Control-Allow-Headers") == "Content-Type, Authorization")
+test("preflight sets Max-Age", resOptions.header("Access-Control-Max-Age") == "86400")
+test("preflight sets Expose-Headers", resOptions.header("Access-Control-Expose-Headers") == "X-Custom-Header")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 5: Dynamic Header Reflection in Preflight
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 5: Header Reflection in Preflight ---")
+
+let reflectCors = kasbah.cors()
+let reqReflect = new mockReq("OPTIONS", "/api/custom", {
+    "Origin": "https://app.com",
+    "Access-Control-Request-Headers": "X-Special-Token, X-Trace-Id"
+})
+let resReflect = new mockRes()
+reflectCors(reqReflect, resReflect)
+
+test("preflight reflects request headers", resReflect.header("Access-Control-Allow-Headers") == "X-Special-Token, X-Trace-Id")
+test("preflight sets Vary: Access-Control-Request-Headers", resReflect.header("Vary").contains("Access-Control-Request-Headers"))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 6: Function-based Origin Validation
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 6: Function Origin Validator ---")
+
+let fnCors = kasbah.cors({
+    "origin": fn(origin, req)
+        return origin.endsWith(".mysite.org")
+    end
+})
+
+let reqFnPass = new mockReq("GET", "/", {"Origin": "https://sub.mysite.org"})
+let resFnPass = new mockRes()
+fnCors(reqFnPass, resFnPass)
+test("custom fn validator passes *.mysite.org", resFnPass.header("Access-Control-Allow-Origin") == "https://sub.mysite.org")
+
+let reqFnFail = new mockReq("GET", "/", {"Origin": "https://sub.other.org"})
+let resFnFail = new mockRes()
+fnCors(reqFnFail, resFnFail)
+test("custom fn validator rejects other domains", resFnFail.header("Access-Control-Allow-Origin") == "")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUMMARY
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n═══════════════════════════════════════════════════════════════════════════════")
+print("=== Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+print("═══════════════════════════════════════════════════════════════════════════════")
+
+if failed > 0
+    process.exit(1)
+end

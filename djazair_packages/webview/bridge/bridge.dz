@@ -1,0 +1,114 @@
+# bridge.dz
+# Bidirectional IPC Bridge between Djazair and Webview JavaScript environments
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+use json as *
+import "../utils/utils.dz" as *
+import "assets.dz" as *
+
+let _native = __native("_webview")
+
+# Bridge class: Manages bidirectional IPC communication between Djazair runtime and Webview JavaScript environment.
+class Bridge
+    # Constructs a new IPC bridge instance attached to a window.
+    init(app, win)
+        self.app = app
+        self.win = win
+        self._handlers = {}
+        self._setup()
+    end
+
+    # Internal initialization hook connecting native webview bindings.
+    _setup()
+        sysLog("Bridge", "Initializing IPC bridge for window...")
+        let selfRef = self
+
+        # Setup native dispatcher for handling all incoming messages
+        _native.windowSetDispatcher(self.win._handle, fn(name, req)
+            return selfRef._onDispatch(name, req)
+        end)
+
+        # Setup error callback
+        _native.windowSetErrorCallback(self.win._handle, fn(err)
+            sysLog("Bridge", "Error received: ${err}", "error")
+            if !isNull(selfRef.app._errorCallback)
+                selfRef.app._errorCallback(err)
+            end
+        end)
+
+        # Bind the core invocation channel
+        _native.windowBind(self.win._handle, "__dz_invoke", Null)
+
+        # Inject the Djazair JavaScript client API
+        self.win.initJs(readWebviewAsset("bridge_client.js"))
+    end
+
+    # Handles incoming dispatch calls from the native webview.
+    # Wraps execution in { __dz_ok, __dz_data } envelopes for JS Promises.
+    _onDispatch(name, req)
+        sysLog("Bridge", "Received dispatch: ${name}", "debug")
+        let args = decode(req)
+
+        if name == "__dz_invoke"
+            let channel = args[0]
+            let payload = args[1]
+            let handler = self._handlers[channel]
+
+            if isNull(handler)
+                return encode({ "__dz_ok": False, "__dz_error": "No handler for channel: " + str(channel) })
+            end
+
+            try
+                let result = handler(payload)
+                return encode({ "__dz_ok": True, "__dz_data": result })
+            catch err
+                return encode({ "__dz_ok": False, "__dz_error": "${err}" })
+            end
+        else
+            let handler = self._handlers[name]
+            if isNull(handler)
+                return encode({ "__dz_ok": False, "__dz_error": "No handler for binding: " + str(name) })
+            end
+
+            try
+                let result = handler(args)
+                return encode({ "__dz_ok": True, "__dz_data": result })
+            catch err
+                return encode({ "__dz_ok": False, "__dz_error": "${err}" })
+            end
+        end
+    end
+
+    # Registers an event handler callback for a specific channel name.
+    on(channel, handler)
+        sysLog("Bridge", "Registered handler for channel: ${channel}", "debug")
+        self._handlers[channel] = handler
+    end
+
+    # Sends an event with data payload to the JavaScript environment.
+    send(channel, data)
+        sysLog("Bridge", "Sending to JS channel: ${channel}", "debug")
+        let jsCmd = "if (window.djazair) window.djazair.send(${encode(channel)}, ${encode(data)});"
+        self.win.eval(jsCmd)
+    end
+
+    # Evaluates an expression in JavaScript and emits to eval channel.
+    invoke(jsCode)
+        sysLog("Bridge", "Invoking JS code via eval", "debug")
+        let jsCmd = "__dz_invoke('__dz_eval', (${jsCode}))"
+        self.win.eval(jsCmd)
+    end
+
+    # Exposes a function directly to window[name] in the webview.
+    expose(name, handler)
+        sysLog("Bridge", "Exposed native binding: ${name}", "debug")
+        self._handlers[name] = handler
+        _native.windowBind(self.win._handle, name, Null)
+    end
+end
+
+# Factory function for creating a Bridge instance (backward compatibility)
+fn createBridge(app, win)
+    return new Bridge(app, win)
+end

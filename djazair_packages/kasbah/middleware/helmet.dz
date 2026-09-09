@@ -1,0 +1,124 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# helmet.dz — HTTP Security Headers Middleware
+# ═══════════════════════════════════════════════════════════════════════════════
+# Secures Kasbah applications by injecting standard HTTP security headers:
+# X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, X-XSS-Protection,
+# Referrer-Policy, Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy, and CSP.
+
+import "../helpers/utils.dz" as *
+
+# Factory function creating HTTP security headers middleware.
+#
+# @param options {Map} Security headers configuration options:
+#                      - xFrameOptions {String|Boolean} Frame protection ("SAMEORIGIN", "DENY", or False)
+#                      - xContentTypeOptions {Boolean} Prevent MIME sniffing (default: True -> "nosniff")
+#                      - xXssProtection {String|Boolean} XSS filter header (default: "1; mode=block")
+#                      - hsts {Map|Boolean} HTTP Strict Transport Security settings
+#                      - referrerPolicy {String|Boolean} Referrer-Policy header (default: "no-referrer")
+#                      - xDownloadOptions {Boolean} Prevent IE download execution (default: True -> "noopen")
+#                      - crossOriginOpenerPolicy {String|Boolean} COOP header (default: "same-origin")
+#                      - crossOriginResourcePolicy {String|Boolean} CORP header (default: "same-origin")
+#                      - csp {String|Map|Boolean} Content-Security-Policy directives
+#                      - hidePoweredBy {Boolean} Remove X-Powered-By header (default: True)
+# @return        {Function} Kasbah middleware function `fn(req, res)`
+fn helmet(options = {})
+    let xFrameOpt = if options.has("xFrameOptions") ? options["xFrameOptions"] else "SAMEORIGIN"
+    let xContentTypeOpt = if options.has("xContentTypeOptions") ? options["xContentTypeOptions"] else True
+    let xXssOpt = if options.has("xXssProtection") ? options["xXssProtection"] else "1; mode=block"
+    let hstsOpt = if options.has("hsts") ? options["hsts"] else True
+    let referrerOpt = if options.has("referrerPolicy") ? options["referrerPolicy"] else "no-referrer"
+    let xDownloadOpt = if options.has("xDownloadOptions") ? options["xDownloadOptions"] else True
+    let coopOpt = if options.has("crossOriginOpenerPolicy") ? options["crossOriginOpenerPolicy"] else "same-origin"
+    let corpOpt = if options.has("crossOriginResourcePolicy") ? options["crossOriginResourcePolicy"] else "same-origin"
+    let cspOpt = if options.has("csp") ? options["csp"] else Null
+    let hidePoweredBy = if options.has("hidePoweredBy") ? options["hidePoweredBy"] else True
+
+    return fn(req, res)
+        # 1. X-Frame-Options (Clickjacking protection)
+        if isString(xFrameOpt) and xFrameOpt != ""
+            res.header("X-Frame-Options", xFrameOpt)
+        end
+
+        # 2. X-Content-Type-Options (MIME sniffing prevention)
+        if xContentTypeOpt == True
+            res.header("X-Content-Type-Options", "nosniff")
+        end
+
+        # 3. X-XSS-Protection (Legacy browser protection)
+        if isString(xXssOpt) and xXssOpt != ""
+            res.header("X-XSS-Protection", xXssOpt)
+        elif isBool(xXssOpt) and xXssOpt == True
+            res.header("X-XSS-Protection", "1; mode=block")
+        end
+
+        # 4. Strict-Transport-Security (HSTS for HTTPS)
+        if hstsOpt != False
+            let hstsHeader = ""
+            let maxAge = 15552000 # 180 days in seconds
+            let includeSub = True
+            let preload = False
+            let force = False
+
+            if isMap(hstsOpt)
+                if hstsOpt.has("maxAge") maxAge = hstsOpt["maxAge"] end
+                if hstsOpt.has("includeSubDomains") includeSub = hstsOpt["includeSubDomains"] end
+                if hstsOpt.has("preload") preload = hstsOpt["preload"] end
+                if hstsOpt.has("force") force = hstsOpt["force"] end
+            end
+
+            # Apply HSTS only if request is HTTPS or forced
+            if req.isSecure() or force
+                hstsHeader = "max-age=${maxAge}"
+                if includeSub
+                    hstsHeader += "; includeSubDomains"
+                end
+                if preload
+                    hstsHeader += "; preload"
+                end
+                res.header("Strict-Transport-Security", hstsHeader)
+            end
+        end
+
+        # 5. Referrer-Policy
+        if isString(referrerOpt) and referrerOpt != ""
+            res.header("Referrer-Policy", referrerOpt)
+        end
+
+        # 6. X-Download-Options (IE8+ execution protection)
+        if xDownloadOpt == True
+            res.header("X-Download-Options", "noopen")
+        end
+
+        # 7. Cross-Origin-Opener-Policy
+        if isString(coopOpt) and coopOpt != ""
+            res.header("Cross-Origin-Opener-Policy", coopOpt)
+        end
+
+        # 8. Cross-Origin-Resource-Policy
+        if isString(corpOpt) and corpOpt != ""
+            res.header("Cross-Origin-Resource-Policy", corpOpt)
+        end
+
+        # 9. Content-Security-Policy
+        if isString(cspOpt) and cspOpt != ""
+            res.header("Content-Security-Policy", cspOpt)
+        elif isMap(cspOpt)
+            let cspDirectives = []
+            for dirName, dirVal in cspOpt
+                if isArray(dirVal)
+                    cspDirectives.append("${dirName} ${dirVal.join(" ")}")
+                elif isString(dirVal)
+                    cspDirectives.append("${dirName} ${dirVal}")
+                end
+            end
+            if cspDirectives.length() > 0
+                res.header("Content-Security-Policy", cspDirectives.join("; "))
+            end
+        end
+
+        # 10. Hide X-Powered-By
+        if hidePoweredBy
+            res.removeHeader("X-Powered-By")
+        end
+    end
+end

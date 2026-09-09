@@ -1,0 +1,76 @@
+use webview
+
+let app = webview.createWindow({
+    "title": "Counter App",
+    "width": 500,
+    "height": 400,
+    "debug": True
+})
+
+app.onReady(fn()
+    let count = 0
+
+    app.bridge.on("increment", fn(p)
+        count = count + 1
+        app.bridge.send("countUpdated", count)
+        return count
+    end)
+
+    app.bridge.on("decrement", fn(p)
+        count = count - 1
+        app.bridge.send("countUpdated", count)
+        return count
+    end)
+
+    app.bridge.on("reset", fn(p)
+        count = 0
+        app.bridge.send("countUpdated", count)
+        return count
+    end)
+
+    app.window.setHtml("
+        <html>
+        <head>
+            <style>
+                body {
+                    font-family: 'Segoe UI', sans-serif;
+                    display: flex; flex-direction: column;
+                    align-items: center; justify-content: center;
+                    height: 100vh; margin: 0;
+                    background: #0f172a; color: #e2e8f0;
+                }
+                h1 { font-size: 4rem; margin: 20px 0; color: #38bdf8; }
+                button {
+                    font-size: 1.2rem; padding: 12px 24px; margin: 8px;
+                    border: none; border-radius: 8px; cursor: pointer;
+                    background: #1e293b; color: #94a3b8;
+                    transition: all 0.2s;
+                }
+                button:hover { background: #334155; color: #fff; }
+                button.primary { background: #3b82f6; color: white; }
+                button.primary:hover { background: #2563eb; }
+                button.danger { background: #ef4444; color: white; }
+                button.danger:hover { background: #dc2626; }
+            </style>
+        </head>
+        <body>
+            <h1 id='counter'>0</h1>
+            <div>
+                <button class='primary' onclick='inc()'>+ Increment</button>
+                <button onclick='dec()'>- Decrement</button>
+                <button class='danger' onclick='rst()'>Reset</button>
+            </div>
+            <script>
+                window.djazair.on('countUpdated', function(val) {
+                    document.getElementById('counter').innerText = val;
+                });
+                function inc() { window.djazair.invoke('increment'); }
+                function dec() { window.djazair.invoke('decrement'); }
+                function rst() { window.djazair.invoke('reset'); }
+            </script>
+        </body>
+        </html>
+    ")
+end)
+
+app.run()

@@ -1,0 +1,48 @@
+# ==============================================================================
+# camera.dz — Raylib Camera2D for Djazair
+#
+# Provides 2D Camera viewport management and screen-to-world transformations.
+#
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# ==============================================================================
+
+let rl = __dynamic("raylib")
+use assert
+
+class Camera2D
+    init(offsetX = 0.0, offsetY = 0.0, targetX = 0.0, targetY = 0.0, rotation = 0.0, zoom = 1.0)
+        assert.number(offsetX, "offsetX")
+        assert.number(offsetY, "offsetY")
+        assert.number(targetX, "targetX")
+        assert.number(targetY, "targetY")
+        assert.number(rotation, "rotation")
+        assert.number(zoom, "zoom")
+
+        self.offset_x = float(offsetX)
+        self.offset_y = float(offsetY)
+        self.target_x = float(targetX)
+        self.target_y = float(targetY)
+        self.rotation = float(rotation)
+        self.zoom = float(zoom)
+    end
+
+    begin()
+        rl.beginMode2D(self)
+    end
+
+    finish()
+        rl.endMode2D()
+    end
+
+    toWorld(screenX, screenY)
+        assert.number(screenX, "screenX")
+        assert.number(screenY, "screenY")
+        return rl.getScreenToWorld2D(float(screenX), float(screenY), self)
+    end
+
+    toScreen(worldX, worldY)
+        assert.number(worldX, "worldX")
+        assert.number(worldY, "worldY")
+        return rl.getWorldToScreen2D(float(worldX), float(worldY), self)
+    end
+end

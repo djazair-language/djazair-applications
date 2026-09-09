@@ -1,0 +1,35 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# run_all_tests.dz — Test Runner for the Qalam Test Suite
+# ═══════════════════════════════════════════════════════════════════════════════
+# Executes all test suites and verifies that all engine features, security,
+# filters, conditionals, loops, and inheritance work flawlessly.
+
+use process
+
+let suites = [
+    "tests/test_engine.dz",
+    "tests/test_security.dz",
+    "tests/test_conditions_loops.dz",
+    "tests/test_filters.dz",
+    "tests/test_inheritance.dz",
+    "tests/test_docs_snippets.dz",
+    "tests/test_djazair_compat.dz"
+]
+
+print("═══════════════════════════════════════════════════════════════")
+print("  Running Qalam Comprehensive Test Suite")
+print("═══════════════════════════════════════════════════════════════\n")
+
+for suite in suites
+    print("▶ Running ${suite} ...")
+    let result = process.exec("djazair ${suite}")
+    if result["exit_code"] != 0
+        print("❌ FAILED: ${suite}")
+        print(result["stderr"])
+        throw "Test suite failed: ${suite}"
+    else
+        print(result["stdout"])
+    end
+end
+
+print("\n✨ ALL QALAM TEST SUITES PASSED SUCCESSFULLY! ✨\n")

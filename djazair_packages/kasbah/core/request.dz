@@ -1,0 +1,399 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# request.dz — HTTP Request Wrapper Class
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides an intuitive, modern interface for incoming HTTP requests:
+# URL parameters, query strings, request body, headers, cookies, session, file uploads,
+# content negotiation, and client metadata.
+
+use file
+import "validator.dz" as *
+import "fileManager.dz" as *
+
+class request
+    # ── 1. Constructor: Properties & Initialization ───────────────────────────
+
+    # Initializes a new request wrapper around the low-level HTTP request object.
+    #
+    # @param httpReq {Object} Standard library HTTP request object
+    init(httpReq)
+        self.method     = httpReq.method
+        self.path       = httpReq.pathname
+        self.rawHeaders = httpReq.headers
+        self.body       = httpReq.body
+        self.httpObj    = httpReq
+
+        self.params   = {}
+        self.cookies  = {}
+        self.session  = {}
+        self.ip       = ""
+        self.files    = {}
+        self.stateMap = {}
+        self.queryMap = {}
+        if not isNull(httpReq.query)
+            for pair in httpReq.query.entries()
+                self.queryMap[pair[0]] = pair[1]
+            end
+        end
+    end
+
+    # ── 2. Boolean Checkers (is... / has...) ───────────────────────────────────
+
+    # Checks if the request was made via AJAX (X-Requested-With: XMLHttpRequest).
+    #
+    # @return {Boolean} True if AJAX request
+    isAjax()
+        return self.httpObj.header("x-requested-with") == "XMLHttpRequest"
+    end
+
+    # Checks if request Content-Type matches given category ("json", "form", "multipart").
+    #
+    # @param type {String} Content type category
+    # @return     {Boolean} True if matching
+    isType(type)
+        let ct = self.httpObj.header("content-type")
+        if isNull(ct) or ct == ""
+            return False
+        end
+        if type == "json"
+            return ct.contains("application/json")
+        end
+        if type == "form"
+            return ct.contains("application/x-www-form-urlencoded")
+        end
+        if type == "multipart"
+            return ct.contains("multipart/form-data")
+        end
+        return ct.contains(type)
+    end
+
+    # Alias for isType(type)
+    contentIs(type)
+        return self.isType(type)
+    end
+
+    # Checks if request is sending or expecting JSON (Accept header, Content-Type, or AJAX).
+    #
+    # @return {Boolean} True if request is JSON-based
+    isJson()
+        return self.accepts("application/json") or self.accepts("application/vnd.api+json") or self.isType("json") or self.isAjax()
+    end
+
+    # Checks if the request method matches (case-insensitive).
+    #
+    # @param method {String} Expected method ("GET", "POST", etc.)
+    # @return       {Boolean} True if matches
+    isMethod(method)
+        return self.httpObj.isMethod(method)
+    end
+
+    # Checks if request was made via HTTPS or TLS termination proxy.
+    #
+    # @return {Boolean} True if secure HTTPS
+    isSecure()
+        let proto = self.header("x-forwarded-proto")
+        if proto != ""
+            return proto == "https"
+        end
+        return False
+    end
+
+    # Alias for isSecure()
+    secure()
+        return self.isSecure()
+    end
+
+    # Checks if an uploaded file exists and is present on disk.
+    #
+    # @param name {String} Form field name
+    # @return     {Boolean} True if temp file exists
+    hasFile(name)
+        if not self.files.has(name) or isNull(self.files[name])
+            return False
+        end
+        let info = self.files[name]
+        if isArray(info)
+            if info.length() == 0
+                return False
+            end
+            info = info[0]
+        end
+        if isMap(info) and info.has("tempPath")
+            return file.exists(info["tempPath"])
+        end
+        return False
+    end
+
+    # Checks if client Accept header accepts the specified MIME type.
+    # Supports wildcards (*/*), type-wildcards (image/*), and quality factors.
+    #
+    # @param type {String} Target MIME type (e.g. "application/json")
+    # @return     {Boolean} True if compatible
+    accepts(type)
+        let accept = self.httpObj.header("accept")
+        if accept == "" or accept == "*/*"
+            return True
+        end
+        let parts = accept.split(",")
+        for part in parts
+            let mediaRange = part.split(";")[0].strip()
+            if mediaRange == "*/*" or mediaRange == type
+                return True
+            end
+            if mediaRange.endsWith("/*")
+                let prefix = mediaRange.slice(0, mediaRange.length() - 2)
+                if type.startsWith("${prefix}/")
+                    return True
+                end
+            end
+        end
+        return False
+    end
+
+    # ── 3. Data Getters & Input Parsing ───────────────────────────────────────
+
+    # Returns a route parameter value by name (e.g. from "/trades/:id").
+    #
+    # @param name     {String} Parameter name (e.g. "id")
+    # @param fallback {Any}    Default fallback if absent
+    # @return         {Any}    Parameter value
+    param(name, fallback = Null)
+        if self.params.has(name)
+            return self.params[name]
+        end
+        return fallback
+    end
+
+    # Returns a query string parameter by name, or the full query map if no argument is passed.
+    #
+    # @param name     {String|Null} Parameter key (e.g. "page")
+    # @param fallback {Any}         Default fallback if absent
+    # @return         {Any}         Query parameter or Map
+    query(name = Null, fallback = Null)
+        if isNull(name)
+            return self.queryMap
+        end
+        if self.queryMap.has(name)
+            return self.queryMap[name]
+        end
+        return fallback
+    end
+
+    # Returns input parameter value from route params, query string, or body in order.
+    #
+    # @param name     {String} Input name
+    # @param fallback {Any}    Default fallback
+    # @return         {Any}    Value or fallback
+    input(name, fallback = Null)
+        if self.params.has(name)
+            return self.params[name]
+        end
+        if self.queryMap.has(name)
+            return self.queryMap[name]
+        end
+        if isMap(self.body) and self.body.has(name)
+            return self.body[name]
+        end
+        return fallback
+    end
+
+    # Combines route params, query string, and body into a single dictionary.
+    #
+    # @return {Map} Unified inputs map
+    all()
+        let result = {}
+        for k, v in self.params
+            result[k] = v
+        end
+        for k, v in self.queryMap
+            result[k] = v
+        end
+        if isMap(self.body)
+            for k, v in self.body
+                result[k] = v
+            end
+        end
+        return result
+    end
+
+    # Alias for all() — Combines route params, query string, and body into a single dictionary.
+    #
+    # @return {Map} Unified inputs map
+    inputs()
+        return self.all()
+    end
+
+    # Returns a subset map of inputs matching specified keys.
+    #
+    # @param keys {Array} List of allowed input keys
+    # @return     {Map}   Filtered inputs dictionary
+    only(keys)
+        let result = {}
+        let allInputs = self.all()
+        for k in keys
+            if allInputs.has(k)
+                result[k] = allInputs[k]
+            end
+        end
+        return result
+    end
+
+    # Returns all inputs excluding the specified keys.
+    #
+    # @param keys {Array} List of keys to omit
+    # @return     {Map}   Inputs dictionary without omitted keys
+    except(keys)
+        let result = {}
+        let allInputs = self.all()
+        for k, v in allInputs
+            let exclude = False
+            for excludeKey in keys
+                if k == excludeKey
+                    exclude = True
+                    break
+                end
+            end
+            if not exclude
+                result[k] = v
+            end
+        end
+        return result
+    end
+
+    # ── 4. Headers, Cookies & Auth ────────────────────────────────────────────
+
+    # Returns an HTTP request header value (case-insensitive).
+    #
+    # @param name {String} Header name (e.g. "content-type", "authorization")
+    # @return     {String} Header value
+    header(name)
+        return self.httpObj.header(name)
+    end
+
+    # Returns a cookie value by name.
+    #
+    # @param name {String} Cookie name
+    # @return     {String|Null} Cookie value
+    cookie(name)
+        if isMap(self.cookies)
+            if self.cookies.has(name)
+                return self.cookies[name]
+            end
+            return Null
+        end
+        return self.cookies.get(name)
+    end
+
+    # Extracts Bearer authentication token from Authorization header.
+    #
+    # @return {String|Null} Bearer token string or Null
+    token()
+        let auth = self.header("authorization")
+        if auth.startsWith("Bearer ") or auth.startsWith("bearer ")
+            return auth.slice(7).strip()
+        end
+        return Null
+    end
+
+    # Alias for token()
+    bearerToken()
+        return self.token()
+    end
+
+    # Returns request Host header.
+    #
+    # @return {String} Host name
+    host()
+        return self.header("host")
+    end
+
+    # Returns request User-Agent header.
+    #
+    # @return {String} User agent string
+    userAgent()
+        return self.header("user-agent")
+    end
+
+    # Returns request Referer header.
+    #
+    # @return {String} Referer URL
+    referer()
+        let ref = self.header("referer")
+        if ref == ""
+            ref = self.header("referrer")
+        end
+        return ref
+    end
+
+    # Returns request protocol ("https" or "http").
+    #
+    # @return {String} Protocol scheme
+    protocol()
+        return if self.isSecure() ? "https" else "http"
+    end
+
+    # ── 5. File Uploads & Validation ──────────────────────────────────────────
+
+    # Returns an uploaded file instance by form field name.
+    #
+    # @param name {String} Form field name
+    # @return     {Object|Null} Uploaded file instance or Null
+    file(name)
+        if self.files.has(name) and not isNull(self.files[name])
+            let info = self.files[name]
+            if isArray(info)
+                if info.length() == 0
+                    return Null
+                end
+                info = info[0]
+            end
+            return new uploadedFile(info)
+        end
+        return Null
+    end
+
+    # Creates a file manager configured for this request.
+    #
+    # @param options {Map} Upload options (dest, allowedTypes, maxSize)
+    # @return        {Object} FileManager instance
+    uploader(options = {})
+        return new fileManager(self, options)
+    end
+
+    # Creates an input validator for data validation.
+    #
+    # @param data {Map|Null} Data dictionary to validate (defaults to request body)
+    # @return     {Object} Validator instance
+    validate(data = Null)
+        let d = data
+        if isNull(d)
+            d = if isMap(self.body) ? self.body else {}
+        end
+        return new validator(d)
+    end
+
+    # ── 6. State Management (Middleware State) ────────────────────────────────
+
+    # Retrieves a custom request attribute set by middleware.
+    #
+    # @param key {String} State key
+    # @return    {Any}    State value or Null
+    get(key)
+        if self.stateMap.has(key)
+            return self.stateMap[key]
+        end
+        return Null
+    end
+
+    # Stores a custom request attribute in request state.
+    #
+    # @param key   {String} State key
+    # @param value {Any}    State value
+    # @return      {Object} Self for chaining
+    set(key, value)
+        self.stateMap[key] = value
+        return self
+    end
+end
+
+# Backward compatibility alias
+let kasbahRequest = request

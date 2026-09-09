@@ -1,0 +1,32 @@
+﻿# ── Example 02: Conditionals ──────────────────────────────────────────────────
+# Demonstrates {% if %} / {% else %} / {% endif %} blocks.
+
+use qalam
+
+let tpl = "{% if user.active %}
+  <span class='badge-green'>Active</span>
+{% else %}
+  <span class='badge-red'>Inactive</span>
+{% endif %}"
+
+let activeResult = qalam.renderString(tpl, {"user": {"active": True}})
+print(activeResult)
+
+let inactiveResult = qalam.renderString(tpl, {"user": {"active": False}})
+print(inactiveResult)
+
+# ── Truthy / Falsy checks ─────────────────────────────────────────────────────
+# 0, "", Null, False, [] -> falsy; everything else -> truthy
+let emptyCheck = qalam.renderString(
+    "{% if items %}has items{% else %}empty{% endif %}",
+    {"items": []}
+)
+print(emptyCheck)
+# → empty
+
+let filledCheck = qalam.renderString(
+    "{% if items %}has items{% else %}empty{% endif %}",
+    {"items": ["a", "b"]}
+)
+print(filledCheck)
+# → has items

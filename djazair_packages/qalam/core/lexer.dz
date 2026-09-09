@@ -1,0 +1,145 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# lexer.dz — Lexical Analysis & Tokenizer
+# ═══════════════════════════════════════════════════════════════════════════════
+# Scans raw template text and produces a clean stream of semantic tokens:
+# - Text literals (TEXT)
+# - Escaped variable interpolations (VAR) `{{ var }}`
+# - Raw HTML unescaped outputs (RAW) `{{{ raw }}}`
+# - Control tags (TAG) `{% if / for / block / extends / include %}`
+# - Template comments `{# comment #}` (discarded)
+# Supports whitespace trimming with hyphens: `{{- -}}` and `{%- -%}`.
+
+use regex
+import "constants.dz" as consts
+
+class lexer
+    # Initializes the Lexer with a compiled pattern for delimiters.
+    init()
+        # Matches: Comments {#...#}, Raw {{{...}}}, Variables {{...}}, Tags {%...%}
+        self.pattern = regex.compile("(\\{#[^#]*#\\}|\\{\\{\\{[^\\}]+\\}\\}\\}|\\{\\{[^\\}]+\\}\\}|\\{%[^%]+%\\})")
+    end
+
+    # Tokenizes a raw template string into a list of structured token maps.
+    #
+    # @param templateSource {String} Raw template text content
+    # @return               {Array}  List of token maps: `{"type": ..., "val": ..., "line": ...}`
+    tokenize(templateSource)
+        if isNull(templateSource) or templateSource == ""
+            return []
+        end
+
+        let tokens = []
+        let currentIndex = 0
+        let sourceLength = templateSource.length()
+        let currentLine = 1
+        let shouldTrimNextLeading = False
+
+        while currentIndex < sourceLength
+            let remainingText = templateSource.slice(currentIndex)
+            let regMatch = self.pattern.search(remainingText)
+
+            if isNull(regMatch)
+                # No more tags found, rest of string is plain text
+                let textVal = remainingText
+                if shouldTrimNextLeading
+                    textVal = textVal.lStrip()
+                    shouldTrimNextLeading = False
+                end
+                if textVal.length() > 0
+                    tokens.append({
+                        "type": consts.TOKEN_TEXT,
+                        "val": textVal,
+                        "line": currentLine
+                    })
+                end
+                break
+            end
+
+            let matchStart = regMatch.start(0)
+            let matchEnd   = regMatch.endPos(0)
+            let matchedTag = regMatch.group(0)
+
+            # Preceding text before tag
+            if matchStart > 0
+                let textVal = remainingText.slice(0, matchStart)
+                if shouldTrimNextLeading
+                    textVal = textVal.lStrip()
+                    shouldTrimNextLeading = False
+                end
+
+                # Count newlines in text
+                for c in textVal
+                    if c == "\n"
+                        currentLine += 1
+                    end
+                end
+
+                # Check if current tag requests left whitespace trimming
+                let trimPreceding = False
+                if matchedTag.startsWith("{{-") or matchedTag.startsWith("{%-") or matchedTag.startsWith("{#-")
+                    trimPreceding = True
+                end
+
+                if trimPreceding
+                    textVal = textVal.rStrip()
+                end
+
+                if textVal.length() > 0
+                    tokens.append({
+                        "type": consts.TOKEN_TEXT,
+                        "val": textVal,
+                        "line": currentLine
+                    })
+                end
+            end
+
+            # Check if tag requests right whitespace trimming
+            let trimSucceeding = False
+            if matchedTag.endsWith("-%}") or matchedTag.endsWith("-}}") or matchedTag.endsWith("-#}")
+                trimSucceeding = True
+            end
+            shouldTrimNextLeading = trimSucceeding
+
+            # Count newlines within matched tag
+            for c in matchedTag
+                if c == "\n"
+                    currentLine += 1
+                end
+            end
+
+            # Categorize matched tag
+            if matchedTag.startsWith("{#")
+                # Comment tag: discarded from token stream
+            elif matchedTag.startsWith("{{{")
+                let inner = matchedTag.slice(3, matchedTag.length() - 3).strip()
+                tokens.append({
+                    "type": consts.TOKEN_RAW,
+                    "val": inner,
+                    "line": currentLine
+                })
+            elif matchedTag.startsWith("{{")
+                let startOffset = if matchedTag.startsWith("{{-") ? 3 else 2
+                let endOffset   = if matchedTag.endsWith("-}}") ? matchedTag.length() - 3 else matchedTag.length() - 2
+                let inner = matchedTag.slice(startOffset, endOffset).strip()
+                tokens.append({
+                    "type": consts.TOKEN_VAR,
+                    "val": inner,
+                    "line": currentLine
+                })
+            elif matchedTag.startsWith("{%")
+                let startOffset = if matchedTag.startsWith("{%-") ? 3 else 2
+                let endOffset   = if matchedTag.endsWith("-%}") ? matchedTag.length() - 3 else matchedTag.length() - 2
+                let inner = matchedTag.slice(startOffset, endOffset).strip()
+                tokens.append({
+                    "type": consts.TOKEN_TAG,
+                    "val": inner,
+                    "line": currentLine
+                })
+            end
+
+            currentIndex += matchEnd
+        end
+
+        return tokens
+    end
+end

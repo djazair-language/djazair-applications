@@ -1,0 +1,17 @@
+use sqlite
+
+let db = sqlite.connect("test.db")
+
+# Invalid SQL
+let ok = db.execute("INVALID SQL")
+if !ok
+    print("Error: ${db.error()}")
+end
+
+# Query on non-existent table
+let res = db.query("SELECT * FROM nonexistent")
+if isNull(res)
+    print("Query returned Null (expected)")
+end
+
+db.close()

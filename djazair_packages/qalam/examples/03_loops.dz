@@ -1,0 +1,37 @@
+﻿# ── Example 03: Loops ─────────────────────────────────────────────────────────
+# Demonstrates {% for item in list %} / {% endfor %} blocks.
+
+use qalam
+
+# ── Simple list ───────────────────────────────────────────────────────────────
+let html = qalam.renderString(
+    "<ul>{% for fruit in fruits %}<li>{{ fruit }}</li>{% endfor %}</ul>",
+    {"fruits": ["Apple", "Mango", "Strawberry"]}
+)
+print(html)
+# → <ul><li>Apple</li><li>Mango</li><li>Strawberry</li></ul>
+
+# ── List of objects with dot-notation ─────────────────────────────────────────
+let tradeTpl = "<table>
+{% for trade in trades %}
+  <tr>
+    <td>{{ trade.symbol }}</td>
+    <td>{{ trade.price }}</td>
+    <td>{% if trade.open %}Open{% else %}Closed{% endif %}</td>
+  </tr>
+{% endfor %}
+</table>"
+
+let result = qalam.renderString(tradeTpl, {
+    "trades": [
+        {"symbol": "AAPL",  "price": 182.5, "open": True},
+        {"symbol": "GOOGL", "price": 141.2, "open": False},
+        {"symbol": "TSLA",  "price": 245.0, "open": True}
+    ]
+})
+print(result)
+
+# ── Empty list guard ──────────────────────────────────────────────────────────
+let emptyTpl = "{% if items %}{% for item in items %}<li>{{ item }}</li>{% endfor %}{% else %}<p>No items.</p>{% endif %}"
+print(qalam.renderString(emptyTpl, {"items": []}))
+# → <p>No items.</p>

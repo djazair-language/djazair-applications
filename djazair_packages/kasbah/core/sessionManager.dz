@@ -1,0 +1,135 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# sessionManager.dz — Session State Management Interface
+# ═══════════════════════════════════════════════════════════════════════════════
+# Attached to `req.session` and `res.session` for accessing, updating, clearing,
+# and regenerating session data.
+
+import "../helpers/utils.dz" as *
+use crypto
+
+class sessionManager
+    # Initializes a session manager for the current request.
+    #
+    # @param data          {Map}     Session data map
+    # @param sid           {String}  Session identifier
+    # @param isNew         {Boolean} Indicates if session was newly created
+    # @param store         {Object}  Session store instance (fileStore)
+    # @param response      {Object}  Kasbah response instance
+    # @param cookieOptions {Map}     Cookie options for session token
+    init(data, sid, isNew, store = Null, response = Null, cookieOptions = {})
+        self.sessionData    = data
+        self.sessionId      = sid
+        self.isNewSession   = isNew
+        self.needsNewCookie = False
+        self.storeRef       = store
+        self.responseRef    = response
+        self.cookieOptions  = cookieOptions
+    end
+
+    # Returns the value for a session key, or fallback if absent.
+    #
+    # @param key      {String} Session key
+    # @param fallback {Any}    Default fallback value
+    # @return         {Any}    Session value or fallback
+    get(key, fallback = Null)
+        if self.sessionData.has(key)
+            return self.sessionData[key]
+        end
+        return fallback
+    end
+
+    # Sets a key-value pair in session state.
+    #
+    # @param key   {String} Session key
+    # @param value {Any}    Session value
+    # @return      {Object} Self for chaining
+    set(key, value)
+        self.sessionData[key] = value
+        return self
+    end
+
+    # Deletes a key from session state.
+    #
+    # @param key {String} Session key
+    # @return    {Object} Self for chaining
+    delete(key)
+        if self.sessionData.has(key)
+            self.sessionData.pop(key)
+        end
+        return self
+    end
+
+    # Checks if a session key exists.
+    #
+    # @param key {String} Session key
+    # @return    {Boolean} True if key exists
+    has(key)
+        return self.sessionData.has(key)
+    end
+
+    # Returns a shallow copy map of all session data.
+    #
+    # @return {Map} Session data dictionary
+    all()
+        let result = {}
+        for k, v in self.sessionData
+            result[k] = v
+        end
+        return result
+    end
+
+    # Clears all keys in the session data.
+    #
+    # @return {Object} Self for chaining
+    clear()
+        self.sessionData.clear()
+        return self
+    end
+
+    # Checks if session was newly created for this request.
+    #
+    # @return {Boolean} True if new session
+    isNew()
+        return self.isNewSession
+    end
+
+    # Returns the unique session ID.
+    #
+    # @return {String} Session ID
+    id()
+        return self.sessionId
+    end
+
+    # Regenerates session ID and queues a replacement signed cookie.
+    #
+    # @return {String} New session ID
+    regenerate()
+        let previousId = self.sessionId
+        self.sessionId      = generateId(32)
+        self.isNewSession   = True
+        self.needsNewCookie = True
+        if not isNull(self.storeRef)
+            self.storeRef.destroy(previousId)
+        end
+        if not isNull(self.responseRef)
+            let secret = self.cookieOptions["secret"]
+            let token = "${self.sessionId}.${crypto.sha256("${secret}:${self.sessionId}")}"
+            self.responseRef.cookie(self.cookieOptions["name"], token, self.cookieOptions["attributes"])
+        end
+        return self.sessionId
+    end
+
+    # Returns raw session data map.
+    #
+    # @return {Map} Session data
+    rawData()
+        return self.sessionData
+    end
+
+    # Returns raw session ID string.
+    #
+    # @return {String} Session ID
+    rawId()
+        return self.sessionId
+    end
+end

@@ -1,0 +1,114 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# loader.dz — Template Filesystem Loader, Security Guard & AST Cache
+# ═══════════════════════════════════════════════════════════════════════════════
+# Validates filesystem paths to prevent directory traversal attacks and manages
+# the in-memory AST cache for high-throughput production workloads.
+
+use file
+use path
+
+class templateLoader
+    # Initializes the loader with views directory and cache configuration.
+    #
+    # @param viewsDir     {String}  Base directory containing templates
+    # @param cacheEnabled {Boolean} Enable AST compilation caching (default: True)
+    init(viewsDir = "views", cacheEnabled = True)
+        self.viewsDir = path.resolve(viewsDir)
+        self.cacheEnabled = cacheEnabled
+        self.astCache = {}
+    end
+
+    # Resolves and validates an absolute filesystem path for a template.
+    # Strictly enforces directory boundary to eliminate Path Traversal attacks (`../`).
+    #
+    # @param templateName {String} Template path identifier (e.g. "users/list")
+    # @return             {String} Absolute normalized filesystem path
+    getSafePath(templateName)
+        if isNull(templateName) or templateName == ""
+            throw "Template name cannot be empty"
+        end
+
+        # Null-byte injection prevention
+        if templateName.contains("\u0000") or templateName.contains("\0")
+            throw "Forbidden null byte sequence in template path"
+        end
+
+        let cleanName = templateName
+        if not cleanName.contains(".")
+            cleanName = "${cleanName}.html"
+        end
+
+        let resolvedViewsDir = self.viewsDir
+        let targetPath = path.normalize("${resolvedViewsDir}/${cleanName}")
+
+        # Enforce directory boundary
+        let viewsDirLower = resolvedViewsDir.lower()
+        let targetPathLower = targetPath.lower()
+
+        if not viewsDirLower.endsWith("/") and not viewsDirLower.endsWith("\\")
+            let okSlash = targetPathLower.startsWith("${viewsDirLower}/")
+            let okBackslash = targetPathLower.startsWith("${viewsDirLower}\\")
+            if not okSlash and not okBackslash
+                throw "Forbidden template path traversal: '${templateName}'"
+            end
+        else
+            if not targetPathLower.startsWith(viewsDirLower)
+                throw "Forbidden template path traversal: '${templateName}'"
+            end
+        end
+
+        return targetPath
+    end
+
+    # Reads template source file content from disk.
+    #
+    # @param templateName {String} Template path identifier
+    # @return             {String} File text content
+    readFile(templateName)
+        let safePath = self.getSafePath(templateName)
+        if not file.exists(safePath)
+            throw "Template not found: '${templateName}'"
+        end
+
+        let content = ""
+        let fh = file.open(safePath, "r")
+        try
+            content = fh.read()
+        catch err
+            throw "Error reading template file: '${templateName}'"
+        finally
+            fh.close()
+        end
+        return content
+    end
+
+    # Loads and compiles a template file into an AST, utilizing in-memory cache when enabled.
+    #
+    # @param templateName {String} Template path identifier
+    # @param lexer        {Lexer}  Lexer instance
+    # @param parser       {Parser} Parser instance
+    # @return             {Array}  Compiled AST node tree
+    loadAST(templateName, lexer, parser)
+        let safePath = self.getSafePath(templateName)
+
+        if self.cacheEnabled and self.astCache.has(safePath)
+            return self.astCache[safePath]
+        end
+
+        let content = self.readFile(templateName)
+        let tokens = lexer.tokenize(content)
+        let state = {"i": 0}
+        let ast = parser.parse(tokens, state)
+
+        if self.cacheEnabled
+            self.astCache[safePath] = ast
+        end
+
+        return ast
+    end
+
+    # Clears all cached compiled template AST trees from memory.
+    clearCache()
+        self.astCache = {}
+    end
+end

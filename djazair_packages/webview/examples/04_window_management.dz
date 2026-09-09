@@ -1,0 +1,39 @@
+use webview
+
+let app = webview.createWindow({"title": "Window Demo", "debug": True})
+
+app.onReady(fn()
+    # Title
+    app.window.setTitle("New Title")
+    let current = app.window.title()
+
+    # Size & Position
+    app.window.setSize(800, 600)
+    let size = app.window.getSize()
+    app.window.setPosition(100, 200)
+    let pos = app.window.getPosition()
+
+    # State Control
+    app.window.show()
+    app.window.hide()
+    app.window.minimize()
+    app.window.maximize()
+    app.window.restore()
+    app.window.focus()
+    app.window.isVisible()
+    app.window.isMaximized()
+    app.window.isMinimized()
+
+    # Constraints
+    app.window.setResizable(False)
+    app.window.setMinimumSize(400, 300)
+    app.window.setMaximumSize(1920, 1080)
+
+    # Visual
+    app.window.setBackgroundColor(13, 17, 23)
+    app.window.setZoomLevel(1.25)
+    let zoom = app.window.zoomLevel()
+    app.window.setContextMenuEnabled(False)
+end)
+
+app.run()

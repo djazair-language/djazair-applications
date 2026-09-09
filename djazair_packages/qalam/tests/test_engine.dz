@@ -1,0 +1,207 @@
+# test_engine.dz — Comprehensive tests for the Qalam template engine
+
+use qalam
+use os
+use file
+use dir
+
+let passed = 0
+let failed = 0
+
+fn test(name, result, expected)
+    if result == expected
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected: ${expected}")
+        print("  Got:      ${result}")
+    end
+end
+
+let tmpDir = "${os.tmpDir()}/qalam_tests"
+if not file.exists(tmpDir)
+    dir.createAll(tmpDir)
+end
+if not file.exists("${tmpDir}/partials")
+    dir.createAll("${tmpDir}/partials")
+end
+
+# ── 1. Escaped variable output ────────────────────────────────────────────────
+test("ESC: simple var",
+    qalam.renderString("{{ name }}", {"name": "Riad"}),
+    "Riad")
+
+test("ESC: xss script tag",
+    qalam.renderString("{{ x }}", {"x": "<script>"}),
+    "&lt;script&gt;")
+
+test("ESC: ampersand",
+    qalam.renderString("{{ x }}", {"x": "a & b"}),
+    "a &amp; b")
+
+test("ESC: double quote",
+    qalam.renderString("{{ x }}", {"x": "say \"hi\""}),
+    "say &quot;hi&quot;")
+
+test("ESC: single quote",
+    qalam.renderString("{{ x }}", {"x": "it's"}),
+    "it&#039;s")
+
+# ── 2. Raw variable output ────────────────────────────────────────────────────
+test("RAW: html passthrough",
+    qalam.renderString("{{{ html }}}", {"html": "<b>bold</b>"}),
+    "<b>bold</b>")
+
+# ── 3. Dot-notation ───────────────────────────────────────────────────────────
+test("DOT: two levels",
+    qalam.renderString("{{ a.b }}", {"a": {"b": "deep"}}),
+    "deep")
+
+test("DOT: three levels",
+    qalam.renderString("{{ a.b.c }}", {"a": {"b": {"c": "triple"}}}),
+    "triple")
+
+test("DOT: missing key -> empty",
+    qalam.renderString("{{ a.missing }}", {"a": {}}),
+    "")
+
+# ── 4. Negation ───────────────────────────────────────────────────────────────
+test("NEG: !false -> shown",
+    qalam.renderString("{% if !flag %}yes{% endif %}", {"flag": False}),
+    "yes")
+
+test("NEG: !true -> hidden",
+    qalam.renderString("{% if !flag %}yes{% endif %}", {"flag": True}),
+    "")
+
+test("NEG: !null -> shown",
+    qalam.renderString("{% if !val %}yes{% endif %}", {"val": Null}),
+    "yes")
+
+test("NEG: !empty-string -> shown",
+    qalam.renderString("{% if !val %}yes{% endif %}", {"val": ""}),
+    "yes")
+
+# ── 5. Conditionals ───────────────────────────────────────────────────────────
+test("IF: true branch",
+    qalam.renderString("{% if ok %}YES{% else %}NO{% endif %}", {"ok": True}),
+    "YES")
+
+test("IF: false branch",
+    qalam.renderString("{% if ok %}YES{% else %}NO{% endif %}", {"ok": False}),
+    "NO")
+
+test("IF: empty array -> falsy",
+    qalam.renderString("{% if items %}full{% else %}empty{% endif %}", {"items": []}),
+    "empty")
+
+test("IF: non-empty array -> truthy",
+    qalam.renderString("{% if items %}full{% else %}empty{% endif %}", {"items": [1]}),
+    "full")
+
+test("IF: zero -> falsy",
+    qalam.renderString("{% if n %}yes{% else %}no{% endif %}", {"n": 0}),
+    "no")
+
+test("IF: empty string -> falsy",
+    qalam.renderString("{% if s %}yes{% else %}no{% endif %}", {"s": ""}),
+    "no")
+
+test("IF: null -> falsy",
+    qalam.renderString("{% if v %}yes{% else %}no{% endif %}", {"v": Null}),
+    "no")
+
+# ── 6. Loops ──────────────────────────────────────────────────────────────────
+test("FOR: simple list",
+    qalam.renderString("{% for x in items %}{{ x }},{% endfor %}", {"items": ["a", "b", "c"]}),
+    "a,b,c,")
+
+test("FOR: empty list -> no output",
+    qalam.renderString("{% for x in items %}{{ x }}{% endfor %}", {"items": []}),
+    "")
+
+test("FOR: objects dot-access",
+    qalam.renderString("{% for u in users %}{{ u.name }},{% endfor %}",
+        {"users": [{"name": "Ali"}, {"name": "Sara"}]}),
+    "Ali,Sara,")
+
+# ── 7. Nested for + if ────────────────────────────────────────────────────────
+test("NESTED: for + if filter empties",
+    qalam.renderString(
+        "{% for x in items %}{% if x %}{{ x }}{% endif %}{% endfor %}",
+        {"items": ["a", "", "b"]}),
+    "ab")
+
+# ── 8. Plain text passthrough ─────────────────────────────────────────────────
+test("TEXT: no tags -> passthrough",
+    qalam.renderString("<h1>Hello World</h1>", {}),
+    "<h1>Hello World</h1>")
+
+test("TEXT: empty template",
+    qalam.renderString("", {}),
+    "")
+
+# ── 9. File-based rendering ───────────────────────────────────────────────────
+file.write("${tmpDir}/hello.html", "<p>{{ greeting }}, {{ name }}!</p>")
+let v = new qalam.view({"views": tmpDir})
+test("FILE: basic render",
+    v.render("hello", {"greeting": "Marhaba", "name": "Riad"}),
+    "<p>Marhaba, Riad!</p>")
+
+# ── 10. Template inheritance ──────────────────────────────────────────────────
+file.write("${tmpDir}/layout.html",
+    "<html><title>{% block title %}Default{% endblock %}</title><body>{% block body %}{% endblock %}</body></html>")
+file.write("${tmpDir}/child.html",
+    "{% extends \"layout\" %}{% block title %}Child{% endblock %}{% block body %}<h1>OK</h1>{% endblock %}")
+
+test("EXTENDS: block overrides layout",
+    v.render("child", {}),
+    "<html><title>Child</title><body><h1>OK</h1></body></html>")
+
+# ── 11. Default block content ─────────────────────────────────────────────────
+file.write("${tmpDir}/child2.html",
+    "{% extends \"layout\" %}{% block title %}Only Title{% endblock %}")
+
+test("EXTENDS: unoverridden block uses default",
+    v.render("child2", {}),
+    "<html><title>Only Title</title><body></body></html>")
+
+# ── 12. Partials / include ────────────────────────────────────────────────────
+file.write("${tmpDir}/partials/nav.html", "<nav>NAV</nav>")
+file.write("${tmpDir}/page.html", "<div>{% include \"partials/nav\" %}</div>")
+
+test("INCLUDE: partial rendered inline",
+    v.render("page", {}),
+    "<div><nav>NAV</nav></div>")
+
+# ── 13. Comparison operators in {% if %} ──────────────────────────────────────
+test("CMP: activeNav == 'dashboard' (true)",
+    qalam.renderString("{% if activeNav == 'dashboard' %}active{% endif %}", {"activeNav": "dashboard"}),
+    "active")
+
+test("CMP: activeNav == 'dashboard' (false)",
+    qalam.renderString("{% if activeNav == 'dashboard' %}active{% endif %}", {"activeNav": "trades"}),
+    "")
+
+test("CMP: activeNav != 'dashboard'",
+    qalam.renderString("{% if activeNav != 'dashboard' %}other{% endif %}", {"activeNav": "trades"}),
+    "other")
+
+test("CMP: numeric >",
+    qalam.renderString("{% if count > 5 %}many{% else %}few{% endif %}", {"count": 10}),
+    "many")
+
+test("CMP: numeric <=",
+    qalam.renderString("{% if count <= 5 %}few{% else %}many{% endif %}", {"count": 3}),
+    "few")
+
+# ── Report ────────────────────────────────────────────────────────────────────
+print("\n══════════════════════════════════════")
+print("Qalam Engine Tests")
+print("  Passed : ${passed}")
+print("  Failed : ${failed}")
+if failed == 0
+    print("  Result : ALL PASSED")
+end
+print("══════════════════════════════════════")

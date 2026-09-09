@@ -1,0 +1,67 @@
+# ── Example 04: Template Inheritance (extends / block) ────────────────────────
+# Demonstrates layout extension, block overriding, and partial includes.
+# Uses temporary files to show file-based rendering.
+
+use qalam
+use os
+use file
+use dir
+
+let tmpDir = "${os.tmpDir()}/qalam_example_04"
+if not file.exists(tmpDir)
+    dir.createAll(tmpDir)
+end
+if not file.exists("${tmpDir}/partials")
+    dir.createAll("${tmpDir}/partials")
+end
+
+# ── Write layout template ──────────────────────────────────────────────────────
+file.write("${tmpDir}/layout.html", "<!DOCTYPE html>
+<html>
+<head>
+  <title>{% block title %}My App{% endblock %}</title>
+</head>
+<body>
+  <nav>{% include \"partials/nav\" %}</nav>
+  <main>
+    {% block content %}<p>Default content</p>{% endblock %}
+  </main>
+  <footer>{% block footer %}&copy; 2026{% endblock %}</footer>
+</body>
+</html>")
+
+# ── Write nav partial ──────────────────────────────────────────────────────────
+file.write("${tmpDir}/partials/nav.html", "<ul>
+  <li><a href=\"/\">Home</a></li>
+  <li><a href=\"/trades\">Trades</a></li>
+</ul>")
+
+# ── Write child template ───────────────────────────────────────────────────────
+file.write("${tmpDir}/trades.html", "{% extends \"layout\" %}
+
+{% block title %}Trade List{% endblock %}
+
+{% block content %}
+<h1>Open Trades</h1>
+<ul>
+{% for trade in trades %}
+  <li>{{ trade.symbol }} — Price: {{ trade.price }}</li>
+{% endfor %}
+</ul>
+{% endblock %}")
+
+# ── Render the child template ──────────────────────────────────────────────────
+let v = new qalam.view({"views": tmpDir})
+let html = v.render("trades", {
+    "trades": [
+        {"symbol": "AAPL",  "price": 182.5},
+        {"symbol": "GOOGL", "price": 141.2}
+    ]
+})
+print(html)
+
+# ── Cleanup ───────────────────────────────────────────────────────────────────
+file.delete("${tmpDir}/partials/nav.html")
+file.delete("${tmpDir}/trades.html")
+file.delete("${tmpDir}/layout.html")
+print("\nDone.")

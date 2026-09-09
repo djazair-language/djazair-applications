@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Djazair SQLite Extension | Complete API Reference &amp; Interactive Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="docs.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="top-header">
+    <div class="logo-area">
+      <div class="logo-icon"><i class="fas fa-database"></i></div>
+      <div class="logo-text">Djazair <span>SQLite</span></div>
+      <span class="badge-version">v0.1.0 100% Verified</span>
+    </div>
+
+    <div class="search-container">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="apiSearch" class="search-input" placeholder="Search 25+ SQLite APIs: safeQuery, execute, fetchAssoc, transaction, insertId..." autocomplete="off" />
+    </div>
+
+    <div class="header-actions">
+      <a href="#quickstart" class="btn-header"><i class="fas fa-bolt"></i> Quick Start</a>
+      <a href="#studio" class="btn-header"><i class="fas fa-terminal"></i> Live Studio</a>
+      <a href="https://github.com/djazair-language/djazair-extensions" target="_blank" class="btn-header"><i class="fab fa-github"></i> GitHub</a>
+      <button class="btn-header" id="themeToggleBtn" title="Toggle Dark/Light Theme"><i class="fas fa-sun"></i></button>
+      <button class="btn-header" id="mobileMenuBtn" title="Toggle Navigation"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <!-- Navigation Sidebar -->
+  <aside class="sidebar">
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-compass"></i> Getting Started</div>
+      <ul class="nav-links">
+        <li><a href="#overview" class="nav-item active"><span>Overview &amp; Architecture</span></a></li>
+        <li><a href="#quickstart" class="nav-item"><span>Quick Start Guide</span></a></li>
+        <li><a href="#studio" class="nav-item"><span>Interactive SQLite Studio</span> <span class="nav-tag live">Live</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-plug"></i> Connection (Connection)</div>
+      <ul class="nav-links">
+        <li><a href="#conn-connect" class="nav-item"><span>sqlite.connect()</span></a></li>
+        <li><a href="#conn-is-connected" class="nav-item"><span>isConnected()</span></a></li>
+        <li><a href="#conn-libversion" class="nav-item"><span>libversion()</span></a></li>
+        <li><a href="#conn-close" class="nav-item"><span>close()</span></a></li>
+        <li><a href="#conn-error" class="nav-item"><span>error()</span></a></li>
+        <li><a href="#conn-raw" class="nav-item"><span>raw()</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-bolt"></i> Statement Execution</div>
+      <ul class="nav-links">
+        <li><a href="#exec-execute" class="nav-item"><span>execute()</span></a></li>
+        <li><a href="#exec-safe-execute" class="nav-item"><span>safeExecute()</span> <span class="nav-tag sec">Safe</span></a></li>
+        <li><a href="#exec-query" class="nav-item"><span>query()</span></a></li>
+        <li><a href="#exec-safe-query" class="nav-item"><span>safeQuery()</span> <span class="nav-tag sec">Safe</span></a></li>
+        <li><a href="#exec-insert-id" class="nav-item"><span>insertId()</span></a></li>
+        <li><a href="#exec-changes" class="nav-item"><span>changes()</span></a></li>
+        <li><a href="#exec-escape" class="nav-item"><span>escape()</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-table"></i> Result Sets (ResultSet)</div>
+      <ul class="nav-links">
+        <li><a href="#rs-fetch-row" class="nav-item"><span>fetchRow() [Indexed]</span></a></li>
+        <li><a href="#rs-fetch-assoc" class="nav-item"><span>fetchAssoc() [Named]</span></a></li>
+        <li><a href="#rs-fetch-all-assoc" class="nav-item"><span>fetchAllAssoc() [Array]</span></a></li>
+        <li><a href="#rs-columns" class="nav-item"><span>columns()</span></a></li>
+        <li><a href="#rs-raw" class="nav-item"><span>raw()</span></a></li>
+        <li><a href="#rs-close" class="nav-item"><span>close()</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-hashtag"></i> Constants &amp; Codes</div>
+      <ul class="nav-links">
+        <li><a href="#const-sqlite-row" class="nav-item"><span>sqlite.SQLITE_ROW</span></a></li>
+        <li><a href="#const-sqlite-done" class="nav-item"><span>sqlite.SQLITE_DONE</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-shield-alt"></i> Transactions &amp; Security</div>
+      <ul class="nav-links">
+        <li><a href="#tx-transactions" class="nav-item"><span>ACID Transactions</span> <span class="nav-tag">ACID</span></a></li>
+        <li><a href="#sec-injection" class="nav-item"><span>SQL Injection Protection</span></a></li>
+        <li><a href="#sec-types" class="nav-item"><span>Data Type Mapping</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-microchip"></i> Native C Interface</div>
+      <ul class="nav-links">
+        <li><a href="#native-funcs" class="nav-item"><span>_sqlite Native Methods</span></a></li>
+        <li><a href="#native-gc" class="nav-item"><span>Resource &amp; GC Protection</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-book-open"></i> Production Recipes</div>
+      <ul class="nav-links">
+        <li><a href="#recipe-crud" class="nav-item"><span>Repository CRUD Pattern</span></a></li>
+        <li><a href="#recipe-migrations" class="nav-item"><span>Schema Migrations</span></a></li>
+        <li><a href="#recipe-json" class="nav-item"><span>JSON Document Storage</span></a></li>
+        <li><a href="#recipe-pragmas" class="nav-item"><span>High-Performance PRAGMAs</span></a></li>
+        <li><a href="#troubleshooting" class="nav-item"><span>Building &amp; Diagnostics</span></a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- Main Documentation Content -->
+  <main class="main-wrapper">
+    <div id="contentArea" class="content-container">
+
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <h1 class="hero-title">Embedded Relational Database for Djazair</h1>
+        <p class="hero-lead">
+          A zero-configuration, self-contained, ACID-compliant SQLite 3 engine for the Djazair Programming Language. Features safe parameterized queries, automatic script directory path resolution, associative mapping, transactions, and a high-performance native C dynamic bridge.
+        </p>
+
+        <div class="hero-features">
+          <div class="feature-pill">
+            <div class="icon"><i class="fas fa-shield-virus"></i></div>
+            <div>
+              <h4>SQL Injection Safe</h4>
+              <p>Built-in parameterized <code>safeQuery</code> &amp; <code>safeExecute</code> with C-level escaping.</p>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <div class="icon"><i class="fas fa-bolt"></i></div>
+            <div>
+              <h4>Native C Speed</h4>
+              <p>Direct Win32/POSIX C binding via <code>sqlite3.h</code> and Djazair VM Resource management.</p>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <div class="icon"><i class="fas fa-lock"></i></div>
+            <div>
+              <h4>Full ACID Transactions</h4>
+              <p>Strict commit and rollback mechanics with <code>try/catch/finally</code> safety patterns.</p>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <div class="icon"><i class="fas fa-map-marker-alt"></i></div>
+            <div>
+              <h4>Smart Path Resolution</h4>
+              <p>Auto-resolves paths relative to current script directory with seamless <code>:memory:</code> support.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Architecture Flow Diagram -->
+        <div class="arch-diagram">
+          <div class="arch-node">
+            <div class="title"><i class="fas fa-code"></i> Djazair Code</div>
+            <div class="sub"><code>use sqlite</code>, OOP Wrappers</div>
+          </div>
+          <div class="arch-arrow"><i class="fas fa-arrow-right"></i></div>
+          <div class="arch-node highlight">
+            <div class="title"><i class="fas fa-layer-group"></i> Connection &amp; ResultSet</div>
+            <div class="sub"><code>connection.dz</code>, <code>result_set.dz</code></div>
+          </div>
+          <div class="arch-arrow"><i class="fas fa-arrow-right"></i></div>
+          <div class="arch-node">
+            <div class="title"><i class="fas fa-cogs"></i> Native Bridge</div>
+            <div class="sub"><code>sqlite.dll</code> (C99, <code>djazair_api.h</code>)</div>
+          </div>
+          <div class="arch-arrow"><i class="fas fa-arrow-right"></i></div>
+          <div class="arch-node">
+            <div class="title"><i class="fas fa-hdd"></i> SQLite 3 Core</div>
+            <div class="sub">B-Tree Storage &amp; WAL Journal</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Quick Start Guide -->
+      <section id="quickstart" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-bolt"></i> Quick Start Guide</h2>
+        <p class="section-desc">
+          Get started with SQLite in Djazair in less than 60 seconds: open an embedded database, create a table, insert parameterized rows, and query data using associative maps.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang"><i class="fas fa-file-code"></i> quickstart.dz</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body">
+            <pre><code>use sqlite
+
+# 1. Connect to a local database file (creates it if missing)
+let db = sqlite.connect("app.db")
+
+if db.isConnected()
+    # 2. Execute table creation DDL
+    db.execute("CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE,
+        score REAL
+    )")
+
+    # 3. Insert records safely using parameterized queries (? placeholders)
+    db.safeExecute("INSERT OR IGNORE INTO users (name, email, score) VALUES (?, ?, ?)", 
+                   ["Harizi Riyadh", "harizi@djazair.org", 99.5])
+    db.safeExecute("INSERT OR IGNORE INTO users (name, email, score) VALUES (?, ?, ?)", 
+                   ["Anis Benali", "anis@example.dz", 88.0])
+
+    print("Rows modified: " + str(db.changes()))
+    print("Last inserted row ID: " + str(db.insertId()))
+
+    # 4. Query records with type-safe parameters
+    let res = db.safeQuery("SELECT * FROM users WHERE score > ? ORDER BY score DESC", [90.0])
+
+    if !isNull(res)
+        print("Column names: " + str(res.columns()))
+
+        # 5. Fetch all rows as an array of associative maps (dictionary)
+        let users = res.fetchAllAssoc()
+        for user in users
+            print("User #" + str(user["id"]) + " -> " + user["name"] + " (" + str(user["score"]) + " pts)")
+        end
+
+        # Always close result sets when done
+        res.close()
+    end
+
+    # 6. Close database connection
+    db.close()
+    print("Database operation finished successfully.")
+else
+    print("Database connection failed: " + db.error())
+end</code></pre>
+          </div>
+        </div>
+
+        <div class="alert-box tip">
+          <i class="fas fa-lightbulb"></i>
+          <div>
+            <strong>In-Memory Databases:</strong> You can pass <code>":memory:"</code> to <code>sqlite.connect(":memory:")</code> to create an ultra-fast temporary database that lives entirely in RAM and vanishes when the connection is closed.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Interactive SQLite Studio / Simulator -->
+      <section id="studio" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-terminal"></i> Interactive SQLite Studio</h2>
+        <p class="section-desc">
+          Test SQLite queries live right inside this documentation! Experiment with queries, examine results in real-time across multiple formats (Grid, Djazair Map, Indexed Array, and Schema), and inspect generated Djazair source code.
+        </p>
+
+        <div class="simulator-box">
+          <div class="studio-toolbar">
+            <div class="studio-title">
+              <i class="fas fa-database"></i> Live In-Memory SQLite Studio
+            </div>
+            <div class="studio-actions">
+              <select id="templateSelect" class="studio-select" title="Load Query Template">
+                <option value="select_users">Template: Filter Users (WHERE balance > 2000)</option>
+                <option value="select_products">Template: Low Stock Products (stock < 50)</option>
+                <option value="insert_user">Template: INSERT New User</option>
+                <option value="update_balance">Template: UPDATE Balances (+500)</option>
+                <option value="delete_user">Template: DELETE User (id = 5)</option>
+                <option value="tx_transfer">Template: ACID Bank Transfer (BEGIN/COMMIT)</option>
+              </select>
+              <button class="btn-studio primary" id="runQueryBtn"><i class="fas fa-play"></i> Run Query</button>
+              <button class="btn-studio danger" id="resetDbBtn"><i class="fas fa-redo-alt"></i> Reset DB</button>
+            </div>
+          </div>
+
+          <div class="sql-editor-container">
+            <textarea id="sqlInput" class="sql-editor" spellcheck="false" placeholder="Enter SQL query here... (e.g. SELECT * FROM users)">SELECT * FROM users WHERE balance > 2000 ORDER BY balance DESC</textarea>
+          </div>
+
+          <!-- Status Bar -->
+          <div class="studio-status-bar" id="studioStatus">
+            <span class="status-badge ok"><i class="fas fa-check-circle"></i> Ready</span> Press Run Query or Ctrl+Enter to execute.
+          </div>
+
+          <!-- Studio Results Tabs -->
+          <div class="studio-results-wrapper">
+            <div class="studio-nav">
+              <button class="studio-tab-btn active" data-studio-tab="grid"><i class="fas fa-table"></i> Grid View</button>
+              <button class="studio-tab-btn" data-studio-tab="assoc"><i class="fas fa-code"></i> Djazair Assoc Map (fetchAllAssoc)</button>
+              <button class="studio-tab-btn" data-studio-tab="row"><i class="fas fa-list-ol"></i> Indexed Array (fetchRow)</button>
+              <button class="studio-tab-btn" data-studio-tab="schema"><i class="fas fa-sitemap"></i> Active Schema</button>
+            </div>
+
+            <div class="studio-pane active" id="pane-grid">
+              <!-- Rendered via JS -->
+            </div>
+            <div class="studio-pane" id="pane-assoc">
+              <!-- Rendered via JS -->
+            </div>
+            <div class="studio-pane" id="pane-row">
+              <!-- Rendered via JS -->
+            </div>
+            <div class="studio-pane" id="pane-schema">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Live Generated Djazair Code -->
+          <div class="code-wrapper" style="margin-top:20px;">
+            <div class="code-header">
+              <span class="code-lang"><i class="fas fa-magic"></i> Generated Djazair Equivalent Code</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy Code</button>
+            </div>
+            <div class="code-body">
+              <pre><code id="simDjazairCode"># Generated Djazair code will appear here...</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Connection Management -->
+      <section id="conn-management" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-plug"></i> Connection Class API Reference</h2>
+        <p class="section-desc">
+          The <code>Connection</code> class represents an active SQLite database handle. It provides methods for executing DDL/DML, running parameterized queries, managing transactions, and querying metadata.
+        </p>
+
+        <!-- Method: sqlite.connect() -->
+        <div class="method-card" id="conn-connect">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">sqlite</span>.<span class="method-name">connect</span>(path: String) &rarr; Connection
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Factory</span>
+              <span class="method-badge safe">Path Resolver</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Instantiates a new <code>Connection</code> object and opens the SQLite database. If a relative path is passed (e.g. <code>"data.db"</code> or <code>"db/app.sqlite"</code>), it automatically resolves it relative to the directory of the running <code>.dz</code> script via <code>process.scriptDir()</code>. Supports <code>":memory:"</code> for RAM-only databases.
+          </p>
+
+          <div class="param-specs">
+            <div><strong>path</strong> (String): Filepath to the database or <code>":memory:"</code>.</div>
+          </div>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+# Relative to current script
+let db1 = sqlite.connect("analytics.db")
+
+# In-memory transient database
+let db2 = sqlite.connect(":memory:")
+
+# Absolute path
+let db3 = sqlite.connect("C:/Database/enterprise.db")</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: isConnected() -->
+        <div class="method-card" id="conn-is-connected">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">isConnected</span>() &rarr; Bool
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Status</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returns <code>True</code> if the database handle is currently open and valid, or <code>False</code> if opening failed or the connection has already been closed.
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("data.db")
+if db.isConnected()
+    print("Database connected successfully!")
+    db.close()
+else
+    throw "Database connection failed: " + db.error()
+end</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: close() -->
+        <div class="method-card" id="conn-close">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">close</span>() &rarr; Null
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Lifecycle</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Closes the underlying SQLite 3 database handle, releasing all file locks, B-tree caches, and memory structures. Sets <code>connected = False</code>. Safe to call multiple times (idempotent).
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect(":memory:")
+print("Connected before close? " + str(db.isConnected())) # True
+db.close()
+print("Connected after close? " + str(db.isConnected()))  # False</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: error() -->
+        <div class="method-card" id="conn-error">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">error</span>() &rarr; String
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Diagnostics</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returns the latest error message reported by the SQLite engine for this connection via <code>sqlite3_errmsg()</code>. If the connection is not open, returns <code>"Database not open"</code>.
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect(":memory:")
+let ok = db.execute("MALFORMED SQL SYNTAX")
+if !ok
+    print("SQLite Error: " + db.error()) # e.g. "near \"MALFORMED\": syntax error"
+end
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: raw() -->
+        <div class="method-card" id="conn-raw">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">raw</span>() &rarr; Resource
+            </div>
+            <div class="method-badges">
+              <span class="method-badge native">Hybrid</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returns the raw VM <code>Resource</code> pointer wrapping the native <code>sqlite3*</code> pointer. Intended for advanced hybrid scenarios or custom native C extension interoperability.
+          </p>
+        </div>
+
+        <!-- Method: libversion() -->
+        <div class="method-card" id="conn-libversion">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">libversion</span>() &rarr; String
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Information</span>
+              <span class="method-badge">Module Function</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returns the version string of the linked SQLite C runtime engine (e.g. <code>"3.51.1"</code>). Also accessible at the library root as <code>sqlite.libversion()</code>.
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+print("SQLite Engine: " + sqlite.libversion())
+
+let db = sqlite.connect(":memory:")
+print("Connection SQLite Version: " + db.libversion())
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Statement Execution -->
+      <section id="exec-statements" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-play"></i> Statement Execution API Reference</h2>
+        <p class="section-desc">
+          Methods to run DDL, non-returning DML commands (INSERT, UPDATE, DELETE), and query execution (SELECT). Includes parameter binding protection against SQL injection attacks.
+        </p>
+
+        <!-- Method: execute() -->
+        <div class="method-card" id="exec-execute">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">execute</span>(sql: String) &rarr; Bool
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">DDL / DML</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Compiles and immediately steps through an arbitrary SQL statement. Suitable for <code>CREATE TABLE</code>, <code>DROP TABLE</code>, <code>PRAGMA</code>, <code>INSERT</code>, <code>UPDATE</code>, and <code>DELETE</code>. Automatically prepares, steps, and finalizes the statement. Returns <code>True</code> on success (when step returns <code>SQLITE_DONE</code> or <code>SQLITE_ROW</code>), or <code>False</code> on failure.
+          </p>
+
+          <div class="param-specs">
+            <div><strong>sql</strong> (String): Raw SQL string to execute. Validated via <code>assert.string</code>.</div>
+          </div>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("app.db")
+let ok = db.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+if ok
+    print("Table ready!")
+end
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: safeExecute() -->
+        <div class="method-card" id="exec-safe-execute">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">safeExecute</span>(sql: String, params: Array = []) &rarr; Bool
+            </div>
+            <div class="method-badges">
+              <span class="method-badge safe">Injection Safe</span>
+              <span class="method-badge">Recommended</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            The recommended way to execute write statements with dynamic user input. Safely replaces positional <code>?</code> placeholders with escaped parameters via SQLite's native <code>sqlite3_mprintf("%q")</code> escaping engine. Correctly formats <code>Null</code>, numbers, and strings.
+          </p>
+
+          <div class="param-specs">
+            <div><strong>sql</strong> (String): SQL query with <code>?</code> positional placeholders.</div>
+            <div><strong>params</strong> (Array): Ordered array of values (Strings, Numbers, Null) to substitute.</div>
+          </div>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("app.db")
+db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, score REAL, bio TEXT)")
+
+# Secure execution with user-provided parameters
+let username = "O'Connor" # Contains single quote that would break raw SQL
+let score = 94.2
+let bio = Null
+
+db.safeExecute("INSERT INTO users (name, score, bio) VALUES (?, ?, ?)", [username, score, bio])
+print("Rows inserted: " + str(db.changes()))
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: query() -->
+        <div class="method-card" id="exec-query">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">query</span>(sql: String) &rarr; ResultSet | Null
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">SELECT</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Prepares a SQL query (typically a <code>SELECT</code>) and returns an instance of <code>ResultSet</code> ready for fetching rows. If preparation fails (syntax error, unknown table, etc.), returns <code>Null</code> and error details can be retrieved via <code>db.error()</code>.
+          </p>
+
+          <div class="param-specs">
+            <div><strong>sql</strong> (String): Query to prepare.</div>
+          </div>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("app.db")
+db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)")
+db.safeExecute("INSERT OR IGNORE INTO users (id, name) VALUES (1, 'Riad')", [])
+
+let res = db.query("SELECT id, name FROM users")
+if !isNull(res)
+    let rows = res.fetchAllAssoc()
+    print("Found " + str(rows.length()) + " users.")
+    res.close()
+end
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: safeQuery() -->
+        <div class="method-card" id="exec-safe-query">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">safeQuery</span>(sql: String, params: Array = []) &rarr; ResultSet | Null
+            </div>
+            <div class="method-badges">
+              <span class="method-badge safe">Injection Safe</span>
+              <span class="method-badge">Recommended</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Safely prepares a read query containing <code>?</code> placeholders, automatically escaping all parameter values against SQL injection attacks. Returns a <code>ResultSet</code> on success or <code>Null</code> on failure.
+          </p>
+
+          <div class="param-specs">
+            <div><strong>sql</strong> (String): Parameterized SQL query.</div>
+            <div><strong>params</strong> (Array): Ordered parameters to bind.</div>
+          </div>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("app.db")
+db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT)")
+db.safeExecute("INSERT OR IGNORE INTO users (id, name, email) VALUES (1, 'Riad Harizi', 'harizi@djazair.org')", [])
+
+let searchEmail = "harizi@djazair.org"
+let res = db.safeQuery("SELECT * FROM users WHERE email = ? LIMIT 1", [searchEmail])
+
+if !isNull(res)
+    let user = res.fetchAssoc()
+    if !isNull(user)
+        print("Welcome back, " + user["name"] + "!")
+    end
+    res.close()
+end
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: insertId() & changes() -->
+        <div class="method-card" id="exec-insert-id">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">insertId</span>() &rarr; Number
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Metadata</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returns the rowid of the most recent successful <code>INSERT</code> performed on this database connection (maps to native <code>sqlite3_last_insert_rowid()</code>). If no insert has occurred or the connection is closed, returns <code>0</code>.
+          </p>
+        </div>
+
+        <div class="method-card" id="exec-changes">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">changes</span>() &rarr; Number
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Metadata</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returns the number of database rows that were modified, inserted, or deleted by the most recently completed <code>INSERT</code>, <code>UPDATE</code>, or <code>DELETE</code> statement (maps to native <code>sqlite3_changes()</code>).
+          </p>
+        </div>
+
+        <!-- Method: escape() -->
+        <div class="method-card" id="exec-escape">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">Connection</span>.<span class="method-name">escape</span>(val: String | Number) &rarr; String
+            </div>
+            <div class="method-badges">
+              <span class="method-badge safe">Utility</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Escapes single quotes and special characters in strings or numbers using SQLite's internal <code>sqlite3_mprintf("%q")</code>. Throws a <code>TypeError</code> if an unsupported type is supplied.
+          </p>
+        </div>
+      </section>
+
+      <!-- Section: Result Sets & Data Fetching -->
+      <section id="rs-resultset" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-table"></i> ResultSet Class API Reference</h2>
+        <p class="section-desc">
+          The <code>ResultSet</code> class encapsulates an active cursor over query results. It allows retrieving rows sequentially as indexed arrays, associative maps, or in batch, as well as accessing column metadata.
+        </p>
+
+        <!-- Method: fetchRow() -->
+        <div class="method-card" id="rs-fetch-row">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">ResultSet</span>.<span class="method-name">fetchRow</span>() &rarr; Array | Null
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Cursor</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Advances the statement cursor by calling <code>sqlite3_step()</code>. If a row is available (returns <code>SQLITE_ROW</code>), it extracts all column values into a zero-indexed Djazair <code>Array</code> (e.g. <code>[1, "Riad", 98.5]</code>). If the end of the result set is reached (or on error), returns <code>Null</code>.
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("app.db")
+db.execute("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL)")
+db.safeExecute("INSERT OR IGNORE INTO products (id, name, price) VALUES (1, 'Mechanical Keyboard', 89.99)", [])
+
+let res = db.query("SELECT id, name, price FROM products")
+if !isNull(res)
+    let row = res.fetchRow()
+    while !isNull(row)
+        print("ID: " + str(row[0]) + ", Name: " + row[1] + ", Price: $" + str(row[2]))
+        row = res.fetchRow()
+    end
+    res.close()
+end
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: fetchAssoc() -->
+        <div class="method-card" id="rs-fetch-assoc">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">ResultSet</span>.<span class="method-name">fetchAssoc</span>() &rarr; Map | Null
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Cursor</span>
+              <span class="method-badge">Recommended</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Advances the statement cursor and returns the next row as a Djazair associative <code>Map</code> (key/value pairs), where keys correspond to the column names (or SQL aliases) and values correspond to the column data. Returns <code>Null</code> when no more rows exist.
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("app.db")
+db.execute("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price REAL)")
+db.safeExecute("INSERT OR IGNORE INTO products (id, name, price) VALUES (1, 'Mechanical Keyboard', 89.99)", [])
+
+let res = db.query("SELECT id, name, price FROM products")
+if !isNull(res)
+    let prod = res.fetchAssoc()
+    while !isNull(prod)
+        print(prod["name"] + " costs $" + str(prod["price"]))
+        prod = res.fetchAssoc()
+    end
+    res.close()
+end
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: fetchAllAssoc() -->
+        <div class="method-card" id="rs-fetch-all-assoc">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">ResultSet</span>.<span class="method-name">fetchAllAssoc</span>() &rarr; Array&lt;Map&gt;
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Batch</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Convenience method that loops through the entire result set, collecting all rows into an <code>Array</code> of associative <code>Map</code>s. Returns an empty array <code>[]</code> if the query yielded no rows.
+          </p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use sqlite
+
+let db = sqlite.connect("app.db")
+db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT)")
+db.safeExecute("INSERT OR IGNORE INTO users (id, email) VALUES (1, 'developer@djazair.dz')", [])
+
+let res = db.query("SELECT * FROM users")
+if !isNull(res)
+    let allUsers = res.fetchAllAssoc()
+    for user in allUsers
+        print(user["email"])
+    end
+    res.close()
+end
+db.close()</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Method: columns() -->
+        <div class="method-card" id="rs-columns">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">ResultSet</span>.<span class="method-name">columns</span>() &rarr; Array&lt;String&gt;
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Metadata</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returns an array of strings containing the column names or aliases of the query. Internally caches the column names on first access to maximize loop performance.
+          </p>
+        </div>
+
+        <!-- Method: close() -->
+        <div class="method-card" id="rs-close">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">ResultSet</span>.<span class="method-name">close</span>() &rarr; Null
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Cleanup</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Explicitly finalizes the underlying SQLite statement (calling <code>sqlite3_finalize()</code>) and frees native memory. Always call <code>close()</code> when finished processing results to avoid resource leaks and locked database tables.
+          </p>
+        </div>
+      </section>
+
+      <!-- Section: Constants & Status Codes -->
+      <section id="constants-section" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-hashtag"></i> Constants &amp; Return Codes</h2>
+        <p class="section-desc">
+          Standard SQLite return codes exposed at the module level for cursor stepping, flow control, and low-level inspection.
+        </p>
+
+        <div class="method-card" id="const-sqlite-row">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">sqlite</span>.<span class="method-name">SQLITE_ROW</span> = 100
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Constant</span>
+              <span class="method-badge">Integer</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returned by the native <code>step()</code> operation when another row of data is ready to be read via <code>fetchRow()</code> or <code>fetchAssoc()</code>.
+          </p>
+        </div>
+
+        <div class="method-card" id="const-sqlite-done">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="method-class">sqlite</span>.<span class="method-name">SQLITE_DONE</span> = 101
+            </div>
+            <div class="method-badges">
+              <span class="method-badge">Constant</span>
+              <span class="method-badge">Integer</span>
+            </div>
+          </div>
+          <p class="method-desc">
+            Returned by <code>step()</code> when execution has finished successfully (e.g. an INSERT/UPDATE statement completed, or a SELECT cursor has exhausted all available rows).
+          </p>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Constant</th>
+                <th>Value</th>
+                <th>Source</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>sqlite.SQLITE_ROW</code></td>
+                <td><code>100</code></td>
+                <td><code>sqlite3.h</code></td>
+                <td>Another row of data is ready for retrieval.</td>
+              </tr>
+              <tr>
+                <td><code>sqlite.SQLITE_DONE</code></td>
+                <td><code>101</code></td>
+                <td><code>sqlite3.h</code></td>
+                <td>Statement execution has concluded (no further rows).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Transactions & ACID Safety -->
+      <section id="tx-transactions" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-shield-alt"></i> ACID Transactions &amp; Concurrency</h2>
+        <p class="section-desc">
+          SQLite provides full ACID (Atomicity, Consistency, Isolation, Durability) transactions. The Djazair extension exposes manual transaction controls and robust patterns with <code>try/catch/finally</code>.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>SQL Generated</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>db.beginTransaction()</code></td>
+                <td><code>BEGIN TRANSACTION</code></td>
+                <td>Opens a new transaction block. Subsequent writes are buffered until commit.</td>
+              </tr>
+              <tr>
+                <td><code>db.commit()</code></td>
+                <td><code>COMMIT</code></td>
+                <td>Persists all staged modifications atomically to disk.</td>
+              </tr>
+              <tr>
+                <td><code>db.rollback()</code></td>
+                <td><code>ROLLBACK</code></td>
+                <td>Aborts the transaction, reverting all modifications made since <code>BEGIN</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin: 24px 0 12px; font-size: 16px;">The Robust Transaction Pattern in Djazair</h3>
+        <p>
+          Always wrap transactional code in a <code>try / catch</code> block so that any runtime exception or SQL failure automatically triggers a <code>rollback()</code>:
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Djazair — Bank Transfer Recipe</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body">
+            <pre><code>use sqlite
+
+let db = sqlite.connect("bank.db")
+db.execute("CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY, balance REAL)")
+db.safeExecute("INSERT OR IGNORE INTO accounts VALUES (101, 1000.0)", [])
+db.safeExecute("INSERT OR IGNORE INTO accounts VALUES (102, 500.0)", [])
+
+fn transferMoney(db, senderId, receiverId, amount)
+    db.beginTransaction()
+    try
+        # 1. Deduct from sender
+        let ok1 = db.safeExecute("UPDATE accounts SET balance = balance - ? WHERE id = ?", [amount, senderId])
+        if !ok1 throw "Failed to deduct funds" end
+
+        # 2. Add to receiver
+        let ok2 = db.safeExecute("UPDATE accounts SET balance = balance + ? WHERE id = ?", [amount, receiverId])
+        if !ok2 throw "Failed to deposit funds" end
+
+        # 3. Commit changes atomically
+        db.commit()
+        print("Transfer completed successfully!")
+        return True
+    catch err
+        # On any error, roll back completely
+        db.rollback()
+        print("Transfer failed and was rolled back: " + str(err))
+        return False
+    end
+end
+
+transferMoney(db, 101, 102, 250.0)
+db.close()</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Security & Parameterization -->
+      <section id="sec-injection" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-user-shield"></i> SQL Injection Defense &amp; Type Mapping</h2>
+        <p class="section-desc">
+          SQL Injection is one of the most critical security vulnerabilities. Djazair SQLite provides full parameterization via <code>safeQuery()</code> and <code>safeExecute()</code> to ensure query safety.
+        </p>
+
+        <div class="alert-box danger">
+          <i class="fas fa-skull-crossbones"></i>
+          <div>
+            <strong>VULNERABLE PATTERN — DO NOT USE:</strong><br />
+            <code>let sql = "SELECT * FROM users WHERE user = '" + input + "'"</code><br />
+            If <code>input</code> is <code>admin' --</code>, an attacker bypasses authentication and gains administrative control of your database!
+          </div>
+        </div>
+
+        <div class="alert-box tip">
+          <i class="fas fa-check-circle"></i>
+          <div>
+            <strong>SECURE PATTERN — ALWAYS USE:</strong><br />
+            <code>let res = db.safeQuery("SELECT * FROM users WHERE user = ?", [input])</code><br />
+            Djazair automatically escapes strings and formats numbers, making SQL injection impossible.
+          </div>
+        </div>
+
+        <h3 id="sec-types" style="margin: 24px 0 12px; font-size: 16px;">Type Mapping Matrix</h3>
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>SQLite C Datatype</th>
+                <th>Djazair Value Type</th>
+                <th>Conversion Behavior</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SQLITE_INTEGER</code></td>
+                <td><code>Number</code></td>
+                <td>Converted via <code>sqlite3_column_int64()</code> to double precision number.</td>
+              </tr>
+              <tr>
+                <td><code>SQLITE_FLOAT</code></td>
+                <td><code>Number</code></td>
+                <td>Converted via <code>sqlite3_column_double()</code> to double precision float.</td>
+              </tr>
+              <tr>
+                <td><code>SQLITE_TEXT</code></td>
+                <td><code>String</code></td>
+                <td>Allocated via <code>djazair_str()</code> with complete UTF-8 encoding support.</td>
+              </tr>
+              <tr>
+                <td><code>SQLITE_NULL</code></td>
+                <td><code>Null</code></td>
+                <td>Represented directly as Djazair's native <code>Null</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Native C Interface -->
+      <section id="native-funcs" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-microchip"></i> Native C Dynamic Layer (_sqlite)</h2>
+        <p class="section-desc">
+          The low-level C extension is loaded via <code>__dynamic("sqlite")</code> and compiled using standard C99 against <code>djazair_api.h</code>. The functions below form the foundation of the high-level Djazair wrapper classes.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>C Exported Function</th>
+                <th>Arity</th>
+                <th>C Source File</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>_s.open(path)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_db.c</code></td>
+                <td>Calls <code>sqlite3_open()</code> and returns a <code>SQLiteDB</code> resource handle.</td>
+              </tr>
+              <tr>
+                <td><code>_s.close(db)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_db.c</code></td>
+                <td>Calls <code>sqlite3_close()</code> and nullifies resource pointer.</td>
+              </tr>
+              <tr>
+                <td><code>_s.error(db)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_db.c</code></td>
+                <td>Returns <code>sqlite3_errmsg(db)</code> as a Djazair string.</td>
+              </tr>
+              <tr>
+                <td><code>_s.prepare(db, sql)</code></td>
+                <td>2</td>
+                <td><code>src/sqlite_stmt.c</code></td>
+                <td>Calls <code>sqlite3_prepare_v2()</code> and returns a <code>SQLiteStmt</code> resource.</td>
+              </tr>
+              <tr>
+                <td><code>_s.step(stmt)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_stmt.c</code></td>
+                <td>Steps through the statement, returning status integer (<code>100</code> for ROW, <code>101</code> for DONE).</td>
+              </tr>
+              <tr>
+                <td><code>_s.fetchRow(stmt)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_stmt.c</code></td>
+                <td>Fetches current row with GC protection (<code>djazair_push</code> / <code>djazair_pop</code>).</td>
+              </tr>
+              <tr>
+                <td><code>_s.columnNames(stmt)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_stmt.c</code></td>
+                <td>Returns array of column name strings via <code>sqlite3_column_name()</code>.</td>
+              </tr>
+              <tr>
+                <td><code>_s.finalize(stmt)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_stmt.c</code></td>
+                <td>Calls <code>sqlite3_finalize()</code> and clears statement pointer.</td>
+              </tr>
+              <tr>
+                <td><code>_s.insertId(db)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_db.c</code></td>
+                <td>Returns <code>sqlite3_last_insert_rowid(db)</code>.</td>
+              </tr>
+              <tr>
+                <td><code>_s.changes(db)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_db.c</code></td>
+                <td>Returns <code>sqlite3_changes(db)</code>.</td>
+              </tr>
+              <tr>
+                <td><code>_s.escape(str)</code></td>
+                <td>1</td>
+                <td><code>src/sqlite_db.c</code></td>
+                <td>Calls <code>sqlite3_mprintf("%q")</code> and returns safely escaped string.</td>
+              </tr>
+              <tr>
+                <td><code>_s.libversion()</code></td>
+                <td>0</td>
+                <td><code>src/sqlite_db.c</code></td>
+                <td>Returns the SQLite library version string (e.g. <code>"3.45.1"</code>).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="alert-box tip" id="native-gc">
+          <i class="fas fa-memory"></i>
+          <div>
+            <strong>Garbage Collection Protection:</strong> In <code>sqlite_stmt.c</code>, newly allocated array objects are protected from GC reclamation during row extraction using <code>djazair_push(vm, arr)</code> and <code>djazair_pop(vm)</code>.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Production Recipes -->
+      <section id="recipe-crud" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-book-open"></i> Production Recipes &amp; Design Patterns</h2>
+        <p class="section-desc">
+          Ready-to-use architectural patterns for building real-world enterprise applications with Djazair SQLite.
+        </p>
+
+        <!-- Recipe 1: Repository Pattern -->
+        <h3 style="margin-bottom: 12px; font-size: 16px;">1. Object-Oriented Repository Pattern</h3>
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Djazair — user_repository.dz</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body">
+            <pre><code>use sqlite
+
+class UserRepository
+    init(db)
+        self.db = db
+        self.createTable()
+    end
+
+    createTable()
+        self.db.execute("CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            active INTEGER DEFAULT 1
+        )")
+    end
+
+    create(username, email)
+        let ok = self.db.safeExecute("INSERT OR REPLACE INTO users (username, email) VALUES (?, ?)", [username, email])
+        if !ok return 0 end
+        return self.db.insertId()
+    end
+
+    findById(id)
+        let res = self.db.safeQuery("SELECT * FROM users WHERE id = ? LIMIT 1", [id])
+        if isNull(res) return Null end
+        let user = res.fetchAssoc()
+        res.close()
+        return user
+    end
+
+    findAll()
+        let res = self.db.query("SELECT * FROM users ORDER BY id ASC")
+        if isNull(res) return [] end
+        let users = res.fetchAllAssoc()
+        res.close()
+        return users
+    end
+
+    delete(id)
+        return self.db.safeExecute("DELETE FROM users WHERE id = ?", [id])
+    end
+end
+
+let db = sqlite.connect("app.db")
+let repo = new UserRepository(db)
+
+let newId = repo.create("harizi", "harizi@djazair.dz")
+let user = repo.findById(newId)
+if !isNull(user)
+    print("Found: " + user["username"])
+end
+db.close()</code></pre>
+          </div>
+        </div>
+
+        <!-- Recipe 2: Schema Migrations -->
+        <h3 id="recipe-migrations" style="margin: 28px 0 12px; font-size: 16px;">2. Schema Migrations &amp; Version Tracking</h3>
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Djazair — migrations.dz</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body">
+            <pre><code>use sqlite
+
+fn runMigrations(db)
+    # 1. Create migration history table
+    db.execute("CREATE TABLE IF NOT EXISTS _migrations (
+        version INTEGER PRIMARY KEY,
+        applied_at TEXT
+    )")
+
+    # 2. Check current version
+    let currentVersion = 0
+    let res = db.query("SELECT MAX(version) as ver FROM _migrations")
+    if !isNull(res)
+        let row = res.fetchAssoc()
+        if !isNull(row) and !isNull(row["ver"])
+            currentVersion = int(row["ver"])
+        end
+        res.close()
+    end
+
+    print("Current schema version: " + str(currentVersion))
+
+    # Migration 1
+    if currentVersion < 1
+        db.beginTransaction()
+        db.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, title TEXT, price REAL)")
+        db.safeExecute("INSERT INTO _migrations (version, applied_at) VALUES (1, '2026-09-07')", [])
+        db.commit()
+        print("Applied migration 1: products table created.")
+    end
+
+    # Migration 2
+    if currentVersion < 2
+        db.beginTransaction()
+        db.execute("ALTER TABLE products ADD COLUMN stock INTEGER DEFAULT 0")
+        db.safeExecute("INSERT INTO _migrations (version, applied_at) VALUES (2, '2026-09-07')", [])
+        db.commit()
+        print("Applied migration 2: stock column added.")
+    end
+end
+
+let db = sqlite.connect("store.db")
+runMigrations(db)
+db.close()</code></pre>
+          </div>
+        </div>
+
+        <!-- Recipe 3: JSON Columns -->
+        <h3 id="recipe-json" style="margin: 28px 0 12px; font-size: 16px;">3. Storing and Reading JSON Data with std/json</h3>
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Djazair — json_storage.dz</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body">
+            <pre><code>use sqlite
+use json
+
+let db = sqlite.connect("metadata.db")
+db.execute("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY, payload TEXT)")
+
+# Serialize dictionary to JSON string
+let eventData = { "type": "USER_SIGNUP", "userId": 42, "features": ["auth", "billing"] }
+let encodedJson = json.encode(eventData)
+
+# Insert safely as TEXT
+db.safeExecute("INSERT INTO events (payload) VALUES (?)", [encodedJson])
+
+# Read and deserialize back to native map
+let res = db.query("SELECT payload FROM events ORDER BY id DESC LIMIT 1")
+if !isNull(res)
+    let row = res.fetchAssoc()
+    let decoded = json.decode(row["payload"])
+    print("Event Type: " + decoded["type"])
+    print("User ID: " + str(decoded["userId"]))
+    res.close()
+end
+
+db.close()</code></pre>
+          </div>
+        </div>
+
+        <!-- Recipe 4: Performance PRAGMAs -->
+        <h3 id="recipe-pragmas" style="margin: 28px 0 12px; font-size: 16px;">4. Production Performance PRAGMAs (WAL Mode)</h3>
+        <p>
+          Configure SQLite for maximum concurrency and high read/write throughput using standard PRAGMA statements:
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Djazair — pragmas.dz</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body">
+            <pre><code>use sqlite
+
+let db = sqlite.connect("high_performance.db")
+
+if db.isConnected()
+    # 1. Write-Ahead Logging allows simultaneous readers and writers
+    db.execute("PRAGMA journal_mode = WAL;")
+
+    # 2. Synchronous NORMAL maintains ACID durability with maximum speed in WAL mode
+    db.execute("PRAGMA synchronous = NORMAL;")
+
+    # 3. Increase cache size (e.g. 64MB)
+    db.execute("PRAGMA cache_size = -64000;")
+
+    # 4. Wait up to 5000ms if database is temporarily locked
+    db.execute("PRAGMA busy_timeout = 5000;")
+
+    # 5. Store temp tables in RAM
+    db.execute("PRAGMA temp_store = MEMORY;")
+
+    print("High-performance database PRAGMAs configured.")
+    db.close()
+end</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Compilation & Troubleshooting -->
+      <section id="troubleshooting" class="doc-section">
+        <h2 class="section-title"><i class="fas fa-wrench"></i> Building, Compiling &amp; Diagnostics</h2>
+        <p class="section-desc">
+          Instructions for building <code>sqlite.dll</code> / <code>sqlite.so</code> across platforms and diagnosing common database runtime errors.
+        </p>
+
+        <div class="tab-container">
+          <div class="tab-nav">
+            <button class="tab-btn active" data-tab="win">Windows (build.bat)</button>
+            <button class="tab-btn" data-tab="posix">Linux / macOS (build.sh)</button>
+            <button class="tab-btn" data-tab="dpm">Djazair Package Manager (dpm)</button>
+          </div>
+
+          <div class="tab-pane active" data-pane="win">
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="code-lang">Windows Command Prompt / PowerShell</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <div class="code-body">
+                <pre><code># Syntax: build.bat <path\to\djazair-language>
+cd "djazair-extensions\sqlite"
+build.bat "..\..\djazair-language"</code></pre>
+              </div>
+            </div>
+            <p>Produces <code>sqlite.dll</code> in the current folder, linked against <code>-ldjazair</code> and <code>-lsqlite3</code>.</p>
+          </div>
+
+          <div class="tab-pane" data-pane="posix">
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="code-lang">Bash Shell</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <div class="code-body">
+                <pre><code># Syntax: ./build.sh <path/to/djazair-language>
+cd djazair-extensions/sqlite
+chmod +x build.sh
+./build.sh "../../djazair-language"</code></pre>
+              </div>
+            </div>
+            <p>Produces <code>sqlite.so</code> (or <code>sqlite.dylib</code> on macOS).</p>
+          </div>
+
+          <div class="tab-pane" data-pane="dpm">
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="code-lang">DPM Command</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <div class="code-body">
+                <pre><code>dpm install sqlite
+dpm build sqlite</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin: 24px 0 12px; font-size: 16px;">Common Errors and Fixes</h3>
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Error Message</th>
+                <th>Underlying Cause</th>
+                <th>Resolution</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>database is locked</code></td>
+                <td>Another thread/process holds an exclusive write lock, or an unclosed <code>ResultSet</code> cursor is active.</td>
+                <td>Set <code>PRAGMA busy_timeout = 5000;</code> and ensure every <code>ResultSet</code> calls <code>res.close()</code>.</td>
+              </tr>
+              <tr>
+                <td><code>no such table: [name]</code></td>
+                <td>Table has not been created yet, or database path resolved to an unexpected location.</td>
+                <td>Use <code>CREATE TABLE IF NOT EXISTS</code> or check resolved file path with <code>path.resolve()</code>.</td>
+              </tr>
+              <tr>
+                <td><code>cannot start a transaction within a transaction</code></td>
+                <td>Called <code>beginTransaction()</code> when a transaction is already in progress.</td>
+                <td>Always pair <code>beginTransaction()</code> with either <code>commit()</code> or <code>rollback()</code>.</td>
+              </tr>
+              <tr>
+                <td><code>Database not open</code></td>
+                <td>Invoked query/execute on a connection after calling <code>close()</code> or after connection failed.</td>
+                <td>Verify <code>db.isConnected()</code> before executing statements.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Running the Interactive Documentation Desktop App -->
+      <section class="doc-section">
+        <h2 class="section-title"><i class="fas fa-desktop"></i> Desktop Documentation Launcher</h2>
+        <p class="section-desc">
+          You can run this exact interactive documentation as a native Windows desktop application with a single command using Djazair's official <code>webview</code> extension:
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">Terminal</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body">
+            <pre><code>cd "D:\Programing\Djazair Programming Language\djazair-extensions\sqlite\docs"
+djazair run_docs.dz</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer style="margin-top: 60px; padding-top: 30px; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-muted);">
+        <div>
+          <strong>Djazair SQLite Extension</strong> &bull; Developed by <strong>Harizi Riyadh</strong> &bull; Copyright &copy; 2026 Djazair Language Project.
+        </div>
+        <div>
+          Designed and documented according to international database standards and API best practices.
+        </div>
+      </footer>
+
+    </div>
+  </main>
+
+  <script src="docs.js"></script>
+</body>
+</html>

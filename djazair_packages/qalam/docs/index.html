@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Djazair Qalam — Pure AST Template Engine | Official Documentation & API Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="docs.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="top-header">
+    <a href="#overview" class="logo-area">
+      <div class="logo-icon"><i class="fa-solid fa-pen-nib"></i></div>
+      <div class="logo-text">Djazair <span>Qalam</span></div>
+      <span class="badge-version">v0.2.0 • 100% Tested</span>
+    </a>
+
+    <div class="search-container">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="apiSearch" class="search-input" placeholder="Search 40+ APIs, filters, tags: render, if, for, block, filter, escapeHtml..." autocomplete="off" />
+    </div>
+
+    <div class="header-actions">
+      <a href="#quickstart" class="btn-header"><i class="fas fa-bolt"></i> Quick Start</a>
+      <a href="#playground" class="btn-header"><i class="fas fa-sliders-h"></i> Playground</a>
+      <a href="https://github.com/djazair-language/djazair-extensions" target="_blank" class="btn-header"><i class="fab fa-github"></i> GitHub</a>
+      <button class="btn-header" id="themeToggleBtn" title="Toggle Theme"><i class="fas fa-sun"></i></button>
+      <button class="btn-header" id="mobileMenuBtn" title="Toggle Menu"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <!-- Navigation Sidebar -->
+  <aside class="sidebar">
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-compass"></i> Getting Started</div>
+      <ul class="nav-links">
+        <li><a href="#overview" class="nav-item active"><span>Overview &amp; Architecture</span></a></li>
+        <li><a href="#installation" class="nav-item"><span>Installation &amp; Setup</span></a></li>
+        <li><a href="#quickstart" class="nav-item"><span>Quick Start Guide</span></a></li>
+        <li><a href="#playground" class="nav-item"><span>Live Playground</span> <span class="nav-tag">Interactive</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-code"></i> Template Syntax</div>
+      <ul class="nav-links">
+        <li><a href="#variables" class="nav-item"><span>Variables &amp; Escaping</span></a></li>
+        <li><a href="#raw-html" class="nav-item"><span>Raw HTML Output</span></a></li>
+        <li><a href="#comments" class="nav-item"><span>Comments &amp; Whitespace</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-code-branch"></i> Control Flow &amp; Loops</div>
+      <ul class="nav-links">
+        <li><a href="#conditionals" class="nav-item"><span>Conditionals (if / elif / else)</span></a></li>
+        <li><a href="#loops" class="nav-item"><span>Loops &amp; Metadata</span></a></li>
+        <li><a href="#operators" class="nav-item"><span>Expressions &amp; Operators</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-cubes"></i> Layout &amp; Composition</div>
+      <ul class="nav-links">
+        <li><a href="#inheritance" class="nav-item"><span>Template Inheritance</span></a></li>
+        <li><a href="#partials" class="nav-item"><span>Partials &amp; Sub-Views</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-filter"></i> Filters &amp; Pipelines</div>
+      <ul class="nav-links">
+        <li><a href="#filter-pipeline" class="nav-item"><span>Filter Pipeline &amp; Chaining</span></a></li>
+        <li><a href="#built-in-filters" class="nav-item"><span>Built-in Filter Catalog</span> <span class="nav-tag purple">20+</span></a></li>
+        <li><a href="#custom-filters" class="nav-item"><span>Registering Custom Filters</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-bolt"></i> Advanced Features</div>
+      <ul class="nav-links">
+        <li><a href="#functions" class="nav-item"><span>Direct Context Functions</span> <span class="nav-tag amber">fn(...)</span></a></li>
+        <li><a href="#kasbah-integration" class="nav-item"><span>Kasbah Framework Recipe</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-shield-halved"></i> Security &amp; Speed</div>
+      <ul class="nav-links">
+        <li><a href="#security" class="nav-item"><span>Security Architecture</span></a></li>
+        <li><a href="#caching" class="nav-item"><span>In-Memory AST Caching</span></a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title"><i class="fas fa-book"></i> API Reference</div>
+      <ul class="nav-links">
+        <li><a href="#api-view-class" class="nav-item"><span>view Class Constructor</span></a></li>
+        <li><a href="#api-methods" class="nav-item"><span>view Methods</span></a></li>
+        <li><a href="#api-helpers" class="nav-item"><span>Standalone Helpers</span></a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <main class="main-wrapper">
+    <div id="contentArea" class="content-container">
+
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <h1 class="hero-title">High-Performance AST Template Engine for Djazair</h1>
+        <p class="hero-lead">
+          Compile, evaluate, and render secure, dynamic HTML templates in memory or directly from disk with zero external dependencies, intelligent AST compilation caching, automatic XSS sanitization, and expressive filter pipelines.
+        </p>
+
+        <div class="hero-features">
+          <div class="feature-pill">
+            <div class="icon"><i class="fa-solid fa-microchip"></i></div>
+            <div>
+              <h4>Pure AST Architecture</h4>
+              <p>Three-phase pipeline: Lexer &rarr; Hierarchical AST Parser &rarr; Evaluator.</p>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <div class="icon"><i class="fa-solid fa-shield-virus"></i></div>
+            <div>
+              <h4>XSS &amp; Traversal Immunity</h4>
+              <p>Contextual entity escaping and directory boundary containment.</p>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <div class="icon"><i class="fa-solid fa-cubes-stacked"></i></div>
+            <div>
+              <h4>Djazair Native Harmony</h4>
+              <p>Supports <code>end</code> blocks, truthiness, string interpolation, and direct callables.</p>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <div class="icon"><i class="fa-solid fa-gauge-high"></i></div>
+            <div>
+              <h4>30x AST Caching</h4>
+              <p>In-memory compiled node caching minimizes parsing overhead under high load.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Interactive Playground -->
+      <section id="playground" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-sliders"></i> Live Interactive Template Playground</h2>
+        <p class="section-desc">
+          Test Qalam's syntax, loops, multi-branch conditionals, filter pipelines, and direct callables live in your browser. Choose a preset or type your own template and context data.
+        </p>
+
+        <div class="simulator-box">
+          <div class="sim-header">
+            <div class="sim-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Qalam In-Browser Engine Emulator</div>
+            <div class="sim-presets">
+              <label for="simPresetSelect" style="font-size:12px; font-weight:600; color:var(--text-muted);">Presets:</label>
+              <select id="simPresetSelect">
+                <option value="user">User Profile Card &amp; Badges</option>
+                <option value="table">E-Commerce Invoice Table &amp; Math</option>
+                <option value="loops">Loop Metadata &amp; Alternating Rows</option>
+                <option value="filters">Filter Pipeline &amp; Default Fallbacks</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="sim-grid">
+            <!-- Left Panel: Input Editors -->
+            <div class="sim-panel">
+              <div class="sim-panel-title">
+                <span><i class="fa-solid fa-file-code"></i> Template Source</span>
+                <span style="font-size:11px; color:var(--accent-emerald);">HTML + Qalam Syntax</span>
+              </div>
+              <textarea id="simTemplate" class="sim-textarea" placeholder="Type template here..."></textarea>
+
+              <div class="sim-panel-title">
+                <span><i class="fa-solid fa-database"></i> Context Data (JSON)</span>
+                <span style="font-size:11px; color:var(--text-muted);">Simulated Djazair Map</span>
+              </div>
+              <textarea id="simData" class="sim-textarea" style="height:140px;" placeholder="JSON context map..."></textarea>
+            </div>
+
+            <!-- Right Panel: Output & Generated Code -->
+            <div class="sim-panel">
+              <div class="tab-container" style="margin:0;">
+                <div class="tab-nav">
+                  <button class="tab-btn active" data-tab="preview"><i class="fa-solid fa-eye"></i> Rendered Output</button>
+                  <button class="tab-btn" data-tab="html-src"><i class="fa-solid fa-code"></i> HTML Source</button>
+                  <button class="tab-btn" data-tab="djazair-src"><i class="fa-solid fa-terminal"></i> Djazair Snippet</button>
+                </div>
+
+                <div class="tab-pane active" data-pane="preview">
+                  <div id="simPreview" class="sim-preview-box sim-rendered-html"></div>
+                </div>
+
+                <div class="tab-pane" data-pane="html-src">
+                  <div class="code-wrapper" style="margin:0;">
+                    <div class="code-header">
+                      <span class="code-lang">output.html</span>
+                      <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+                    </div>
+                    <div id="simHtmlSource" class="code-body"><pre><code></code></pre></div>
+                  </div>
+                </div>
+
+                <div class="tab-pane" data-pane="djazair-src">
+                  <div class="code-wrapper" style="margin:0;">
+                    <div class="code-header">
+                      <span class="code-lang">main.dz</span>
+                      <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+                    </div>
+                    <div id="simDjazairCode" class="code-body"><pre><code></code></pre></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Overview & Architecture -->
+      <section id="overview" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-sitemap"></i> Overview &amp; Architecture</h2>
+        <p class="section-desc">
+          Qalam is engineered from first principles for the Djazair Programming Language. It completely decouples lexical analysis, parsing, filesystem resolution, caching, and tree traversal into clean, single-responsibility modules under <code>core/</code>, coordinated through a lightweight public orchestrator in <code>init.dz</code>.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>File Path</th>
+                <th>Core Responsibility</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Public Entry Point</strong></td>
+                <td><code>init.dz</code></td>
+                <td>Exports <code>view</code> class, <code>renderString</code> helper, and <code>escapeHtml</code> security utilities.</td>
+              </tr>
+              <tr>
+                <td><strong>Lexer / Tokenizer</strong></td>
+                <td><code>core/lexer.dz</code></td>
+                <td>Linear token scanner supporting comments <code>{#...#}</code>, whitespace trimming <code>{{- -}}</code>, tags, and raw blocks.</td>
+              </tr>
+              <tr>
+                <td><strong>AST Parser</strong></td>
+                <td><code>core/parser.dz</code></td>
+                <td>Transforms flat token stream into structured hierarchical AST node trees with block matching.</td>
+              </tr>
+              <tr>
+                <td><strong>Loader &amp; Cache</strong></td>
+                <td><code>core/loader.dz</code></td>
+                <td>Path traversal security containment, filesystem reading, and in-memory compiled AST caching.</td>
+              </tr>
+              <tr>
+                <td><strong>Evaluator Engine</strong></td>
+                <td><code>core/evaluator.dz</code></td>
+                <td>Recursively evaluates AST nodes against data context; handles operators, direct callables, and loops.</td>
+              </tr>
+              <tr>
+                <td><strong>Filter Registry</strong></td>
+                <td><code>core/filters.dz</code></td>
+                <td>Maintains built-in standard filters and dynamically registered user callbacks.</td>
+              </tr>
+              <tr>
+                <td><strong>HTML Escaper</strong></td>
+                <td><code>core/escaper.dz</code></td>
+                <td>High-throughput entity encoding preventing Cross-Site Scripting (XSS).</td>
+              </tr>
+              <tr>
+                <td><strong>Type Constants</strong></td>
+                <td><code>core/constants.dz</code></td>
+                <td>Semantic token and node type constants eliminating magic strings.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Installation & Setup -->
+      <section id="installation" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-download"></i> Installation &amp; Setup</h2>
+        <p class="section-desc">
+          Install Qalam into your Djazair project using the official package manager (<code>dpm</code>) or include it directly as an extension.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">terminal</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="cmt"># Install via official Djazair Package Manager</span>
+dpm install qalam
+
+<span class="cmt"># Or clone directly into your project extensions folder</span>
+git clone https://github.com/djazair-language/djazair-extensions.git</code></pre></div>
+        </div>
+
+        <p>In your Djazair scripts, import the engine with standard module syntax:</p>
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">djazair</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="kwd">use</span> qalam
+
+<span class="cmt"># You now have immediate access to qalam.view, qalam.renderString, and qalam.escapeHtml</span></code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Quick Start Guide -->
+      <section id="quickstart" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-bolt"></i> Quick Start Guide</h2>
+        <p class="section-desc">
+          Render dynamic templates using either the fast in-memory helper or the full file-based orchestrator.
+        </p>
+
+        <div class="tab-container">
+          <div class="tab-nav">
+            <button class="tab-btn active" data-tab="quick-inmemory">In-Memory Rendering</button>
+            <button class="tab-btn" data-tab="quick-file">File-Based View Engine</button>
+          </div>
+
+          <div class="tab-pane active" data-pane="quick-inmemory">
+            <p>Ideal for email notifications, dynamic code generation, API payload rendering, or command-line tools:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="code-lang">djazair</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <div class="code-body"><pre><code><span class="kwd">use</span> qalam
+
+<span class="kwd">let</span> emailTemplate = `
+&lt;h1&gt;Welcome, {{ user.name | capitalize }}!&lt;/h1&gt;
+&lt;p&gt;Your temporary access token is: &lt;code&gt;{{ token }}&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Expires in {{ ttl }} minutes.&lt;/p&gt;
+`
+
+<span class="kwd">let</span> output = qalam.<span class="fn">renderString</span>(emailTemplate, {
+    <span class="str">"user"</span>: {<span class="str">"name"</span>: <span class="str">"riad harizi"</span>},
+    <span class="str">"token"</span>: <span class="str">"DZ-8941"</span>,
+    <span class="str">"ttl"</span>: <span class="num">30</span>
+})
+
+<span class="fn">print</span>(output)</code></pre></div>
+            </div>
+          </div>
+
+          <div class="tab-pane" data-pane="quick-file">
+            <p>Ideal for multi-page web applications, enterprise dashboards, and layout inheritance:</p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="code-lang">djazair</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <div class="code-body"><pre><code><span class="kwd">use</span> qalam
+
+<span class="cmt"># Initialize view orchestrator with templates directory and caching enabled</span>
+<span class="kwd">let</span> v = <span class="kwd">new</span> qalam.<span class="fn">view</span>({
+    <span class="str">"views"</span>: <span class="str">"views"</span>,
+    <span class="str">"cache"</span>: <span class="kwd">True</span>
+})
+
+<span class="cmt"># Reads views/dashboard.html, resolves layout inheritance, and renders</span>
+<span class="kwd">let</span> html = v.<span class="fn">render</span>(<span class="str">"dashboard"</span>, {
+    <span class="str">"siteTitle"</span>: <span class="str">"Algerian Trading Portal"</span>,
+    <span class="str">"user"</span>: {<span class="str">"name"</span>: <span class="str">"Riad"</span>, <span class="str">"role"</span>: <span class="str">"admin"</span>},
+    <span class="str">"trades"</span>: [
+        {<span class="str">"symbol"</span>: <span class="str">"DZ-ENERGY"</span>, <span class="str">"value"</span>: <span class="num">1450.50</span>},
+        {<span class="str">"symbol"</span>: <span class="str">"ALG-TECH"</span>, <span class="str">"value"</span>: <span class="num">820.75</span>}
+    ]
+})
+
+<span class="fn">print</span>(html)</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Variables & Escaping -->
+      <section id="variables" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-brackets-curly"></i> Variables &amp; Auto-Escaping</h2>
+        <p class="section-desc">
+          Double braces <code>{{ ... }}</code> evaluate expressions against the runtime data context. All variable outputs are automatically HTML-escaped by default to prevent Cross-Site Scripting (XSS).
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">template.html</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="cmt">&lt;!-- Auto-sanitized against script injection --&gt;</span>
+&lt;h1&gt;User: {{ user.name }}&lt;/h1&gt;
+
+<span class="cmt">&lt;!-- Deep dot-path navigation --&gt;</span>
+&lt;p&gt;Location: {{ user.profile.address.city }}&lt;/p&gt;
+
+<span class="cmt">&lt;!-- Array index resolution --&gt;</span>
+&lt;p&gt;Primary Phone: {{ user.phones[0] }}&lt;/p&gt;</code></pre></div>
+        </div>
+
+        <div class="alert-box tip">
+          <i class="fas fa-lightbulb" style="color:var(--accent-emerald); font-size:18px;"></i>
+          <div>
+            <strong>XSS Protection Table:</strong> Special characters are encoded into safe entities:
+            <code>&amp; &rarr; &amp;amp;</code>, <code>&lt; &rarr; &amp;lt;</code>, <code>&gt; &rarr; &amp;gt;</code>, <code>" &rarr; &amp;quot;</code>, <code>' &rarr; &amp;#039;</code>.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Raw HTML Output -->
+      <section id="raw-html" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-code"></i> Raw HTML Output (Unescaped)</h2>
+        <p class="section-desc">
+          When rendering trusted HTML markup (such as pre-sanitized Rich Text Editor contents or generated badges), wrap expressions in triple braces: <code>{{{ ... }}}</code>.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">template.html</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code>&lt;div class="article-body"&gt;
+  <span class="cmt">&lt;!-- Trusted HTML passes through verbatim without escaping --&gt;</span>
+  {{{ article.sanitizedHtmlContent }}}
+&lt;/div&gt;</code></pre></div>
+        </div>
+
+        <div class="alert-box security">
+          <i class="fas fa-shield-alt" style="color:var(--accent-rose); font-size:18px;"></i>
+          <div>
+            <strong>Security Warning:</strong> Never use triple braces <code>{{{ ... }}}</code> with unsanitized user-submitted data. Doing so bypasses Qalam's automatic XSS shield.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Comments & Whitespace -->
+      <section id="comments" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-comment-slash"></i> Comments &amp; Whitespace Trimming</h2>
+        <p class="section-desc">
+          Internal template comments are stripped at the lexical analysis stage and never appear in the final rendered output. Whitespace modifiers strip surrounding spaces and line breaks.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">template.html</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="cmt">{# This comment is completely stripped during lexing: zero runtime cost #}</span>
+
+&lt;div&gt;
+  <span class="cmt">&lt;!-- Hyphen trims leading and trailing whitespace --&gt;</span>
+  {{- user.name -}}
+&lt;/div&gt;
+
+<span class="cmt">&lt;!-- Trimming inside control tags --&gt;</span>
+{%- for tag in tags -%}
+  &lt;span class="tag"&gt;{{ tag }}&lt;/span&gt;
+{%- end -%}</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Conditionals -->
+      <section id="conditionals" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-code-fork"></i> Conditionals (if / elif / else / end)</h2>
+        <p class="section-desc">
+          Control execution flow using multi-branch conditionals. Qalam fully supports Djazair's native <code>end</code> keyword as well as traditional <code>endif</code>.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">template.html</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code>{% if user.role == "admin" %}
+  &lt;span class="badge badge-admin"&gt;Administrator&lt;/span&gt;
+{% elif user.role == "editor" %}
+  &lt;span class="badge badge-editor"&gt;Editor&lt;/span&gt;
+{% elif user.role == "moderator" %}
+  &lt;span class="badge badge-mod"&gt;Moderator&lt;/span&gt;
+{% else %}
+  &lt;span class="badge badge-guest"&gt;Standard Guest&lt;/span&gt;
+{% end %}</code></pre></div>
+        </div>
+
+        <div class="alert-box tip">
+          <i class="fas fa-check-circle" style="color:var(--accent-emerald); font-size:18px;"></i>
+          <div>
+            <strong>Djazair Truthiness Harmony:</strong> In condition evaluation, the following values are treated as false:
+            <code>False</code>, <code>Null</code>, <code>0</code>, empty string <code>""</code>, empty array <code>[]</code>, and empty map <code>{}</code>.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Loops & Metadata -->
+      <section id="loops" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-repeat"></i> Loops &amp; Loop Metadata</h2>
+        <p class="section-desc">
+          Iterate over arrays and collections with <code>{% for item in items %} ... {% end %}</code>. Inside the loop, Qalam automatically injects rich metadata via the <code>loop</code> object.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Metadata Property</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Example Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>loop.index</code></td>
+                <td><code>Number</code></td>
+                <td>Current iteration count, starting at 1.</td>
+                <td><code>1, 2, 3...</code></td>
+              </tr>
+              <tr>
+                <td><code>loop.index0</code></td>
+                <td><code>Number</code></td>
+                <td>Current 0-based iteration index.</td>
+                <td><code>0, 1, 2...</code></td>
+              </tr>
+              <tr>
+                <td><code>loop.first</code></td>
+                <td><code>Boolean</code></td>
+                <td><code>True</code> on the first iteration of the loop.</td>
+                <td><code>True / False</code></td>
+              </tr>
+              <tr>
+                <td><code>loop.last</code></td>
+                <td><code>Boolean</code></td>
+                <td><code>True</code> on the final iteration of the loop.</td>
+                <td><code>True / False</code></td>
+              </tr>
+              <tr>
+                <td><code>loop.length</code></td>
+                <td><code>Number</code></td>
+                <td>Total count of items in the iterated collection.</td>
+                <td><code>15</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">template.html</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code>&lt;table&gt;
+  &lt;tr&gt;&lt;th&gt;#&lt;/th&gt;&lt;th&gt;Product&lt;/th&gt;&lt;th&gt;Price&lt;/th&gt;&lt;/tr&gt;
+  {% for product in products %}
+  &lt;tr class="{% if loop.first %}first-row{% elif loop.last %}last-row{% end %}"&gt;
+    &lt;td&gt;{{ loop.index }} of {{ loop.length }}&lt;/td&gt;
+    &lt;td&gt;{{ product.title | capitalize }}&lt;/td&gt;
+    &lt;td&gt;${{ product.price | round(2) }}&lt;/td&gt;
+  &lt;/tr&gt;
+  {% end %}
+&lt;/table&gt;</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Expressions & Operators -->
+      <section id="operators" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-calculator"></i> Expressions &amp; Operators</h2>
+        <p class="section-desc">
+          Qalam features a comprehensive expression evaluator supporting arithmetic, comparison, logical conjunctions, membership checks, identity comparisons, and ternary conditions.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Operator Category</th>
+                <th>Supported Syntax</th>
+                <th>Example Expression</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Arithmetic</strong></td>
+                <td><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code></td>
+                <td><code>{{ subtotal + tax - discount }}</code></td>
+              </tr>
+              <tr>
+                <td><strong>Comparison</strong></td>
+                <td><code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code></td>
+                <td><code>{% if stock &lt;= 5 %}Low Inventory{% end %}</code></td>
+              </tr>
+              <tr>
+                <td><strong>Logical</strong></td>
+                <td><code>and</code>, <code>&amp;&amp;</code>, <code>or</code>, <code>||</code>, <code>not</code>, <code>!</code></td>
+                <td><code>{% if user.isAuth and not user.isBanned %}</code></td>
+              </tr>
+              <tr>
+                <td><strong>Membership</strong></td>
+                <td><code>in</code>, <code>not in</code></td>
+                <td><code>{% if "admin" in user.roles %}Superuser{% end %}</code></td>
+              </tr>
+              <tr>
+                <td><strong>Identity</strong></td>
+                <td><code>is</code>, <code>is not</code></td>
+                <td><code>{% if user.deletedAt is Null %}Active User{% end %}</code></td>
+              </tr>
+              <tr>
+                <td><strong>Ternary Conditional</strong></td>
+                <td><code>if cond ? a else b</code> or <code>cond ? a : b</code></td>
+                <td><code>{{ isVip ? 'VIP Customer' : 'Standard Customer' }}</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Template Inheritance -->
+      <section id="inheritance" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-layer-group"></i> Template Inheritance (extends &amp; block)</h2>
+        <p class="section-desc">
+          Define global layouts once and let individual pages inject content into named blocks. Unoverridden blocks in parent layouts retain their default markup.
+        </p>
+
+        <div class="tab-container">
+          <div class="tab-nav">
+            <button class="tab-btn active" data-tab="inherit-parent">1. Master Layout (views/layout.html)</button>
+            <button class="tab-btn" data-tab="inherit-child">2. Child Template (views/dashboard.html)</button>
+          </div>
+
+          <div class="tab-pane active" data-pane="inherit-parent">
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="code-lang">views/layout.html</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <div class="code-body"><pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8" /&gt;
+  &lt;title&gt;{% block title %}Djazair Enterprise Portal{% end %}&lt;/title&gt;
+  {% block styles %}&lt;link rel="stylesheet" href="/style.css" /&gt;{% end %}
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;header&gt;
+    {% block header %}&lt;nav&gt;Default Application Navigation&lt;/nav&gt;{% end %}
+  &lt;/header&gt;
+
+  &lt;main class="main-content"&gt;
+    {% block content %}{% end %}
+  &lt;/main&gt;
+
+  &lt;footer&gt;
+    {% block footer %}&lt;p&gt;&amp;copy; 2026 Djazair Language Project&lt;/p&gt;{% end %}
+  &lt;/footer&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre></div>
+            </div>
+          </div>
+
+          <div class="tab-pane" data-pane="inherit-child">
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="code-lang">views/dashboard.html</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <div class="code-body"><pre><code>{% extends "layout" %}
+
+{% block title %}Trading Dashboard &bull; Djazair Portal{% end %}
+
+{% block content %}
+  &lt;h1&gt;Live Portfolios&lt;/h1&gt;
+  &lt;p&gt;Welcome back, {{ user.name }}!&lt;/p&gt;
+  &lt;ul&gt;
+    {% for trade in trades %}
+      &lt;li&gt;{{ trade.symbol }}: ${{ trade.value | round(2) }}&lt;/li&gt;
+    {% end %}
+  &lt;/ul&gt;
+{% end %}</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Partials -->
+      <section id="partials" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-puzzle-piece"></i> Partials &amp; Sub-Views (include)</h2>
+        <p class="section-desc">
+          Break large views into modular components (navbars, modal dialogs, pagination bars, analytics cards) with <code>{% include "path" %}</code>.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">views/dashboard.html</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code>&lt;header&gt;
+  <span class="cmt">&lt;!-- Injects views/partials/navbar.html into the view --&gt;</span>
+  {% include "partials/navbar" %}
+&lt;/header&gt;
+
+&lt;div class="container"&gt;
+  {% include "components/metrics_card" %}
+&lt;/div&gt;
+
+&lt;footer&gt;
+  {% include "partials/footer" %}
+&lt;/footer&gt;</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Direct Context Functions -->
+      <section id="functions" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-bolt-lightning"></i> Direct Context Functions: fn(...)</h2>
+        <p class="section-desc">
+          Pass first-class Djazair functions directly inside the template data context. Qalam evaluates callables with parameters inline without requiring template macros or custom tags.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">djazair</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="kwd">use</span> qalam
+
+<span class="kwd">let</span> tpl = `
+&lt;p&gt;Greeting: {{ greet(user.name) }}&lt;/p&gt;
+&lt;p&gt;Total Amount: {{ calculateTax(order.subtotal, 0.19) }} DZD&lt;/p&gt;
+`
+
+<span class="kwd">let</span> output = qalam.<span class="fn">renderString</span>(tpl, {
+    <span class="str">"user"</span>: {<span class="str">"name"</span>: <span class="str">"Riad"</span>},
+    <span class="str">"order"</span>: {<span class="str">"subtotal"</span>: <span class="num">10000</span>},
+    <span class="str">"greet"</span>: <span class="kwd">fn</span>(name) <span class="kwd">return</span> <span class="str">"Marhaba, ${name}!"</span> <span class="kwd">end</span>,
+    <span class="str">"calculateTax"</span>: <span class="kwd">fn</span>(amount, rate) <span class="kwd">return</span> amount * (<span class="num">1</span> + rate) <span class="kwd">end</span>
+})
+
+<span class="fn">print</span>(output)</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Filter Pipeline & Chaining -->
+      <section id="filter-pipeline" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-filter"></i> Filter Pipeline &amp; Chaining</h2>
+        <p class="section-desc">
+          Pipe expressions sequentially through transformation filters using the pipe operator <code>|</code>. Arguments can be passed in parentheses.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">template.html</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="cmt">&lt;!-- Multiple sequential pipes: trim whitespace, then capitalize --&gt;</span>
+&lt;h2&gt;{{ "   algerian developer   " | trim | capitalize }}&lt;/h2&gt;
+
+<span class="cmt">&lt;!-- Pipe with argument: join array with custom delimiter, then uppercase --&gt;</span>
+&lt;p&gt;Tags: {{ post.tags | join(" &bull; ") | upper }}&lt;/p&gt;
+
+<span class="cmt">&lt;!-- Fallback default if value is null or empty --&gt;</span>
+&lt;p&gt;Bio: {{ user.biography | default("No biography available.") }}&lt;/p&gt;</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Built-in Filter Catalog -->
+      <section id="built-in-filters" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-list-check"></i> Complete 20+ Built-in Filter Catalog</h2>
+        <p class="section-desc">
+          Qalam includes over 20 standard transformations out of the box, fully compatible with Djazair language runtime semantics.
+        </p>
+
+        <div class="table-wrapper">
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Filter</th>
+                <th>Category</th>
+                <th>Parameters</th>
+                <th>Description</th>
+                <th>Input &rarr; Output Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>upper</code></td>
+                <td>String</td>
+                <td>None</td>
+                <td>Converts string characters to uppercase.</td>
+                <td><code>"riad" | upper</code> &rarr; <code>"RIAD"</code></td>
+              </tr>
+              <tr>
+                <td><code>lower</code></td>
+                <td>String</td>
+                <td>None</td>
+                <td>Converts string characters to lowercase.</td>
+                <td><code>"QALAM" | lower</code> &rarr; <code>"qalam"</code></td>
+              </tr>
+              <tr>
+                <td><code>capitalize</code></td>
+                <td>String</td>
+                <td>None</td>
+                <td>Capitalizes first character of string.</td>
+                <td><code>"djazair" | capitalize</code> &rarr; <code>"Djazair"</code></td>
+              </tr>
+              <tr>
+                <td><code>title</code></td>
+                <td>String</td>
+                <td>None</td>
+                <td>Capitalizes the first character of each word.</td>
+                <td><code>"web framework" | title</code> &rarr; <code>"Web Framework"</code></td>
+              </tr>
+              <tr>
+                <td><code>trim</code></td>
+                <td>String</td>
+                <td>None</td>
+                <td>Strips leading and trailing whitespace.</td>
+                <td><code>"  hello  " | trim</code> &rarr; <code>"hello"</code></td>
+              </tr>
+              <tr>
+                <td><code>ltrim</code></td>
+                <td>String</td>
+                <td>None</td>
+                <td>Strips leading whitespace.</td>
+                <td><code>"  hello" | ltrim</code> &rarr; <code>"hello"</code></td>
+              </tr>
+              <tr>
+                <td><code>rtrim</code></td>
+                <td>String</td>
+                <td>None</td>
+                <td>Strips trailing whitespace.</td>
+                <td><code>"hello  " | rtrim</code> &rarr; <code>"hello"</code></td>
+              </tr>
+              <tr>
+                <td><code>replace</code></td>
+                <td>String</td>
+                <td><code>(old, new)</code></td>
+                <td>Replaces occurrences of substring with replacement.</td>
+                <td><code>"a-b-c" | replace("-", "/")</code> &rarr; <code>"a/b/c"</code></td>
+              </tr>
+              <tr>
+                <td><code>reverse</code></td>
+                <td>Transform</td>
+                <td>None</td>
+                <td>Reverses characters in a string or items in an array.</td>
+                <td><code>"abc" | reverse</code> &rarr; <code>"cba"</code></td>
+              </tr>
+              <tr>
+                <td><code>length</code> / <code>len</code></td>
+                <td>Array / String</td>
+                <td>None</td>
+                <td>Returns item count of array, string length, or map size.</td>
+                <td><code>[1, 2, 3] | length</code> &rarr; <code>3</code></td>
+              </tr>
+              <tr>
+                <td><code>first</code></td>
+                <td>Array / String</td>
+                <td>None</td>
+                <td>Returns first element of array or first char of string.</td>
+                <td><code>["a", "b"] | first</code> &rarr; <code>"a"</code></td>
+              </tr>
+              <tr>
+                <td><code>last</code></td>
+                <td>Array / String</td>
+                <td>None</td>
+                <td>Returns last element of array or last char of string.</td>
+                <td><code>["a", "b"] | last</code> &rarr; <code>"b"</code></td>
+              </tr>
+              <tr>
+                <td><code>join</code></td>
+                <td>Array</td>
+                <td><code>(delimiter)</code></td>
+                <td>Joins array items into a single string with delimiter.</td>
+                <td><code>["x", "y"] | join(" - ")</code> &rarr; <code>"x - y"</code></td>
+              </tr>
+              <tr>
+                <td><code>default</code></td>
+                <td>Fallback</td>
+                <td><code>(fallback)</code></td>
+                <td>Returns fallback value if input is null, false, or empty.</td>
+                <td><code>"" | default("N/A")</code> &rarr; <code>"N/A"</code></td>
+              </tr>
+              <tr>
+                <td><code>json</code></td>
+                <td>Format</td>
+                <td>None</td>
+                <td>Serializes object or array to JSON string.</td>
+                <td><code>{{{ data | json }}}</code> &rarr; <code>{"k":"v"}</code></td>
+              </tr>
+              <tr>
+                <td><code>abs</code></td>
+                <td>Math</td>
+                <td>None</td>
+                <td>Returns absolute value of a number.</td>
+                <td><code>-25 | abs</code> &rarr; <code>25</code></td>
+              </tr>
+              <tr>
+                <td><code>round</code></td>
+                <td>Math</td>
+                <td><code>(precision = 0)</code></td>
+                <td>Rounds numeric value to specified decimal places.</td>
+                <td><code>3.14159 | round(2)</code> &rarr; <code>3.14</code></td>
+              </tr>
+              <tr>
+                <td><code>int</code></td>
+                <td>Casting</td>
+                <td>None</td>
+                <td>Casts string or float to integer.</td>
+                <td><code>"42" | int</code> &rarr; <code>42</code></td>
+              </tr>
+              <tr>
+                <td><code>float</code></td>
+                <td>Casting</td>
+                <td>None</td>
+                <td>Casts string or integer to float.</td>
+                <td><code>"3.14" | float</code> &rarr; <code>3.14</code></td>
+              </tr>
+              <tr>
+                <td><code>str</code></td>
+                <td>Casting</td>
+                <td>None</td>
+                <td>Converts any value to standard string.</td>
+                <td><code>100 | str</code> &rarr; <code>"100"</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Custom Filters -->
+      <section id="custom-filters" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-plus-circle"></i> Registering Custom Filters</h2>
+        <p class="section-desc">
+          Extend Qalam with domain-specific formatting filters (currency symbols, relative timestamps, markdown parsers, status badges).
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">djazair</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="kwd">use</span> qalam
+
+<span class="kwd">let</span> v = <span class="kwd">new</span> qalam.<span class="fn">view</span>({})
+
+<span class="cmt"># Register custom Algerian Dinar currency filter</span>
+v.<span class="fn">registerFilter</span>(<span class="str">"dzd"</span>, <span class="kwd">fn</span>(val, args = [])
+    <span class="kwd">return</span> <span class="str">"${val} DZD"</span>
+<span class="kwd">end</span>)
+
+<span class="cmt"># Register custom HTML status badge filter</span>
+v.<span class="fn">registerFilter</span>(<span class="str">"statusBadge"</span>, <span class="kwd">fn</span>(status, args = [])
+    <span class="kwd">if</span> status == <span class="str">"paid"</span>
+        <span class="kwd">return</span> <span class="str">"&lt;span class='badge bg-success'&gt;PAID&lt;/span&gt;"</span>
+    <span class="kwd">elif</span> status == <span class="str">"pending"</span>
+        <span class="kwd">return</span> <span class="str">"&lt;span class='badge bg-warning'&gt;PENDING&lt;/span&gt;"</span>
+    <span class="kwd">end</span>
+    <span class="kwd">return</span> <span class="str">"&lt;span class='badge bg-danger'&gt;CANCELLED&lt;/span&gt;"</span>
+<span class="kwd">end</span>)
+
+<span class="kwd">let</span> html = v.<span class="fn">renderString</span>(
+    <span class="str">"&lt;p&gt;Total: {{ amount | dzd }}&lt;/p&gt;&lt;div&gt;{{{ status | statusBadge }}}&lt;/div&gt;"</span>,
+    {<span class="str">"amount"</span>: <span class="num">8500</span>, <span class="str">"status"</span>: <span class="str">"paid"</span>}
+)
+
+<span class="fn">print</span>(html)</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Kasbah Integration -->
+      <section id="kasbah-integration" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-server"></i> Kasbah Web Framework Integration Recipe</h2>
+        <p class="section-desc">
+          Combine Qalam with Kasbah for full-stack, enterprise-grade web development in Djazair.
+        </p>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">server.dz</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="kwd">use</span> kasbah
+<span class="kwd">use</span> qalam
+
+<span class="kwd">let</span> app = <span class="kwd">new</span> kasbah.<span class="fn">app</span>({<span class="str">"port"</span>: <span class="num">8080</span>})
+
+<span class="cmt"># Initialize Qalam View Engine with views/ folder and AST caching</span>
+<span class="kwd">let</span> viewEngine = <span class="kwd">new</span> qalam.<span class="fn">view</span>({
+    <span class="str">"views"</span>: <span class="str">"views"</span>,
+    <span class="str">"cache"</span>: <span class="kwd">True</span>
+})
+
+<span class="cmt"># Route handler returning rendered HTML</span>
+app.<span class="fn">get</span>(<span class="str">"/profile"</span>, <span class="kwd">fn</span>(req, res)
+    <span class="kwd">let</span> renderedHtml = viewEngine.<span class="fn">render</span>(<span class="str">"profile"</span>, {
+        <span class="str">"title"</span>: <span class="str">"User Profile"</span>,
+        <span class="str">"user"</span>: {<span class="str">"name"</span>: <span class="str">"Riad Harizi"</span>, <span class="str">"email"</span>: <span class="str">"riad@example.com"</span>},
+        <span class="str">"stats"</span>: {<span class="str">"orders"</span>: <span class="num">14</span>, <span class="str">"credits"</span>: <span class="num">520.00</span>}
+    })
+    
+    res.<span class="fn">status</span>(<span class="num">200</span>).<span class="fn">html</span>(renderedHtml)
+<span class="kwd">end</span>)
+
+app.<span class="fn">listen</span>()</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: Security Architecture -->
+      <section id="security" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-shield-halved"></i> Security Architecture &amp; Safeguards</h2>
+        <p class="section-desc">
+          Qalam is engineered from the ground up for high-risk web production environments with multi-layered defensive sandboxing.
+        </p>
+
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">Automatic XSS Sanitization</div>
+            <span class="method-badge security"><i class="fa-solid fa-lock"></i> Auto-Escaped</span>
+          </div>
+          <div class="method-desc">
+            All <code>{{ ... }}</code> expressions are automatically sanitized through <code>escaper.escapeHtml()</code> before output generation, preventing reflected, stored, and DOM-based Cross-Site Scripting.
+          </div>
+        </div>
+
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">Path Traversal Boundary Defense</div>
+            <span class="method-badge security"><i class="fa-solid fa-folder-shield"></i> Sandbox Enforced</span>
+          </div>
+          <div class="method-desc">
+            <code>TemplateLoader.getSafePath()</code> resolves canonical paths and guarantees that all template identifiers (including layouts in <code>{% extends %}</code> and partials in <code>{% include %}</code>) strictly reside inside the configured <code>views</code> directory. Traversal sequences (<code>../</code>, <code>..\</code>) and null bytes trigger fatal security exceptions.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: In-Memory AST Caching -->
+      <section id="caching" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-gauge-high"></i> In-Memory AST Compilation Caching</h2>
+        <p class="section-desc">
+          In high-concurrency production deployments, reading and parsing template files from disk on every HTTP request consumes excessive I/O and CPU cycles.
+        </p>
+
+        <p>
+          Qalam features an automatic <strong>In-Memory AST Compilation Cache</strong>:
+        </p>
+        <ol style="margin: 12px 0 20px 24px; color:var(--text-secondary);">
+          <li style="margin-bottom:6px;">When <code>v.render("page")</code> is first called, the template file is read from disk, tokenized, and compiled into an AST tree.</li>
+          <li style="margin-bottom:6px;">The parsed AST is stored in an in-memory dictionary.</li>
+          <li style="margin-bottom:6px;">All subsequent requests for that template bypass the disk, lexer, and parser entirely, executing directly against the cached AST node tree with <strong>up to 30x faster response latency</strong>.</li>
+        </ol>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span class="code-lang">djazair</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <div class="code-body"><pre><code><span class="cmt"># Production: Caching enabled (default)</span>
+<span class="kwd">let</span> prodView = <span class="kwd">new</span> qalam.<span class="fn">view</span>({<span class="str">"views"</span>: <span class="str">"views"</span>, <span class="str">"cache"</span>: <span class="kwd">True</span>})
+
+<span class="cmt"># Local Development: Disable cache to immediately see disk edits without restarting server</span>
+<span class="kwd">let</span> devView = <span class="kwd">new</span> qalam.<span class="fn">view</span>({<span class="str">"views"</span>: <span class="str">"views"</span>, <span class="str">"cache"</span>: <span class="kwd">False</span>})
+
+<span class="cmt"># Programmatic cache flush (e.g. after deploying new template updates)</span>
+prodView.<span class="fn">clearCache</span>()</code></pre></div>
+        </div>
+      </section>
+
+      <!-- Section: API Reference - view Class -->
+      <section id="api-view-class" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-cubes"></i> view Class &amp; Constructor</h2>
+        <p class="section-desc">
+          The main template orchestrator class exported by <code>qalam</code>.
+        </p>
+
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              <span class="kwd">new</span> qalam.<span class="method-name">view</span>(config = {}) &rarr; <span class="method-ret">view</span>
+            </div>
+            <span class="method-badge">Constructor</span>
+          </div>
+          <div class="method-desc">
+            Instantiates a new View template engine instance with configuration options.
+          </div>
+
+          <div class="table-wrapper" style="margin-top:14px;">
+            <table class="api-table">
+              <thead>
+                <tr><th>Option</th><th>Type</th><th>Default</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>"views"</code></td>
+                  <td><code>String</code></td>
+                  <td><code>"views"</code></td>
+                  <td>Base filesystem directory containing template files.</td>
+                </tr>
+                <tr>
+                  <td><code>"cache"</code></td>
+                  <td><code>Boolean</code></td>
+                  <td><code>True</code></td>
+                  <td>Enables or disables in-memory compiled AST caching.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: API Reference - Methods -->
+      <section id="api-methods" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-code"></i> view Methods</h2>
+        <p class="section-desc">
+          Methods available on any instantiated <code>view</code> object.
+        </p>
+
+        <!-- Method: render -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              v.<span class="method-name">render</span>(templateName, data = {}) &rarr; <span class="method-ret">String</span>
+            </div>
+            <span class="method-badge">Core Engine</span>
+          </div>
+          <div class="method-desc">
+            Reads a template file by name identifier (e.g. <code>"home"</code> or <code>"users/details"</code>), resolves layout inheritance (<code>{% extends %}</code>), executes loops and conditionals, and returns the rendered HTML string.
+          </div>
+        </div>
+
+        <!-- Method: renderString -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              v.<span class="method-name">renderString</span>(templateString, data = {}, blocksMap = {}) &rarr; <span class="method-ret">String</span>
+            </div>
+            <span class="method-badge">In-Memory</span>
+          </div>
+          <div class="method-desc">
+            Directly compiles and renders an in-memory template text string with context variables, without touching the filesystem.
+          </div>
+        </div>
+
+        <!-- Method: registerFilter -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              v.<span class="method-name">registerFilter</span>(name, callback) &rarr; <span class="method-ret">Void</span>
+            </div>
+            <span class="method-badge filter">Filter</span>
+          </div>
+          <div class="method-desc">
+            Registers a custom transformation filter. The callback must accept <code>(val, args = [])</code> and return the transformed string or value.
+          </div>
+        </div>
+
+        <!-- Method: getSafePath -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              v.<span class="method-name">getSafePath</span>(templateName) &rarr; <span class="method-ret">String</span>
+            </div>
+            <span class="method-badge security">Security</span>
+          </div>
+          <div class="method-desc">
+            Resolves and validates the absolute path for a template name, asserting that it does not escape the configured views boundary. Throws fatal error on traversal attempts.
+          </div>
+        </div>
+
+        <!-- Method: readFile -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              v.<span class="method-name">readFile</span>(templateName) &rarr; <span class="method-ret">String</span>
+            </div>
+            <span class="method-badge">Filesystem</span>
+          </div>
+          <div class="method-desc">
+            Reads and returns the raw UTF-8 string content of a validated template file from disk.
+          </div>
+        </div>
+
+        <!-- Method: clearCache -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              v.<span class="method-name">clearCache</span>() &rarr; <span class="method-ret">Void</span>
+            </div>
+            <span class="method-badge">Cache</span>
+          </div>
+          <div class="method-desc">
+            Clears all compiled AST trees from memory cache, forcing templates to be re-read and re-parsed on their next invocation.
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: API Reference - Standalone Helpers -->
+      <section id="api-helpers" class="doc-section">
+        <h2 class="section-title"><i class="fa-solid fa-toolbox"></i> Standalone Helper Functions</h2>
+        <p class="section-desc">
+          Top-level convenience utilities exported directly by the <code>qalam</code> module.
+        </p>
+
+        <!-- Helper: qalam.renderString -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              qalam.<span class="method-name">renderString</span>(templateString, data = {}, blocksMap = {}) &rarr; <span class="method-ret">String</span>
+            </div>
+            <span class="method-badge">Convenience</span>
+          </div>
+          <div class="method-desc">
+            Shortcut for rapid template rendering without manually constructing a <code>new qalam.view()</code> instance.
+          </div>
+        </div>
+
+        <!-- Helper: qalam.escapeHtml -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              qalam.<span class="method-name">escapeHtml</span>(strVal) &rarr; <span class="method-ret">String</span>
+            </div>
+            <span class="method-badge security">Security</span>
+          </div>
+          <div class="method-desc">
+            Encodes HTML characters (<code>&amp;</code>, <code>&lt;</code>, <code>&gt;</code>, <code>"</code>, <code>'</code>) into standard entities to neutralize Cross-Site Scripting threats.
+          </div>
+        </div>
+
+        <!-- Helper: qalam.filterRegistry -->
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-sig">
+              qalam.<span class="method-name">filterRegistry</span>
+            </div>
+            <span class="method-badge filter">Registry</span>
+          </div>
+          <div class="method-desc">
+            Direct access to the underlying <code>filterRegistry</code> class for advanced custom filter engine customization.
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer style="margin-top: 80px; padding-top: 30px; border-top: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; color:var(--text-muted); font-size:13px; flex-wrap:wrap; gap:12px;">
+        <div>
+          &copy; 2026 <strong>Djazair Language Project</strong>. Developed by <strong>Harizi Riyadh</strong> (hariziriyadh@gmail.com).
+        </div>
+        <div style="display:flex; gap:16px;">
+          <a href="https://github.com/djazair-language/djazair-extensions" target="_blank" style="color:var(--text-muted); text-decoration:none;"><i class="fab fa-github"></i> GitHub</a>
+          <a href="#overview" style="color:var(--text-muted); text-decoration:none;"><i class="fas fa-arrow-up"></i> Back to Top</a>
+        </div>
+      </footer>
+
+    </div>
+  </main>
+
+  <script src="docs.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# cookieJar.dz — Cookie Storage & Manipulation Interface
+# ═══════════════════════════════════════════════════════════════════════════════
+# Attached to `req.cookies` and `res.cookies` for reading, writing, and clearing cookies.
+
+import "../helpers/cookie.dz" as *
+
+class cookieJar
+    # Initializes the cookie jar with parsed request cookies and response reference.
+    #
+    # @param parsedCookies {Map}    Parsed cookies dictionary
+    # @param res           {Object} Kasbah response instance
+    init(parsedCookies, res)
+        self.cookieData  = parsedCookies
+        self.resInstance = res
+    end
+
+    # Returns the value of a cookie, or fallback if absent.
+    #
+    # @param name     {String} Cookie name
+    # @param fallback {Any}    Default fallback value
+    # @return         {Any}    Cookie value or fallback
+    get(name, fallback = Null)
+        if self.cookieData.has(name)
+            return self.cookieData[name]
+        end
+        return fallback
+    end
+
+    # Sets a cookie on the outgoing response.
+    #
+    # @param name    {String} Cookie name
+    # @param value   {String} Cookie value
+    # @param options {Map}    Cookie directives (maxAge, path, domain, secure, httpOnly, sameSite)
+    # @return        {Object} Self for chaining
+    set(name, value, options = {})
+        self.resInstance.cookie(name, value, options)
+        return self
+    end
+
+    # Marks a cookie for deletion on the outgoing response.
+    #
+    # @param name {String} Cookie name
+    # @return     {Object} Self for chaining
+    delete(name)
+        self.resInstance.clearCookie(name)
+        return self
+    end
+
+    # Alias for delete()
+    clearCookie(name)
+        return self.delete(name)
+    end
+
+    # Checks if a cookie is present in the incoming request.
+    #
+    # @param name {String} Cookie name
+    # @return     {Boolean} True if cookie exists
+    has(name)
+        return self.cookieData.has(name)
+    end
+
+    # Returns a shallow copy map of all incoming cookies.
+    #
+    # @return {Map} Cookies dictionary
+    all()
+        let result = {}
+        for k, v in self.cookieData
+            result[k] = v
+        end
+        return result
+    end
+
+    # Clears all cookies from memory and queues delete headers to client.
+    #
+    # @return {Object} Self for chaining
+    clear()
+        let names = self.cookieData.keys()
+        for name in names
+            self.resInstance.deleteCookie(name)
+        end
+        self.cookieData.clear()
+        return self
+    end
+end

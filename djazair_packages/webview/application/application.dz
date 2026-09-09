@@ -1,0 +1,220 @@
+# application.dz
+# Application lifecycle, event loop, and window manager for Djazair Webview
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+import "../bridge/bridge.dz" as *
+import "../window/window.dz" as *
+import "../utils/utils.dz" as *
+
+use json as *
+
+let _native = __native("_webview")
+
+# App class: Manages desktop application lifecycle, event loop, and multi-window hierarchy.
+class App
+    # Initializes application instance and creates default primary window.
+    init(options = {})
+        let defaults = {
+            "title": "Djazair App",
+            "width": 1024,
+            "height": 768,
+            "x": -1, "y": -1,
+            "resizable": True,
+            "frameless": False,
+            "minWidth": 400,
+            "minHeight": 300,
+            "maxWidth": 0,
+            "maxHeight": 0,
+            "closable": True,
+            "debug": False,
+            "singleInstance": False,
+            "appId": ""
+        }
+
+        for key in defaults.keys()
+            if options.has(key)
+                defaults[key] = options[key]
+            end
+        end
+
+        self._onReady = Null
+        self._onQuit = Null
+        self._errorCallback = Null
+        self._quitting = False
+        self._debug = defaults["debug"]
+        self._windows = []
+
+        if self._debug
+            setLogLevel("debug")
+        else
+            setLogLevel("warn")
+        end
+
+        # Handle Single Instance Lock
+        let singleInstance = defaults["singleInstance"]
+        let appId = defaults["appId"]
+        if appId == ""
+            appId = defaults["title"]
+        end
+
+        if singleInstance
+            let hasLock = _native.appRequestSingleInstanceLock(appId)
+            if !hasLock
+                sysLog("App", "Another instance of '${appId}' is already running. Restoring focus and quitting.", "warn")
+                _native.appFocusExistingInstance(defaults["title"])
+                self._quitting = True
+                self.window = Null
+                return
+            end
+        end
+
+        sysLog("App", "Initializing primary window...")
+        let win = new Window(self, defaults)
+        self.window = win
+        self._windows.append(win)
+
+        sysLog("App", "Attaching IPC bridge to primary window...")
+        self.bridge = new Bridge(self, win)
+
+        # Built-in handler for frameless window dragging from frontend
+        self.bridge.on("__djazair_start_drag", fn(_)
+            win.startDragging()
+            return True
+        end)
+
+        if self._debug
+            sysLog("App", "Debug mode enabled, configuring DevTools and console logger...")
+            win.initJs(readWebviewAsset("debug_console.js"))
+            self.bridge.on("__console", fn(args)
+                let typeStr = args[0]
+                let msg = args[1]
+                let lvl = "info"
+                if typeStr == "error"
+                    lvl = "error"
+                elif typeStr == "warn"
+                    lvl = "warn"
+                elif typeStr == "log"
+                    lvl = "debug"
+                elif typeStr == "info"
+                    lvl = "info"
+                end
+                sysLog("Webview", msg, lvl)
+            end)
+            win.openDevTools()
+        end
+
+        sysLog("App", "Application initialized successfully.")
+    end
+
+    # Creates and registers a new additional window managed by this application.
+    createWindow(options = {})
+        sysLog("App", "Spawning new window...")
+        let win = new Window(self, options)
+        self._windows.append(win)
+        return win
+    end
+
+    # Internal hook invoked when an individual window is closed.
+    _onWindowClosed(win)
+        let idx = -1
+        for i in 0..self._windows.length()
+            if self._windows[i] == win
+                idx = i
+                break
+            end
+        end
+
+        if idx != -1
+            self._windows.pop(idx)
+        end
+
+        sysLog("App", "Window closed. Remaining active windows: ${self._windows.length()}", "debug")
+
+        # Automatically terminate application when last window closes
+        if self._windows.length() == 0 and !self._quitting
+            self.quit()
+        end
+    end
+
+    # Starts the application event loop.
+    run()
+        if self._quitting return end
+        sysLog("App", "Running application event loop.")
+        if !isNull(self._onReady)
+            self._onReady()
+        end
+        _native.appRun()
+    end
+
+    # Gracefully terminates the application and closes all windows.
+    quit()
+        if self._quitting return end
+        sysLog("App", "Quitting application...")
+        self._quitting = True
+
+        if !isNull(self._onQuit)
+            try
+                self._onQuit()
+            catch err
+                sysLog("App", "Error in onQuit handler: ${err}", "error")
+            end
+        end
+
+        _native.appQuit()
+    end
+
+    # Closes the primary window.
+    close()
+        sysLog("App", "Closing primary application window...")
+        if !isNull(self.window)
+            self.window.close()
+        end
+    end
+
+    # Checks if the primary window is valid and open.
+    isValid()
+        return !isNull(self.window) and self.window.isValid()
+    end
+
+    # Registers a callback to execute right before the event loop starts.
+    onReady(cb)
+        self._onReady = cb
+    end
+
+    # Registers a callback to execute before application termination.
+    onQuit(cb)
+        self._onQuit = cb
+    end
+
+    # Registers a global error callback.
+    onError(cb)
+        self._errorCallback = cb
+    end
+
+    # Enables or disables runtime debug mode.
+    setDebug(enable)
+        self._debug = enable
+        if enable
+            setLogLevel("debug")
+            sysLog("App", "Debug mode set to: True")
+            if !isNull(self.window)
+                self.window.openDevTools()
+            end
+        else
+            setLogLevel("warn")
+            sysLog("App", "Debug mode set to: False")
+        end
+    end
+
+    # Requests a single-instance application lock via named mutex.
+    # Returns True if this process successfully acquired the lock.
+    requestSingleInstanceLock(appId)
+        return _native.appRequestSingleInstanceLock(appId)
+    end
+
+    # Finds and brings to foreground an existing instance of the application window.
+    focusExistingInstance(title)
+        return _native.appFocusExistingInstance(title)
+    end
+end

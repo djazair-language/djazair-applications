@@ -1,0 +1,27 @@
+﻿import "kasbah/init.dz" as kasbah
+use process
+
+let app = new kasbah.kasbahApp({"port": 9999, "logger": False})
+
+app.get("/ping", fn(req, res)
+    res.ok({"message": "pong"})
+end)
+
+app.get("/echo/:id", fn(req, res)
+    res.ok({"id": req.param("id")})
+end)
+
+app.post("/validate", fn(req, res)
+    let v = req.validate()
+    v.field("email").required().email()
+    v.field("age").required().number().min(18)
+    
+    if v.passes()
+        res.created({"status": "valid"})
+    else
+        res.validationError(v.errors())
+    end
+end)
+
+print("Starting extreme test server on port 9999...")
+app.listen()

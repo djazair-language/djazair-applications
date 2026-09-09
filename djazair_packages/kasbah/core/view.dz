@@ -1,0 +1,51 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# view.dz — Kasbah View Adapter (Powered by Qalam)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Bridges Kasbah web applications with the Qalam AST template engine (similar to
+# how Laravel integrates Blade). Handles view directory resolution, template file
+# rendering, and in-memory string rendering.
+
+use qalam
+use path
+
+class view
+    # Initializes the View renderer with configuration options.
+    #
+    # @param config {Map} Configuration options:
+    #                     - "views" {String} Directory path for template files (default: "views")
+    init(config = {})
+        let viewsDir = "views"
+        if isMap(config) and config.has("views") and str(config["views"]) != ""
+            viewsDir = config["views"]
+        end
+        self.configMap = config
+        self.engine = new qalam.view({"views": viewsDir})
+    end
+
+    # Renders a template file with a data context.
+    #
+    # @param templateName {String} Template path name (e.g. "home" or "trades/list")
+    # @param data         {Map}    Template context variables
+    # @return             {String} Rendered HTML string
+    render(templateName, data = {})
+        return self.engine.render(templateName, data)
+    end
+
+    # Parses and renders an in-memory template string directly with a data context.
+    #
+    # @param templateString {String} Raw template text
+    # @param data           {Map}    Template context variables
+    # @param blocksMap      {Map}    Optional block overrides for inheritance
+    # @return               {String} Rendered HTML string
+    renderString(templateString, data = {}, blocksMap = {})
+        return self.engine.renderString(templateString, data, blocksMap)
+    end
+
+    # Resolves and validates absolute filesystem path for a template file.
+    #
+    # @param templateName {String} Template path
+    # @return             {String} Absolute normalized filesystem path
+    getSafePath(templateName)
+        return self.engine.getSafePath(templateName)
+    end
+end

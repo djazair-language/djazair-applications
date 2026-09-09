@@ -1,0 +1,348 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# validator.dz — Fluent Input Validation Engine
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides an expressive chaining DSL for input schema validation (types, bounds,
+# regex, email, URL, length, choices, and custom predicates).
+
+use regex
+
+class fieldValidator
+    # Initializes a field validator node.
+    #
+    # @param parent {Object} Parent validator instance
+    # @param name   {String} Field key name
+    # @param value  {Any}    Field value to validate
+    init(parent, name, value)
+        self.parentValidator = parent
+        self.fieldName       = name
+        self.fieldValue      = value
+        self.isOptional      = False
+        self.isMissing       = isNull(value) or (isString(value) and value == "")
+        self.hasFailed       = False
+    end
+
+    # Determines whether subsequent validation rules on this field should be skipped.
+    #
+    # @return {Boolean} True if skipped
+    shouldSkip()
+        return self.hasFailed or (self.isOptional and self.isMissing)
+    end
+
+    # Enforces that the field is present and non-empty.
+    #
+    # @return {Object} Self for chaining
+    required()
+        if self.hasFailed
+            return self
+        end
+        self.isOptional = False
+        if self.isMissing
+            self.parentValidator.addError(self.fieldName, "is required")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Marks the field as optional (skips further rules if value is missing/empty).
+    #
+    # @return {Object} Self for chaining
+    optional()
+        if self.hasFailed
+            return self
+        end
+        self.isOptional = True
+        return self
+    end
+
+    # Validates that value is of string type.
+    #
+    # @return {Object} Self for chaining
+    string()
+        if self.shouldSkip() return self end
+        if not isString(self.fieldValue)
+            self.parentValidator.addError(self.fieldName, "must be a string")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates that value is of numeric type.
+    #
+    # @return {Object} Self for chaining
+    number()
+        if self.shouldSkip() return self end
+        if not isNumber(self.fieldValue)
+            self.parentValidator.addError(self.fieldName, "must be a number")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates that value is a boolean.
+    #
+    # @return {Object} Self for chaining
+    boolean()
+        if self.shouldSkip() return self end
+        if not isBool(self.fieldValue)
+            self.parentValidator.addError(self.fieldName, "must be a boolean")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates that value is an array.
+    #
+    # @return {Object} Self for chaining
+    array()
+        if self.shouldSkip() return self end
+        if not isArray(self.fieldValue)
+            self.parentValidator.addError(self.fieldName, "must be an array")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates that string matches an email format.
+    #
+    # @return {Object} Self for chaining
+    email()
+        if self.shouldSkip() return self end
+        let pattern = "^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$"
+        let m = regex.fullMatch(pattern, str(self.fieldValue))
+        if isNull(m)
+            self.parentValidator.addError(self.fieldName, "must be a valid email address")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates that string is a valid HTTP or HTTPS URL.
+    #
+    # @return {Object} Self for chaining
+    url()
+        if self.shouldSkip() return self end
+        let s = str(self.fieldValue)
+        if not s.startsWith("http://") and not s.startsWith("https://")
+            self.parentValidator.addError(self.fieldName, "must be a valid URL (http or https)")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates that string matches a regular expression pattern.
+    #
+    # @param pattern {String} Regex pattern string
+    # @return        {Object} Self for chaining
+    matches(pattern)
+        if self.shouldSkip() return self end
+        let m = regex.fullMatch(pattern, str(self.fieldValue))
+        if isNull(m)
+            self.parentValidator.addError(self.fieldName, "does not match the required pattern")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates numeric minimum bound (inclusive).
+    #
+    # @param n {Number} Minimum numeric value
+    # @return  {Object} Self for chaining
+    min(n)
+        if self.shouldSkip() return self end
+        if isNumber(self.fieldValue) and self.fieldValue < n
+            self.parentValidator.addError(self.fieldName, "must be at least ${n}")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates numeric maximum bound (inclusive).
+    #
+    # @param n {Number} Maximum numeric value
+    # @return  {Object} Self for chaining
+    max(n)
+        if self.shouldSkip() return self end
+        if isNumber(self.fieldValue) and self.fieldValue > n
+            self.parentValidator.addError(self.fieldName, "must be at most ${n}")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates string or array minimum length.
+    #
+    # @param n {Number} Minimum length
+    # @return  {Object} Self for chaining
+    minLength(n)
+        if self.shouldSkip() return self end
+        let len = 0
+        if isString(self.fieldValue) or isArray(self.fieldValue)
+            len = self.fieldValue.length()
+        end
+        if len < n
+            self.parentValidator.addError(self.fieldName, "must have at least ${n} characters/items")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates string or array maximum length.
+    #
+    # @param n {Number} Maximum length
+    # @return  {Object} Self for chaining
+    maxLength(n)
+        if self.shouldSkip() return self end
+        let len = 0
+        if isString(self.fieldValue) or isArray(self.fieldValue)
+            len = self.fieldValue.length()
+        end
+        if len > n
+            self.parentValidator.addError(self.fieldName, "must have at most ${n} characters/items")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Validates that value is one of allowed choices.
+    #
+    # @param allowed {Array} List of permitted values
+    # @return        {Object} Self for chaining
+    oneOf(allowed)
+        if self.shouldSkip() return self end
+        let found = False
+        for a in allowed
+            if a == self.fieldValue
+                found = True
+                break
+            end
+        end
+        if not found
+            let allowedStr = allowed.join(", ")
+            self.parentValidator.addError(self.fieldName, "must be one of: ${allowedStr}")
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Executes a custom validator closure `fn(val)`.
+    #
+    # @param ruleFn {Function} Closure returning True on pass, or error string/False on fail
+    # @return       {Object}   Self for chaining
+    custom(ruleFn)
+        if self.shouldSkip() return self end
+        let result = ruleFn(self.fieldValue)
+        if result != True
+            let msg = if isString(result) ? result else "failed custom validation"
+            self.parentValidator.addError(self.fieldName, msg)
+            self.hasFailed = True
+        end
+        return self
+    end
+
+    # Chains validation to the next field.
+    #
+    # @param name     {String} Next field name
+    # @param fallback {Any}    Fallback value if absent
+    # @return         {Object} FieldValidator instance
+    field(name, fallback = Null)
+        return self.parentValidator.field(name, fallback)
+    end
+end
+
+class validator
+    # Initializes a validator instance with input data dictionary.
+    #
+    # @param data {Map} Key-value map to validate
+    init(data)
+        self.inputData  = if isMap(data) ? data else {}
+        self.errorsMap  = {}
+        self.fieldsList = []
+    end
+
+    # Selects a field for rule chaining.
+    #
+    # @param name     {String} Field name
+    # @param fallback {Any}    Optional fallback value
+    # @return         {Object} FieldValidator instance
+    field(name, fallback = Null)
+        let value = fallback
+        if self.inputData.has(name)
+            value = self.inputData[name]
+        end
+        if not self.fieldsList.contains(name)
+            self.fieldsList.append(name)
+        end
+        return new fieldValidator(self, name, value)
+    end
+
+    # Adds an error message to a field.
+    #
+    # @param name {String} Field name
+    # @param msg  {String} Error description
+    addError(name, msg)
+        if not self.errorsMap.has(name)
+            self.errorsMap[name] = []
+        end
+        self.errorsMap[name].append(msg)
+    end
+
+    # Checks if all rules passed with zero errors.
+    #
+    # @return {Boolean} True if valid
+    passes()
+        return self.errorsMap.keys().length() == 0
+    end
+
+    # Checks if one or more validation errors occurred.
+    #
+    # @return {Boolean} True if invalid
+    fails()
+        return not self.passes()
+    end
+
+    # Returns the full errors dictionary `{ "field": ["error1", "error2"] }`.
+    #
+    # @return {Map} Errors dictionary
+    errors()
+        return self.errorsMap
+    end
+
+    # Returns the first error message across all fields, or Null.
+    #
+    # @return {String|Null} First error message
+    firstError()
+        for name, msgs in self.errorsMap
+            if msgs.length() > 0
+                return msgs[0]
+            end
+        end
+        return Null
+    end
+
+    # Returns all error messages recorded for a specific field.
+    #
+    # @param name {String} Field name
+    # @return     {Array}  List of error strings
+    errorFor(name)
+        if self.errorsMap.has(name)
+            return self.errorsMap[name]
+        end
+        return []
+    end
+
+    # Returns a sanitized dictionary containing only valid fields.
+    #
+    # @return {Map} Validated data dictionary
+    validated()
+        if not self.passes()
+            return {}
+        end
+        let result = {}
+        for name in self.fieldsList
+            if self.inputData.has(name)
+                result[name] = self.inputData[name]
+            end
+        end
+        return result
+    end
+end

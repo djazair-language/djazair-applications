@@ -1,0 +1,166 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# session.dz — Session Middleware & File-Backed Storage
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides signed cookie session tokens (HMAC SHA-256), file-based session stores,
+# and session state binding to `req.session`.
+
+use os
+use file
+use dir
+use json
+use regex
+use crypto
+import "../helpers/utils.dz" as *
+import "../helpers/cookie.dz" as *
+import "../core/sessionManager.dz" as sm
+
+class fileStore
+    # Initializes a file-based session storage directory.
+    #
+    # @param dirPath {String} Storage directory path
+    init(dirPath)
+        self.storeDir = dirPath
+        if not file.exists(dirPath)
+            dir.createAll(dirPath)
+        end
+    end
+
+    # Reads session JSON data from disk for a given session ID.
+    #
+    # @param sid {String} Session ID
+    # @return    {Map}    Session data dictionary
+    read(sid)
+        let spath = "${self.storeDir}/${sid}.json"
+        if not file.exists(spath)
+            return {}
+        end
+        try
+            let raw = file.read(spath)
+            return json.decode(raw)
+        catch err
+            return {}
+        end
+    end
+
+    # Writes session data map to disk as JSON.
+    #
+    # @param sid  {String} Session ID
+    # @param data {Map}    Session dictionary
+    write(sid, data)
+        if data.keys().length() == 0
+            self.destroy(sid)
+            return
+        end
+        let spath = "${self.storeDir}/${sid}.json"
+        try
+            file.write(spath, json.encode(data))
+        catch err
+        end
+    end
+
+    # Deletes session file from disk.
+    #
+    # @param sid {String} Session ID
+    destroy(sid)
+        let spath = "${self.storeDir}/${sid}.json"
+        try
+            if file.exists(spath)
+                file.delete(spath)
+            end
+        catch err
+        end
+    end
+end
+
+# Creates a signed session middleware closure.
+#
+# @param options {Map} Session options:
+#                      - secret {String} HMAC signing secret (min 32 chars)
+#                      - name {String} Cookie name (default: "kasbah.sid")
+#                      - maxAge {Number} Expiry in seconds (default: 86400)
+#                      - secure {Boolean} HTTPS only flag
+#                      - sameSite {String} "Lax" or "Strict"
+#                      - dir {String} Storage directory
+# @return        {Function} Middleware function `fn(req, res)`
+fn session(options = {})
+    let cookieName = "kasbah.sid"
+    if options.has("name")
+        cookieName = options["name"]
+    end
+
+    let sessionDir = "${os.tmpDir()}/kasbah_sessions"
+    if options.has("dir")
+        sessionDir = options["dir"]
+    end
+
+    let store = new fileStore(sessionDir)
+
+    let maxAge = 86400
+    if options.has("maxAge")
+        maxAge = options["maxAge"]
+    end
+
+    let secret = if options.has("secret") ? options["secret"] else ""
+    if not isString(secret) or secret.length() < 32
+        throw "kasbah.session(): 'secret' must contain at least 32 characters"
+    end
+
+    let secure = if options.has("secure") ? options["secure"] else False
+    let sameSite = if options.has("sameSite") ? options["sameSite"] else "Lax"
+    let cookieAttributes = {
+        "httpOnly": True,
+        "path":     "/",
+        "maxAge":   maxAge,
+        "sameSite": sameSite,
+        "secure":   secure
+    }
+
+    fn validSessionToken(token)
+        if not isString(token)
+            return ""
+        end
+        let pieces = token.split(".")
+        if pieces.length() != 2
+            return ""
+        end
+        let sid = pieces[0]
+        let signature = pieces[1]
+        if isNull(regex.fullMatch("[0-9a-f]{32}", sid))
+            return ""
+        end
+        let expected = crypto.sha256("${secret}:${sid}")
+        if signature != expected
+            return ""
+        end
+        return sid
+    end
+
+    return fn(req, res)
+        let sid = Null
+        let rawSid = req.cookies.get(cookieName)
+        sid = validSessionToken(rawSid)
+
+        let sessData = {}
+        let isNew    = False
+
+        if isNull(sid) or sid == ""
+            sid   = generateId(32)
+            isNew = True
+            let token = "${sid}.${crypto.sha256("${secret}:${sid}")}"
+            res.cookie(cookieName, token, cookieAttributes)
+        else
+            sessData = store.read(sid)
+        end
+
+        let mgr = new sm.sessionManager(sessData, sid, isNew, store, res, {
+            "secret":     secret,
+            "name":       cookieName,
+            "attributes": cookieAttributes
+        })
+        req.session = mgr
+        res.session = mgr
+
+        req.set("store", store)
+        req.set("sid", sid)
+    end
+end

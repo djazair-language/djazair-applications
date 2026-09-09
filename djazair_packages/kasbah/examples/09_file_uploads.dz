@@ -1,0 +1,79 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah Example 09 — File Uploads & FileManager Processing
+# ═══════════════════════════════════════════════════════════════════════════════
+# Demonstrates multipart file upload handling, MIME type checking,
+# extension whitelisting, and structured storage processing via `req.file()`
+# and `req.uploader()`.
+#
+# Usage:
+#   Run: djazair examples/09_file_uploads.dz
+#   Endpoints:
+#     POST /upload/avatar  -> Single file upload with image validation
+#     POST /upload/gallery -> Multi-file upload via req.uploader()
+
+use kasbah
+use dir
+
+# Ensure storage directory exists
+if not dir.exists("storage")
+    dir.create("storage")
+end
+if not dir.exists("storage/avatars")
+    dir.create("storage/avatars")
+end
+if not dir.exists("storage/gallery")
+    dir.create("storage/gallery")
+end
+
+let app = new kasbah.app({
+    "port":        8080,
+    "maxBodySize": 20, # Allow up to 20 MB payloads
+    "logger":      True
+})
+
+# 1. Single Avatar Upload Endpoint
+app.post("/upload/avatar", fn(req, res)
+    if not req.hasFile("avatar")
+        return res.badRequest("No file uploaded under field 'avatar'")
+    end
+
+    let file = req.file("avatar")
+
+    # Validate file extension and image MIME category
+    if not file.isImage() or not file.hasExt(["jpg", "jpeg", "png", "webp"])
+        return res.badRequest("Avatar must be a valid JPG, PNG, or WebP image")
+    end
+
+    # Save to storage
+    let savedPath = file.saveTo("storage/avatars")
+
+    res.created({
+        "message":  "Avatar uploaded successfully",
+        "path":     savedPath,
+        "size":     file.getSize(),
+        "mimeType": file.getMimeType()
+    })
+end)
+
+# 2. Multi-File Gallery Upload via uploader()
+app.post("/upload/gallery", fn(req, res)
+    let uploader = req.uploader({
+        "dest":         "storage/gallery",
+        "maxSize":      5, # Max 5 MB per file
+        "allowedTypes": ["image/jpeg", "image/png", "image/webp"],
+        "prefix":       "gallery_"
+    })
+
+    let result = uploader.multiple("photos", 10)
+    if not result["ok"]
+        return res.badRequest(result["errors"])
+    end
+
+    res.created({
+        "message":  "Gallery photos uploaded successfully",
+        "uploaded": result["files"]
+    })
+end)
+
+# Start server listener
+app.listen()

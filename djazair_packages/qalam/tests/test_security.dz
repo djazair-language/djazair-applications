@@ -1,0 +1,113 @@
+# test_security.dz — Security tests for the Qalam template engine
+
+use qalam
+use os
+use file
+use dir
+
+let passed = 0
+let failed = 0
+
+fn test(name, result, expected)
+    if result == expected
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected: ${expected}")
+        print("  Got:      ${result}")
+    end
+end
+
+fn testThrows(name, fn_to_call)
+    let threw = False
+    try
+        fn_to_call()
+    catch e
+        threw = True
+    end
+    if threw
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name} (expected exception, none thrown)")
+    end
+end
+
+let tmpDir = "${os.tmpDir()}/qalam_security_tests"
+if not file.exists(tmpDir)
+    dir.createAll(tmpDir)
+end
+file.write("${tmpDir}/safe.html", "<p>{{ msg }}</p>")
+
+let v = new qalam.view({"views": tmpDir})
+
+# ── XSS Prevention ────────────────────────────────────────────────────────────
+test("XSS: script tag escaped",
+    qalam.renderString("{{ x }}", {"x": "<script>alert(1)</script>"}),
+    "&lt;script&gt;alert(1)&lt;/script&gt;")
+
+test("XSS: onerror attribute escaped",
+    qalam.renderString("{{ x }}", {"x": "<img onerror=\"alert(1)\">"}),
+    "&lt;img onerror=&quot;alert(1)&quot;&gt;")
+
+test("XSS: ampersand encoded",
+    qalam.renderString("{{ x }}", {"x": "a & b"}),
+    "a &amp; b")
+
+test("XSS: single quote encoded",
+    qalam.renderString("{{ x }}", {"x": "it's"}),
+    "it&#039;s")
+
+test("XSS: raw passes through (intended for trusted content)",
+    qalam.renderString("{{{ x }}}", {"x": "<b>ok</b>"}),
+    "<b>ok</b>")
+
+# ── Path Traversal Prevention ─────────────────────────────────────────────────
+testThrows("PATH: ../escape attempt",
+    fn() v.render("../etc/passwd") end)
+
+testThrows("PATH: double-dot sequence",
+    fn() v.render("../../secret") end)
+
+testThrows("PATH: null-byte attempt",
+    fn() v.render("safe\u0000../../secret") end)
+
+# ── Missing template ──────────────────────────────────────────────────────────
+testThrows("FILE: missing template throws exception",
+    fn() v.render("does_not_exist") end)
+
+# ── Null data safety ──────────────────────────────────────────────────────────
+test("NULL: missing key -> empty string",
+    qalam.renderString("{{ missing }}", {}),
+    "")
+
+test("NULL: nested missing key -> empty string",
+    qalam.renderString("{{ a.b.c }}", {}),
+    "")
+
+test("NULL: null value -> empty string",
+    qalam.renderString("{{ x }}", {"x": Null}),
+    "")
+
+# ── Large input robustness ────────────────────────────────────────────────────
+let bigData = {"items": []}
+let i = 0
+while i < 1000
+    bigData["items"].append("item_${i}")
+    i += 1
+end
+let bigResult = qalam.renderString("{% for x in items %}{{ x }},{% endfor %}", bigData)
+test("ROBUST: 1000-item loop renders all",
+    bigResult.split(",").length() - 1,
+    1000)
+
+# ── Report ────────────────────────────────────────────────────────────────────
+print("\n══════════════════════════════════════")
+print("Qalam Security Tests")
+print("  Passed : ${passed}")
+print("  Failed : ${failed}")
+if failed == 0
+    print("  Result : ALL PASSED")
+end
+print("══════════════════════════════════════")

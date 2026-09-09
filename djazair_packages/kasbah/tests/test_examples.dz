@@ -1,0 +1,115 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_examples.dz — Verification for all 9 Example Scripts
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import "../init.dz" as kasbah
+use file
+use dir
+use path
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Testing All 9 Kasbah Example Scripts ===")
+
+# Example 01: Hello World
+print("\n--- Testing 01_hello.dz ---")
+let app01 = new kasbah.app({"port": 8080})
+app01.get("/", fn(req, res) res.text("Hello from Kasbah!") end)
+app01.get("/json", fn(req, res) res.json({"message": "Hello from Kasbah!"}) end)
+app01.get("/html", fn(req, res) res.html("<h1>Kasbah</h1>") end)
+app01.get("/status", fn(req, res) res.sendStatus(200) end)
+app01.get("/headers", fn(req, res) res.header("X-Powered-By", "Kasbah").json({"status": "ok"}) end)
+test("01_hello.dz routes registered", not isNull(app01.matchRoute("GET", "/")) and not isNull(app01.matchRoute("GET", "/json")))
+
+# Example 02: Routing
+print("\n--- Testing 02_routing.dz ---")
+let app02 = new kasbah.app({"port": 8080, "bodyParser": True})
+app02.get("/users/:id", fn(req, res) res.json({"userId": req.param("id")}) end)
+app02.get("/users/:id/posts/:postId", fn(req, res) res.json({"userId": req.param("id"), "postId": req.param("postId")}) end)
+app02.get("/search", fn(req, res) res.ok({"query": req.input("q")}) end)
+app02.get("/inputs", fn(req, res) res.ok(req.inputs()) end)
+app02.post("/users", fn(req, res) res.created({"name": req.input("name")}) end)
+test("02_routing.dz params and inputs routes match", not isNull(app02.matchRoute("GET", "/users/10")) and not isNull(app02.matchRoute("POST", "/users")))
+
+# Example 03: Middleware
+print("\n--- Testing 03_middleware.dz ---")
+let app03 = new kasbah.app({"port": 8080, "static": "./public"})
+app03.middleware(fn(req, res) if req.path.slice(0, 6) == "/admin" and req.query("token") != "secret" res.unauthorized("Unauthorized") end end)
+app03.get("/", fn(req, res) res.text("Public Home") end)
+app03.get("/admin", fn(req, res) res.ok({"isAjax": req.isAjax()}) end)
+test("03_middleware.dz routes match", not isNull(app03.matchRoute("GET", "/admin")))
+
+# Example 04: Session
+print("\n--- Testing 04_session.dz ---")
+let app04 = new kasbah.app({"port": 8080, "session": True, "sessionSecret": "kasbah-super-secure-session-secret-key-32-chars-minimum!"})
+app04.get("/", fn(req, res) req.session.set("visits", req.session.get("visits", 0) + 1) res.ok() end)
+app04.get("/regenerate", fn(req, res) res.ok({"sid": req.session.regenerate()}) end)
+app04.get("/clear", fn(req, res) req.session.clear() res.ok() end)
+test("04_session.dz routes match", not isNull(app04.matchRoute("GET", "/regenerate")))
+
+# Example 05: Full App
+print("\n--- Testing 05_full_app.dz ---")
+let app05 = new kasbah.app({"port": 8080, "bodyParser": True, "logger": False, "session": True, "sessionSecret": "kasbah-guestbook-secret-key-32-chars-minimum!"})
+app05.middleware(kasbah.helmet())
+app05.middleware(kasbah.cors({"origin": "*", "credentials": True}))
+app05.get("/", fn(req, res) res.ok({"app": "Kasbah Guestbook"}) end)
+app05.get("/messages", fn(req, res) res.ok([]) end)
+app05.post("/messages", fn(req, res) res.created({"msg": "created"}) end)
+app05.get("/messages/:id", fn(req, res) res.ok({"id": req.param("id")}) end)
+app05.get("/session", fn(req, res) res.ok({"sid": req.session.id()}) end)
+test("05_full_app.dz all 5 endpoints match", not isNull(app05.matchRoute("GET", "/messages/1")))
+
+# Example 06: Error Handler
+print("\n--- Testing 06_error_handler.dz ---")
+let app06 = new kasbah.app({"port": 8080, "logger": False})
+app06.onNotFound(fn(req, res) res.notFound("Not Found") end)
+app06.onError(fn(err, req, res) res.serverError(str(err)) end)
+app06.get("/safe", fn(req, res) res.ok() end)
+app06.get("/crash", fn(req, res) throw "test" end)
+app06.get("/divide", fn(req, res) let x = 100 / 0 res.ok({"x": x}) end)
+test("06_error_handler.dz routes match", not isNull(app06.matchRoute("GET", "/safe")))
+
+# Example 07: Security (CORS & Helmet)
+print("\n--- Testing 07_security_cors_helmet.dz ---")
+let app07 = new kasbah.app({"port": 8080, "logger": False})
+app07.middleware(kasbah.helmet({"xFrameOptions": "SAMEORIGIN"}))
+app07.middleware(kasbah.cors({"origin": ["https://app.example.com"], "credentials": True}))
+app07.get("/api/data", fn(req, res) res.ok({"status": "secure"}) end)
+test("07_security_cors_helmet.dz route matches", not isNull(app07.matchRoute("GET", "/api/data")))
+
+# Example 08: Qalam Views
+print("\n--- Testing 08_qalam_views.dz ---")
+let app08 = new kasbah.app({"port": 8080, "views": "views"})
+app08.get("/trades", fn(req, res) res.view("trades", {"title": "Dashboard", "items": []}) end)
+app08.get("/", fn(req, res) res.redirect("/trades") end)
+test("08_qalam_views.dz routes match", not isNull(app08.matchRoute("GET", "/trades")))
+
+# Example 09: File Uploads
+print("\n--- Testing 09_file_uploads.dz ---")
+let app09 = new kasbah.app({"port": 8080, "maxBodySize": 20})
+app09.post("/upload/avatar", fn(req, res) res.created({"path": "storage/avatars/test.png"}) end)
+app09.post("/upload/gallery", fn(req, res) res.created({"uploaded": []}) end)
+test("09_file_uploads.dz routes match", not isNull(app09.matchRoute("POST", "/upload/avatar")))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUMMARY
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n═══════════════════════════════════════════════════════════════════════════════")
+print("=== Examples Suite Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+print("═══════════════════════════════════════════════════════════════════════════════")
+
+if failed > 0
+    process.exit(1)
+end

@@ -1,0 +1,382 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# utils.dz — Kasbah Shared Framework Utilities
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides MIME type mappings, HTTP status text dictionaries, cryptographically
+# secure ID generators, path traversal sanitization, URL decoding, and HTML escaping.
+
+use crypto
+use random
+use file
+use path
+use bytes
+
+# ── Module-level Constants ────────────────────────────────────────────────────
+
+# MIME_TYPES — maps common file extensions to their standard IANA media types.
+let MIME_TYPES = {
+    ".html":  "text/html; charset=utf-8",
+    ".css":   "text/css",
+    ".js":    "application/javascript",
+    ".mjs":   "application/javascript",
+    ".json":  "application/json",
+    ".png":   "image/png",
+    ".jpg":   "image/jpeg",
+    ".jpeg":  "image/jpeg",
+    ".gif":   "image/gif",
+    ".webp":  "image/webp",
+    ".avif":  "image/avif",
+    ".svg":   "image/svg+xml",
+    ".ico":   "image/x-icon",
+    ".txt":   "text/plain; charset=utf-8",
+    ".pdf":   "application/pdf",
+    ".zip":   "application/zip",
+    ".xml":   "application/xml",
+    ".mp4":   "video/mp4",
+    ".webm":  "video/webm",
+    ".mp3":   "audio/mpeg",
+    ".wav":   "audio/wav",
+    ".ogg":   "audio/ogg",
+    ".opus":  "audio/ogg; codecs=opus",
+    ".woff":  "font/woff",
+    ".woff2": "font/woff2",
+    ".ttf":   "font/ttf",
+    ".otf":   "font/otf"
+}
+
+# HTTP_STATUS_TEXTS — maps numeric HTTP status codes to standard reason phrases.
+let HTTP_STATUS_TEXTS = {
+    100: "Continue",
+    101: "Switching Protocols",
+    102: "Processing",
+    103: "Early Hints",
+    200: "OK",
+    201: "Created",
+    202: "Accepted",
+    203: "Non-Authoritative Information",
+    204: "No Content",
+    205: "Reset Content",
+    206: "Partial Content",
+    207: "Multi-Status",
+    208: "Already Reported",
+    226: "IM Used",
+    300: "Multiple Choices",
+    301: "Moved Permanently",
+    302: "Found",
+    303: "See Other",
+    304: "Not Modified",
+    305: "Use Proxy",
+    307: "Temporary Redirect",
+    308: "Permanent Redirect",
+    400: "Bad Request",
+    401: "Unauthorized",
+    402: "Payment Required",
+    403: "Forbidden",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    406: "Not Acceptable",
+    407: "Proxy Authentication Required",
+    408: "Request Timeout",
+    409: "Conflict",
+    410: "Gone",
+    411: "Length Required",
+    412: "Precondition Failed",
+    413: "Content Too Large",
+    414: "URI Too Long",
+    415: "Unsupported Media Type",
+    416: "Range Not Satisfiable",
+    417: "Expectation Failed",
+    418: "I'm a Teapot",
+    421: "Misdirected Request",
+    422: "Unprocessable Content",
+    423: "Locked",
+    424: "Failed Dependency",
+    425: "Too Early",
+    426: "Upgrade Required",
+    428: "Precondition Required",
+    429: "Too Many Requests",
+    431: "Request Header Fields Too Large",
+    451: "Unavailable For Legal Reasons",
+    500: "Internal Server Error",
+    501: "Not Implemented",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+    504: "Gateway Timeout",
+    505: "HTTP Version Not Supported",
+    506: "Variant Also Negotiates",
+    507: "Insufficient Storage",
+    508: "Loop Detected",
+    510: "Not Extended",
+    511: "Network Authentication Required"
+}
+
+# Combines two maps, where keys in `b` override keys in `a`.
+#
+# @param a {Map} Base map
+# @param b {Map} Overriding map
+# @return  {Map} Merged map
+fn merge(a, b)
+    let result = {}
+    for key, val in a
+        result[key] = val
+    end
+    for key, val in b
+        result[key] = val
+    end
+    return result
+end
+
+# Generates a cryptographically secure random hexadecimal ID string.
+#
+# @param len {Number} String character length (default: 32)
+# @return    {String} Random hex string
+fn generateId(len = 32)
+    let hex = "0123456789abcdef"
+    let byteCount = int(len / 2) + 1
+    let randomBytesArr = random.bytes(byteCount)
+    let result = ""
+    let i = 0
+    while result.length() < len
+        let b = randomBytesArr[i % randomBytesArr.length()]
+        result += hex[int(b / 16) % 16]
+        result += hex[b % 16]
+        i += 1
+    end
+    return result.slice(0, len)
+end
+
+# Returns the standard MIME media type for a given file extension.
+#
+# @param ext {String} File extension (e.g. ".json", ".html")
+# @return    {String} MIME type string
+fn mimeType(ext)
+    if MIME_TYPES.has(ext)
+        return MIME_TYPES[ext]
+    end
+    return "application/octet-stream"
+end
+
+# Returns the standard reason phrase for an HTTP status code.
+#
+# @param code {Number} Numeric status code (e.g. 200, 404)
+# @return     {String} Reason phrase
+fn httpStatusText(code)
+    if HTTP_STATUS_TEXTS.has(code)
+        return HTTP_STATUS_TEXTS[code]
+    end
+    return "Unknown"
+end
+
+# Parses a Content-Type header value and extracts its boundary parameter.
+#
+# @param header {String} Raw Content-Type header string
+# @return       {Map}    {"type": "multipart/form-data", "boundary": "..."}
+fn parseContentType(header)
+    let parts = header.split(";")
+    let result = {"type": parts[0].strip(), "boundary": ""}
+
+    for p in parts
+        let trimmed = p.strip()
+        if trimmed.slice(0, 9) == "boundary="
+            let b = trimmed.slice(9)
+            if b.length() >= 2 and b[0] == "\"" and b[b.length() - 1] == "\""
+                b = b.slice(1, b.length() - 1)
+            end
+            result["boundary"] = b
+        end
+    end
+
+    return result
+end
+
+# Extracts "name" and "filename" attributes from a Content-Disposition header.
+#
+# @param header {String} Content-Disposition string
+# @return       {Map}    {"name": "field", "filename": "image.png"}
+fn parseContentDisposition(header)
+    let parts = header.split(";")
+    let result = {"name": "", "filename": ""}
+
+    for p in parts
+        let trimmed = p.strip()
+        let eqIdx = trimmed.index("=")
+        if eqIdx > 0
+            let key = trimmed.slice(0, eqIdx).strip().lower()
+            let val = trimmed.slice(eqIdx + 1).strip()
+            if val.length() >= 2 and val[0] == "\"" and val[val.length() - 1] == "\""
+                val = val.slice(1, val.length() - 1)
+            end
+            if key == "name"
+                result["name"] = val
+            elif key == "filename"
+                result["filename"] = val
+            end
+        end
+    end
+
+    return result
+end
+
+# Strips directory paths and control characters from client-provided filenames.
+#
+# @param filename {String} Client filename
+# @return         {String} Sanitized basename
+fn sanitizeFilename(filename)
+    if isNull(filename) or filename == ""
+        return ""
+    end
+    let name = filename
+    let slashParts = name.split("/")
+    if slashParts.length() > 0
+        name = slashParts[slashParts.length() - 1]
+    end
+    let backSlashParts = name.split("\\")
+    if backSlashParts.length() > 0
+        name = backSlashParts[backSlashParts.length() - 1]
+    end
+    if name == "." or name == ".." or name.length() > 255
+        return ""
+    end
+    let forbidden = "<>:\"|?*"
+    for c in name
+        if ord(c) < 32 or forbidden.contains(c)
+            return ""
+        end
+    end
+    return name
+end
+
+# Decodes a URL path preserving directory separators and security encodings.
+#
+# @param pathVal {String} Raw URL path
+# @return        {String} Decoded safe path
+fn urlDecodePath(pathVal)
+    if isNull(pathVal)
+        return ""
+    end
+    let protected = pathVal.replace("%2F", "%252F").replace("%2f", "%252F")
+    protected = protected.replace("%5C", "%255C").replace("%5c", "%255C")
+    protected = protected.replace("+", "%2B")
+    return urlDecode(protected)
+end
+
+# Validates whether a string is a valid HTTP token (RFC 7230 §3.2.6).
+#
+# @param name {String} Token string
+# @return     {Boolean} True if valid
+fn isValidHttpToken(name)
+    if not isString(name) or name == ""
+        return False
+    end
+    let allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~"
+    for c in name
+        if not allowed.contains(c)
+            return False
+        end
+    end
+    return True
+end
+
+# HEX_MAP — maps hex digit characters to their numeric values (0–15).
+# Defined at module level so it is allocated once, not on every urlDecode call.
+let HEX_MAP = {
+    "0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
+    "a": 10, "b": 11, "c": 12, "d": 13, "e": 14, "f": 15,
+    "A": 10, "B": 11, "C": 12, "D": 13, "E": 14, "F": 15
+}
+
+# Decodes percent-encoded URL strings with full UTF-8 multi-byte support.
+#
+# @param strVal {String} URL encoded string
+# @return       {String} Decoded UTF-8 string
+fn urlDecode(strVal)
+    if isNull(strVal)
+        return ""
+    end
+    let res = ""
+    let byteSeq = []
+    let i = 0
+    let len = strVal.length()
+
+    while i < len
+        let c = strVal[i]
+        if c == "+"
+            if byteSeq.length() > 0
+                res += bytes.toString(byteSeq)
+                byteSeq = []
+            end
+            res += " "
+            i += 1
+        elif c == "%" and i + 2 < len
+            let h1 = strVal[i + 1]
+            let h2 = strVal[i + 2]
+            if not isNull(HEX_MAP[h1]) and not isNull(HEX_MAP[h2])
+                byteSeq.append(HEX_MAP[h1] * 16 + HEX_MAP[h2])
+                i += 3
+            else
+                if byteSeq.length() > 0
+                    res += bytes.toString(byteSeq)
+                    byteSeq = []
+                end
+                res += "%"
+                i += 1
+            end
+        else
+            if byteSeq.length() > 0
+                res += bytes.toString(byteSeq)
+                byteSeq = []
+            end
+            res += c
+            i += 1
+        end
+    end
+
+    if byteSeq.length() > 0
+        res += bytes.toString(byteSeq)
+    end
+
+    return res
+end
+
+# Escapes special characters for HTML output to prevent XSS.
+#
+# @param strVal {String} Input string
+# @return       {String} Escaped HTML string
+fn escapeHtml(strVal)
+    if isNull(strVal)
+        return ""
+    end
+    let res = strVal.replace("&", "&amp;")
+    res = res.replace("<", "&lt;")
+    res = res.replace(">", "&gt;")
+    res = res.replace("\"", "&quot;")
+    res = res.replace("'", "&#039;")
+    return res
+end
+
+# Percent-encodes a filename for RFC 5987 `filename*=UTF-8''` header parameter.
+#
+# @param filename {String} Unicode filename
+# @return         {String} Percent-encoded UTF-8 bytes string
+fn urlEncodeFilename(filename)
+    if isNull(filename) or filename == ""
+        return ""
+    end
+    let safe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$&+-.^_`|~"
+    let hex = "0123456789ABCDEF"
+    let result = ""
+    let i = 0
+    let len = filename.length()
+    while i < len
+        let c = filename[i]
+        if safe.contains(c)
+            result += c
+        else
+            let charBytes = bytes.fromString(c)
+            for b in charBytes
+                result += "%${hex[int(b / 16)]}${hex[b % 16]}"
+            end
+        end
+        i += 1
+    end
+    return result
+end

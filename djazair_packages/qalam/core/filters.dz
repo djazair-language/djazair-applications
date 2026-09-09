@@ -1,0 +1,357 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# filters.dz — Template Filters & Transformation Pipeline
+# ═══════════════════════════════════════════════════════════════════════════════
+# Manages built-in and user-defined template filters (e.g. `{{ name | upper }}`).
+# Fully compatible with Djazair language standard methods and functions.
+# Filters can be chained sequentially: `{{ title | trim | upper }}`.
+
+use json
+use math
+
+# Registry and executor for template transformation filters.
+class filterRegistry
+    # Initializes the registry with default standard library filters.
+    init()
+        self.filtersMap = {}
+        self.registerDefaults()
+    end
+
+    # Registers all default built-in filters.
+    registerDefaults()
+        # ── String Case Transformations ──
+        self.register("upper", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).upper()
+        end)
+
+        self.register("lower", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).lower()
+        end)
+
+        self.register("capitalize", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).capitalize()
+        end)
+
+        self.register("title", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).title()
+        end)
+
+        self.register("swapcase", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).swapCase()
+        end)
+        self.register("swapCase", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).swapCase()
+        end)
+
+        # ── Whitespace & Stripping ──
+        self.register("trim", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).strip()
+        end)
+        self.register("strip", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).strip()
+        end)
+
+        self.register("ltrim", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).lStrip()
+        end)
+        self.register("lstrip", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).lStrip()
+        end)
+        self.register("lStrip", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).lStrip()
+        end)
+
+        self.register("rtrim", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).rStrip()
+        end)
+        self.register("rstrip", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).rStrip()
+        end)
+        self.register("rStrip", fn(val, args = [])
+            return if isNull(val) ? "" else str(val).rStrip()
+        end)
+
+        # ── Splitting, Slicing & Substrings ──
+        self.register("split", fn(val, args = [])
+            if isNull(val) return [] end
+            let sep = if args.length() > 0 ? str(args[0]) else " "
+            return str(val).split(sep)
+        end)
+
+        self.register("slice", fn(val, args = [])
+            if isNull(val) return "" end
+            let start = if args.length() > 0 ? int(args[0]) else 0
+            if isArray(val)
+                let endIdx = if args.length() > 1 ? int(args[1]) else val.length()
+                return val.slice(start, endIdx)
+            end
+            let s = str(val)
+            let endIdx = if args.length() > 1 ? int(args[1]) else s.length()
+            return s.slice(start, endIdx)
+        end)
+
+        self.register("substr", fn(val, args = [])
+            if isNull(val) return "" end
+            let start = if args.length() > 0 ? int(args[0]) else 0
+            let s = str(val)
+            let len = if args.length() > 1 ? int(args[1]) else s.length()
+            return s.subStr(start, len)
+        end)
+        self.register("subStr", fn(val, args = [])
+            if isNull(val) return "" end
+            let start = if args.length() > 0 ? int(args[0]) else 0
+            let s = str(val)
+            let len = if args.length() > 1 ? int(args[1]) else s.length()
+            return s.subStr(start, len)
+        end)
+
+        self.register("replace", fn(val, args = [])
+            if isNull(val) or args.length() < 2
+                return if isNull(val) ? "" else str(val)
+            end
+            return str(val).replace(str(args[0]), str(args[1]))
+        end)
+
+        self.register("repeat", fn(val, args = [])
+            if isNull(val) return "" end
+            let count = if args.length() > 0 ? int(args[0]) else 1
+            return str(val).repeat(count)
+        end)
+
+        self.register("contains", fn(val, args = [])
+            if isNull(val) or args.length() == 0 return False end
+            let target = args[0]
+            if isArray(val) return val.contains(target) end
+            if isMap(val) return val.has(str(target)) end
+            return str(val).contains(str(target))
+        end)
+
+        self.register("startswith", fn(val, args = [])
+            if isNull(val) or args.length() == 0 return False end
+            return str(val).startsWith(str(args[0]))
+        end)
+        self.register("startsWith", fn(val, args = [])
+            if isNull(val) or args.length() == 0 return False end
+            return str(val).startsWith(str(args[0]))
+        end)
+
+        self.register("endswith", fn(val, args = [])
+            if isNull(val) or args.length() == 0 return False end
+            return str(val).endsWith(str(args[0]))
+        end)
+        self.register("endsWith", fn(val, args = [])
+            if isNull(val) or args.length() == 0 return False end
+            return str(val).endsWith(str(args[0]))
+        end)
+
+        self.register("count", fn(val, args = [])
+            if isNull(val) or args.length() == 0 return 0 end
+            let target = args[0]
+            if isArray(val) return val.count(target) end
+            return str(val).count(str(target))
+        end)
+
+        # ── String Character Classification ──
+        self.register("isAlpha", fn(val, args = []) return if isNull(val) ? False else str(val).isAlpha() end)
+        self.register("isAlnum", fn(val, args = []) return if isNull(val) ? False else str(val).isAlnum() end)
+        self.register("isDigit", fn(val, args = []) return if isNull(val) ? False else str(val).isDigit() end)
+        self.register("isLower", fn(val, args = []) return if isNull(val) ? False else str(val).isLower() end)
+        self.register("isUpper", fn(val, args = []) return if isNull(val) ? False else str(val).isUpper() end)
+        self.register("isSpace", fn(val, args = []) return if isNull(val) ? False else str(val).isSpace() end)
+
+        # ── Collection & Array Helpers ──
+        self.register("length", fn(val, args = [])
+            if isNull(val) return 0 end
+            if isArray(val) or isMap(val) or isString(val) return val.length() end
+            return str(val).length()
+        end)
+        self.register("len", fn(val, args = [])
+            if isNull(val) return 0 end
+            if isArray(val) or isMap(val) or isString(val) return val.length() end
+            return str(val).length()
+        end)
+
+        self.register("reverse", fn(val, args = [])
+            if isNull(val) return "" end
+            if isArray(val) return val.reversed() end
+            return str(val).reverse()
+        end)
+        self.register("reversed", fn(val, args = [])
+            if isNull(val) return "" end
+            if isArray(val) return val.reversed() end
+            return str(val).reverse()
+        end)
+
+        self.register("sort", fn(val, args = [])
+            if isNull(val) return [] end
+            if isArray(val) return val.sorted() end
+            return val
+        end)
+        self.register("sorted", fn(val, args = [])
+            if isNull(val) return [] end
+            if isArray(val) return val.sorted() end
+            return val
+        end)
+
+        self.register("unique", fn(val, args = [])
+            if isNull(val) return [] end
+            if isArray(val) return val.unique() end
+            return val
+        end)
+
+        self.register("flatten", fn(val, args = [])
+            if isNull(val) return [] end
+            if isArray(val) return val.flatten() end
+            return [val]
+        end)
+
+        self.register("first", fn(val, args = [])
+            if isNull(val) return Null end
+            if isArray(val) return if val.length() > 0 ? val[0] else Null end
+            let s = str(val)
+            return if s.length() > 0 ? s.slice(0, 1) else ""
+        end)
+
+        self.register("last", fn(val, args = [])
+            if isNull(val) return Null end
+            if isArray(val) return if val.length() > 0 ? val[val.length() - 1] else Null end
+            let s = str(val)
+            return if s.length() > 0 ? s.slice(s.length() - 1, s.length()) else ""
+        end)
+
+        self.register("join", fn(val, args = [])
+            let delimiter = if args.length() > 0 ? str(args[0]) else ", "
+            if isArray(val)
+                let strItems = []
+                for item in val
+                    strItems.append(str(item))
+                end
+                return delimiter.join(strItems)
+            end
+            return if isNull(val) ? "" else str(val)
+        end)
+
+        self.register("sum", fn(val, args = [])
+            if isArray(val) return val.sum() end
+            return if isNumber(val) ? val else 0
+        end)
+        self.register("max", fn(val, args = [])
+            if isArray(val) and val.length() > 0 return val.max() end
+            return val
+        end)
+        self.register("min", fn(val, args = [])
+            if isArray(val) and val.length() > 0 return val.min() end
+            return val
+        end)
+
+        # ── Map / Dictionary Helpers ──
+        self.register("keys", fn(val, args = [])
+            if isMap(val) return val.keys() end
+            return []
+        end)
+        self.register("values", fn(val, args = [])
+            if isMap(val) return val.values() end
+            return []
+        end)
+        self.register("has", fn(val, args = [])
+            if isMap(val) and args.length() > 0 return val.has(str(args[0])) end
+            return False
+        end)
+        self.register("get", fn(val, args = [])
+            if isMap(val) and args.length() > 0
+                let key = str(args[0])
+                let fallback = if args.length() > 1 ? args[1] else Null
+                return if val.has(key) ? val[key] else fallback
+            end
+            return Null
+        end)
+
+        # ── Fallback & Utilities ──
+        self.register("default", fn(val, args = [])
+            let fallback = if args.length() > 0 ? args[0] else ""
+            if isNull(val) or val == False or val == ""
+                return fallback
+            end
+            if isArray(val) and val.length() == 0 return fallback end
+            if isMap(val) and val.length() == 0 return fallback end
+            return val
+        end)
+
+        self.register("json", fn(val, args = [])
+            if isNull(val) return "null" end
+            return json.encode(val)
+        end)
+
+        # ── Math Functions (Standard math module) ──
+        self.register("abs", fn(val, args = [])
+            if isNull(val) return 0 end
+            return abs(num(val))
+        end)
+
+        self.register("round", fn(val, args = [])
+            if isNull(val) return 0 end
+            let digits = if args.length() > 0 ? int(args[0]) else 0
+            return round(float(val), digits)
+        end)
+
+        self.register("floor", fn(val, args = [])
+            if isNull(val) return 0 end
+            return math.floor(float(val))
+        end)
+
+        self.register("ceil", fn(val, args = [])
+            if isNull(val) return 0 end
+            return math.ceil(float(val))
+        end)
+
+        self.register("sqrt", fn(val, args = [])
+            if isNull(val) return 0 end
+            return math.sqrt(float(val))
+        end)
+
+        # ── Type Casts & Introspection ──
+        self.register("int", fn(val, args = []) return if isNull(val) ? 0 else int(val) end)
+        self.register("float", fn(val, args = []) return if isNull(val) ? 0.0 else float(val) end)
+        self.register("str", fn(val, args = []) return if isNull(val) ? "" else str(val) end)
+        self.register("num", fn(val, args = []) return if isNull(val) ? 0 else num(val) end)
+        self.register("bool", fn(val, args = []) return if isNull(val) ? False else bool(val) end)
+        self.register("type", fn(val, args = []) return type(val) end)
+
+        # ── Type Checks ──
+        self.register("isNull", fn(val, args = []) return isNull(val) end)
+        self.register("isString", fn(val, args = []) return isString(val) end)
+        self.register("isNumber", fn(val, args = []) return isNumber(val) end)
+        self.register("isBool", fn(val, args = []) return isBool(val) end)
+        self.register("isArray", fn(val, args = []) return isArray(val) end)
+        self.register("isMap", fn(val, args = []) return isMap(val) end)
+    end
+
+    # Registers a custom user-defined filter.
+    #
+    # @param name     {String}   Filter identifier name (e.g. "currency")
+    # @param callback {Function} Transformation function `fn(value, args = [])`
+    register(name, callback)
+        self.filtersMap[name] = callback
+    end
+
+    # Checks if a filter is registered.
+    #
+    # @param name {String}  Filter name
+    # @return     {Boolean} True if registered
+    has(name)
+        return name in self.filtersMap
+    end
+
+    # Applies a named filter to an input value with optional arguments.
+    #
+    # @param name  {String} Filter name
+    # @param value {Any}    Input value
+    # @param args  {Array}  Optional arguments passed to filter
+    # @return      {Any}    Filtered value
+    apply(name, value, args = [])
+        if name in self.filtersMap
+            let filterFn = self.filtersMap[name]
+            return filterFn(value, args)
+        end
+        throw "Unknown template filter: '${name}'"
+    end
+end

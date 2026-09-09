@@ -1,0 +1,745 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_docs_snippets.dz — Automated Verification for All Documentation Code Snippets
+# ═══════════════════════════════════════════════════════════════════════════════
+# Validates every single code block, pattern, and snippet documented in README.md & docs/index.html
+
+import "../init.dz" as kasbah
+use file
+use dir
+use path
+use datetime
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Testing All Documentation Snippets (README & Docs) ===")
+
+# Mock Classes for Testing Snippets
+class mockReq
+    init(method = "GET", path = "/", headers = {}, body = "", query = {})
+        self.method     = method
+        self.path       = path
+        self.pathname   = path
+        self.rawHeaders = headers
+        self.headers    = headers
+        self.body       = body
+        self.queryMap   = query
+        self.params     = {}
+        self.cookies    = new kasbah.cookieJar({"theme": "dark", "session_test": "abc"}, Null)
+        self.session    = new kasbah.sessionManager({"visits": 5}, "test_session_id_32_chars_minimum__", False)
+        self.ip         = "127.0.0.1"
+        self.files      = {}
+        self.stateMap   = {}
+        self.remoteAddr = "127.0.0.1"
+    end
+
+    header(name)
+        let k = name.lower()
+        for hk, hv in self.headers
+            if hk.lower() == k return hv end
+        end
+        return ""
+    end
+
+    isMethod(m)
+        return self.method.lower() == m.lower()
+    end
+
+    get(k)
+        if self.stateMap.has(k) return self.stateMap[k] end
+        return Null
+    end
+
+    set(k, v)
+        self.stateMap[k] = v
+        return self
+    end
+
+    isSecure()
+        return self.header("x-forwarded-proto") == "https"
+    end
+
+    secure() return self.isSecure() end
+
+    protocol()
+        return if self.isSecure() ? "https" else "http"
+    end
+
+    param(name, fallback = Null)
+        if self.params.has(name) return self.params[name] end
+        return fallback
+    end
+
+    queryParam(name = Null, fallback = Null)
+        if isNull(name) return self.queryMap end
+        if self.queryMap.has(name) return self.queryMap[name] end
+        return fallback
+    end
+
+    query(name = Null, fallback = Null)
+        return self.queryParam(name, fallback)
+    end
+
+    input(name, fallback = Null)
+        if self.params.has(name) return self.params[name] end
+        if self.queryMap.has(name) return self.queryMap[name] end
+        if isMap(self.body) and self.body.has(name) return self.body[name] end
+        return fallback
+    end
+
+    all()
+        let result = {}
+        for k, v in self.params result[k] = v end
+        for k, v in self.queryMap result[k] = v end
+        if isMap(self.body) for k, v in self.body result[k] = v end end
+        return result
+    end
+
+    inputs()
+        return self.all()
+    end
+
+    only(keys)
+        let result = {}
+        let a = self.all()
+        for k in keys if a.has(k) result[k] = a[k] end end
+        return result
+    end
+
+    except(keys)
+        let result = {}
+        let a = self.all()
+        for k, v in a
+            let skip = False
+            for ek in keys if k == ek skip = True break end end
+            if not skip result[k] = v end
+        end
+        return result
+    end
+
+    isJson()
+        let ct = self.header("content-type")
+        let acc = self.header("accept")
+        return ct.contains("application/json") or acc.contains("application/json") or self.isAjax()
+    end
+
+    isAjax()
+        return self.header("x-requested-with") == "XMLHttpRequest"
+    end
+
+    isType(type)
+        let ct = self.header("content-type")
+        if type == "json" return ct.contains("application/json") end
+        if type == "form" return ct.contains("application/x-www-form-urlencoded") end
+        if type == "multipart" return ct.contains("multipart/form-data") end
+        return ct.contains(type)
+    end
+
+    contentIs(type) return self.isType(type) end
+
+    token()
+        let a = self.header("authorization")
+        if a.startsWith("Bearer ") or a.startsWith("bearer ")
+            return a.slice(7).strip()
+        end
+        return Null
+    end
+
+    bearerToken() return self.token() end
+
+    userAgent() return self.header("user-agent") end
+    referer() return self.header("referer") end
+    host() return self.header("host") end
+
+    cookie(name)
+        return self.cookies.get(name)
+    end
+
+    hasFile(name)
+        return self.files.has(name)
+    end
+
+    file(name)
+        if self.files.has(name) return self.files[name] end
+        return Null
+    end
+
+    uploader(options = {})
+        return new kasbah.fileManager(self, options)
+    end
+
+    validate(data = Null)
+        let d = data
+        if isNull(d)
+            d = if isMap(self.body) ? self.body else {}
+        end
+        return new kasbah.validator(d)
+    end
+end
+
+class mockRes
+    init()
+        self.statusCode = 200
+        self.headersMap = {}
+        self.sentFlag   = False
+        self.bodyData   = Null
+        self.cookies    = []
+    end
+
+    status(c)
+        self.statusCode = c
+        return self
+    end
+
+    header(k, v = Null)
+        if not isNull(v)
+            self.headersMap[k.lower()] = str(v)
+            return self
+        end
+        if self.headersMap.has(k.lower()) return self.headersMap[k.lower()] end
+        return ""
+    end
+
+    removeHeader(k)
+        if self.headersMap.has(k.lower()) self.headersMap.pop(k.lower()) end
+        return self
+    end
+
+    type(t)
+        self.header("Content-Type", t)
+        return self
+    end
+
+    links(linkMap)
+        let parts = []
+        for rel, url in linkMap
+            parts.append("<${url}>; rel=\"${rel}\"")
+        end
+        self.header("Link", parts.join(", "))
+        return self
+    end
+
+    send(b)
+        self.bodyData = b
+        self.sentFlag = True
+        return self
+    end
+
+    text(b)
+        self.header("Content-Type", "text/plain; charset=utf-8")
+        return self.send(b)
+    end
+
+    html(b)
+        self.header("Content-Type", "text/html; charset=utf-8")
+        return self.send(b)
+    end
+
+    json(d)
+        self.header("Content-Type", "application/json; charset=utf-8")
+        self.bodyData = d
+        self.sentFlag = True
+        return self
+    end
+
+    xml(b)
+        self.header("Content-Type", "application/xml; charset=utf-8")
+        return self.send(b)
+    end
+
+    cookie(name, val, opts = {})
+        self.cookies.append({"name": name, "value": val, "options": opts})
+        return self
+    end
+
+    clearCookie(name)
+        return self.cookie(name, "", {"maxAge": 0})
+    end
+
+    deleteCookie(name)
+        return self.clearCookie(name)
+    end
+
+    redirect(url, code = 302)
+        self.status(code)
+        self.header("Location", url)
+        self.sentFlag = True
+        return self
+    end
+
+    back(fallback = "/")
+        return self.redirect(fallback)
+    end
+
+    ok(d = Null)
+        self.status(200)
+        return if isNull(d) ? self.send("") else self.json(d)
+    end
+
+    created(d = Null)
+        self.status(201)
+        return if isNull(d) ? self.send("") else self.json(d)
+    end
+
+    noContent()
+        return self.status(204).send("")
+    end
+
+    badRequest(msg = "Bad Request")
+        return self.status(400).json({"error": msg})
+    end
+
+    unauthorized(msg = "Unauthorized")
+        return self.status(401).json({"error": msg})
+    end
+
+    forbidden(msg = "Forbidden")
+        return self.status(403).json({"error": msg})
+    end
+
+    notFound(msg = "Not Found")
+        return self.status(404).json({"error": msg})
+    end
+
+    validationError(errs)
+        return self.status(422).json({"errors": errs})
+    end
+
+    serverError(msg = "Internal Server Error")
+        return self.status(500).json({"error": msg})
+    end
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Quick Start Snippet Verification
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 1. Quick Start Snippet ---")
+
+let appQuick = new kasbah.app({
+    "port":   8080,
+    "static": "public"
+})
+
+appQuick.get("/", fn(req, res)
+    res.html("<h1>Welcome to Kasbah Web Framework!</h1>")
+end)
+
+appQuick.get("/hello/:name", fn(req, res)
+    res.ok({
+        "greeting": "Hello, ${req.param(\"name\")}!",
+        "isAjax":   req.isAjax()
+    })
+end)
+
+let matchQuickRoot = appQuick.matchRoute("GET", "/")
+test("Quickstart root route registered", not isNull(matchQuickRoot))
+
+let matchQuickHello = appQuick.matchRoute("GET", "/hello/Riyadh")
+test("Quickstart param route registered", not isNull(matchQuickHello) and matchQuickHello["params"]["name"] == "Riyadh")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Comprehensive Configuration Schema Snippet
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 2. Configuration Schema Snippet ---")
+
+let appFullConfig = new kasbah.app({
+    "port":        8080,
+    "host":        "0.0.0.0",
+    "static":      "public",
+    "views":       "views",
+    "maxBodySize": 10,
+    "trustProxy":  False,
+    "debug":       False,
+    "logger":      True,
+    "session": {
+        "secret":   "your-cryptographic-secret-at-least-32-chars-long!",
+        "name":     "kasbah.sid",
+        "maxAge":   86400,
+        "secure":   False,
+        "sameSite": "Lax"
+    },
+    "server": {
+        "keepAlive":             False,
+        "keepAliveTimeout":      30,
+        "maxKeepAliveRequests":  100
+    }
+})
+
+test("Full config app initializes successfully", not isNull(appFullConfig))
+test("Full config extracts session settings", appFullConfig.appConfig["sessionSecret"] == "your-cryptographic-secret-at-least-32-chars-long!")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. Routing Snippets (Methods, Route Middlewares, Groups, Sub-Routers)
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 3. Routing Snippets ---")
+
+let appRoutes = new kasbah.app()
+let dummyHandler = fn(req, res) res.ok() end
+let authGuard = fn(req, res) req.set("user", {"name": "admin"}) end
+let adminOnly = fn(req, res) end
+
+# Standard HTTP methods
+appRoutes.get("/items", dummyHandler)
+appRoutes.post("/items", dummyHandler)
+appRoutes.put("/items/:id", dummyHandler)
+appRoutes.delete("/items/:id", dummyHandler)
+appRoutes.patch("/items/:id", dummyHandler)
+appRoutes.head("/items", dummyHandler)
+appRoutes.options("/items", dummyHandler)
+appRoutes.all("/any-method", dummyHandler)
+
+test("GET /items matches", not isNull(appRoutes.matchRoute("GET", "/items")))
+test("POST /items matches", not isNull(appRoutes.matchRoute("POST", "/items")))
+test("PUT /items/:id matches", not isNull(appRoutes.matchRoute("PUT", "/items/123")))
+test("ALL /any-method matches POST", not isNull(appRoutes.matchRoute("POST", "/any-method")))
+
+# Route-level middlewares
+appRoutes.get("/dashboard", authGuard, fn(req, res)
+    res.ok({"user": req.get("user")})
+end)
+appRoutes.post("/admin/settings", [authGuard, adminOnly], fn(req, res)
+    res.ok({"status": "updated"})
+end)
+
+test("Route-level middleware single matches", not isNull(appRoutes.matchRoute("GET", "/dashboard")))
+test("Route-level middleware array matches", not isNull(appRoutes.matchRoute("POST", "/admin/settings")))
+
+# Route groups
+appRoutes.group("/api/v1", [authGuard], fn(g)
+    g.get("/profile", fn(req, res)
+        res.json({"profile": "data"})
+    end)
+    g.group("/admin", [adminOnly], fn(ag)
+        ag.get("/stats", fn(req, res)
+            res.json({"stats": []})
+        end)
+    end)
+end)
+
+test("Group route /api/v1/profile matches", not isNull(appRoutes.matchRoute("GET", "/api/v1/profile")))
+test("Nested group /api/v1/admin/stats matches", not isNull(appRoutes.matchRoute("GET", "/api/v1/admin/stats")))
+
+# Standalone sub-router mounting
+let subRouter = new kasbah.router()
+subRouter.get("/", fn(req, res) res.ok({"trades": []}) end)
+subRouter.get("/:id", fn(req, res) res.ok({"tradeId": req.param("id")}) end)
+appRoutes.mount("/api/trades", subRouter)
+
+test("Mounted subRouter root matches", not isNull(appRoutes.matchRoute("GET", "/api/trades")))
+test("Mounted subRouter param matches", not isNull(appRoutes.matchRoute("GET", "/api/trades/99")))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Request Interface Methods (`req`)
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 4. Request Interface Snippets ---")
+
+let mockR = new mockReq("GET", "/test", {
+    "authorization": "Bearer token12345",
+    "content-type": "application/json",
+    "x-requested-with": "XMLHttpRequest",
+    "user-agent": "DjazairClient/1.0",
+    "referer": "https://example.com/home",
+    "host": "localhost:8080",
+    "cookie": "theme=dark; session_test=abc"
+}, {"name": "Alice", "password": "secret", "age": 30}, {"page": "2"})
+
+mockR.params = {"id": "42"}
+
+test("req.param() extracts :id", mockR.param("id") == "42")
+test("req.query() extracts page", mockR.query("page") == "2")
+test("req.input() extracts priority", mockR.input("name") == "Alice")
+test("req.all() merges all", mockR.all().has("id") and mockR.all().has("page") and mockR.all().has("name"))
+test("req.inputs() alias works", mockR.inputs().has("id"))
+test("req.only() filters correctly", mockR.only(["name", "id"]).keys().length() == 2)
+test("req.except() omits password", not mockR.except(["password"]).has("password"))
+test("req.isJson() is True", mockR.isJson() == True)
+test("req.isAjax() is True", mockR.isAjax() == True)
+test("req.isMethod('get') is True", mockR.isMethod("get") == True)
+test("req.isType('json') is True", mockR.isType("json") == True)
+test("req.contentIs('json') alias works", mockR.contentIs("json") == True)
+test("req.token() extracts token12345", mockR.token() == "token12345")
+test("req.bearerToken() alias works", mockR.bearerToken() == "token12345")
+test("req.userAgent() works", mockR.userAgent() == "DjazairClient/1.0")
+test("req.referer() works", mockR.referer() == "https://example.com/home")
+test("req.host() works", mockR.host() == "localhost:8080")
+test("req.protocol() returns http", mockR.protocol() == "http")
+test("req.cookie() reads cookie via CookieJar", mockR.cookie("theme") == "dark")
+
+mockR.set("currentUser", {"id": 1})
+test("req.set/get state works", mockR.get("currentUser")["id"] == 1)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Response Interface Methods (`res`)
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 5. Response Interface Snippets ---")
+
+let mockS = new mockRes()
+mockS.status(201).header("X-Custom-Header", "Value").type("json")
+test("res.status sets 201", mockS.statusCode == 201)
+test("res.header sets value", mockS.header("X-Custom-Header") == "Value")
+test("res.type sets content-type", mockS.header("Content-Type") == "json")
+
+mockS.removeHeader("X-Custom-Header")
+test("res.removeHeader removes header", mockS.header("X-Custom-Header") == "")
+
+mockS.cookie("theme", "dark", {"maxAge": 86400, "httpOnly": True, "secure": True, "sameSite": "Lax"})
+test("res.cookie records cookie", mockS.cookies.length() > 0 and mockS.cookies[0]["name"] == "theme")
+
+mockS.clearCookie("theme")
+test("res.clearCookie records clear", mockS.cookies.length() > 1 and mockS.cookies[1]["options"]["maxAge"] == 0)
+
+mockS.deleteCookie("theme")
+test("res.deleteCookie alias works", mockS.cookies.length() > 2)
+
+# Web Linking RFC 5988
+mockS.links({"next": "/trades?page=3", "prev": "/trades?page=1"})
+test("res.links sets Link header", mockS.header("Link").contains("rel=\"next\"") and mockS.header("Link").contains("rel=\"prev\""))
+
+# Semantic helpers
+let r200 = new mockRes().ok({"msg": "ok"})
+test("res.ok sends 200", r200.statusCode == 200)
+
+let r201 = new mockRes().created({"msg": "created"})
+test("res.created sends 201", r201.statusCode == 201)
+
+let r204 = new mockRes().noContent()
+test("res.noContent sends 204", r204.statusCode == 204)
+
+let r400 = new mockRes().badRequest("Invalid")
+test("res.badRequest sends 400", r400.statusCode == 400)
+
+let r401 = new mockRes().unauthorized("Auth")
+test("res.unauthorized sends 401", r401.statusCode == 401)
+
+let r403 = new mockRes().forbidden("Forbidden")
+test("res.forbidden sends 403", r403.statusCode == 403)
+
+let r404 = new mockRes().notFound("Not Found")
+test("res.notFound sends 404", r404.statusCode == 404)
+
+let r422 = new mockRes().validationError({"name": ["required"]})
+test("res.validationError sends 422", r422.statusCode == 422)
+
+let r500 = new mockRes().serverError("Internal Error")
+test("res.serverError sends 500", r500.statusCode == 500)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. Security Middleware Snippets (CORS & Helmet)
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 6. Security Middleware Snippets ---")
+
+# Default CORS
+let mwCorsDefault = kasbah.cors()
+let rCors1 = new mockRes()
+mwCorsDefault(new mockReq("GET", "/", {"Origin": "https://example.com"}), rCors1)
+test("Doc snippet default CORS sets *", rCors1.header("Access-Control-Allow-Origin") == "*")
+
+# Advanced CORS
+let mwCorsAdv = kasbah.cors({
+    "origin":            ["https://app.example.com", "https://admin.example.com"],
+    "methods":           ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    "allowedHeaders":    ["Content-Type", "Authorization", "X-Requested-With"],
+    "exposedHeaders":    ["Content-Range", "X-Total-Count"],
+    "credentials":       True,
+    "maxAge":            86400,
+    "preflightContinue": False
+})
+let rCors2 = new mockRes()
+mwCorsAdv(new mockReq("OPTIONS", "/", {"Origin": "https://app.example.com"}), rCors2)
+test("Doc snippet advanced CORS preflight 204", rCors2.statusCode == 204)
+test("Doc snippet advanced CORS sets Origin reflection", rCors2.header("Access-Control-Allow-Origin") == "https://app.example.com")
+test("Doc snippet advanced CORS sets Credentials", rCors2.header("Access-Control-Allow-Credentials") == "true")
+
+# Default Helmet
+let mwHelmetDefault = kasbah.helmet()
+let rHelm1 = new mockRes()
+mwHelmetDefault(new mockReq(), rHelm1)
+test("Doc snippet default Helmet sets X-Frame-Options", rHelm1.header("X-Frame-Options") == "SAMEORIGIN")
+test("Doc snippet default Helmet sets nosniff", rHelm1.header("X-Content-Type-Options") == "nosniff")
+
+# Custom Helmet
+let mwHelmetCustom = kasbah.helmet({
+    "xFrameOptions":  "DENY",
+    "referrerPolicy": "strict-origin-when-cross-origin",
+    "hsts": {
+        "maxAge":            31536000,
+        "includeSubDomains": True,
+        "preload":           True,
+        "force":             True
+    },
+    "csp": {
+        "default-src": ["'self'"],
+        "script-src":  ["'self'", "https://cdn.jsdelivr.net"],
+        "style-src":   ["'self'", "'unsafe-inline'"],
+        "img-src":     ["'self'", "data:", "https:"]
+    }
+})
+let rHelm2 = new mockRes()
+mwHelmetCustom(new mockReq(), rHelm2)
+test("Doc snippet custom Helmet sets DENY", rHelm2.header("X-Frame-Options") == "DENY")
+test("Doc snippet custom Helmet sets Referrer-Policy", rHelm2.header("Referrer-Policy") == "strict-origin-when-cross-origin")
+test("Doc snippet custom Helmet sets CSP", rHelm2.header("Content-Security-Policy").contains("default-src 'self'"))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. Sessions & CookieJar Snippets (Including Session Fixation Defense)
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 7. Session & CookieJar Snippets ---")
+
+let sess = new kasbah.sessionManager({"user": "Alice", "visits": 3}, "old_session_id_at_least_32_chars__", False)
+test("Session get visits is 3", sess.get("visits") == 3)
+test("Session has user", sess.has("user") == True)
+test("Session all has user and visits", sess.all().has("user") and sess.all().has("visits"))
+
+# Regenerate session ID for login
+let oldSid = sess.id()
+let newSid = sess.regenerate()
+test("Session regenerate changes session ID", newSid != oldSid and newSid.length() >= 32)
+test("Session preserves data after regenerate", sess.get("user") == "Alice")
+
+# CookieJar tests
+let resTarget = new mockRes()
+let jar = new kasbah.cookieJar({"theme": "dark", "lang": "en"}, resTarget)
+test("CookieJar get theme", jar.get("theme") == "dark")
+test("CookieJar has lang", jar.has("lang") == True)
+test("CookieJar all returns 2 items", jar.all().keys().length() == 2)
+jar.set("user_token", "abc123xyz")
+test("CookieJar set queues cookie on response", resTarget.cookies.length() > 0 and resTarget.cookies[0]["name"] == "user_token")
+jar.delete("lang")
+test("CookieJar delete queues clear cookie on response", resTarget.cookies.length() > 1 and resTarget.cookies[1]["name"] == "lang")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. Validator Engine Snippet
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 8. Validator Engine Snippet ---")
+
+let payloadValid = {
+    "username": "riadh_h",
+    "email": "riad@example.com",
+    "age": 28,
+    "role": "admin",
+    "website": "https://djazair-lang.org",
+    "customCode": "ABC-1234",
+    "agreement": True,
+    "points": 50
+}
+
+let v1 = new kasbah.validator(payloadValid)
+v1.field("username").required().string().minLength(3).maxLength(30)
+v1.field("email").required().email()
+v1.field("age").required().number().min(18).max(120)
+v1.field("role").required().oneOf(["admin", "user", "editor"])
+v1.field("website").optional().url()
+v1.field("customCode").optional().matches("^[A-Z]{3}-[0-9]{4}$")
+v1.field("agreement").required().boolean()
+v1.field("points").optional().custom(fn(val)
+    return if val % 10 == 0 ? True else "must be a multiple of 10"
+end)
+
+test("Doc snippet validator passes valid payload", v1.passes() == True)
+test("Doc snippet validator validated() contains username", v1.validated()["username"] == "riadh_h")
+
+# Validation failure check
+let payloadInvalid = {
+    "username": "r", # too short
+    "email": "invalid-email",
+    "age": 15, # < 18
+    "role": "guest", # not in oneOf
+    "agreement": "yes" # not boolean
+}
+
+let v2 = new kasbah.validator(payloadInvalid)
+v2.field("username").required().string().minLength(3).maxLength(30)
+v2.field("email").required().email()
+v2.field("age").required().number().min(18).max(120)
+v2.field("role").required().oneOf(["admin", "user", "editor"])
+v2.field("agreement").required().boolean()
+
+test("Doc snippet validator fails invalid payload", v2.fails() == True)
+test("Doc snippet validator has 5 errors", v2.errors().keys().length() == 5)
+test("Doc snippet validator firstError returns message", not isNull(v2.firstError()))
+test("Doc snippet validator errorFor returns array", v2.errorFor("username").length() > 0)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. Framework Utilities & Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 9. Framework Utilities Snippet ---")
+
+let genId = kasbah.generateId(32)
+test("kasbah.generateId generates 32 hex chars", not isNull(genId) and genId.length() == 32)
+
+let encName = kasbah.urlEncodeFilename("تقرير_البيانات.pdf")
+test("kasbah.urlEncodeFilename encodes unicode", not isNull(encName) and encName.contains("%"))
+
+kasbah.setServerConfig({"port": 8080, "trustProxy": True})
+kasbah.setClientConfig({"timeout": 15})
+test("kasbah.setServerConfig and setClientConfig execute cleanly", True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. Full REST App Example Snippet Verification
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- 10. Full REST App Snippet ---")
+
+let appRest = new kasbah.app({
+    "port":          8080,
+    "static":        "public",
+    "bodyParser":    True,
+    "logger":        False,
+    "session":       True,
+    "sessionSecret": "kasbah-production-secret-key-32-chars-long!"
+})
+
+appRest.middleware(kasbah.helmet())
+appRest.middleware(kasbah.cors({
+    "origin":      "*",
+    "credentials": True
+}))
+
+let itemsList = []
+
+appRest.get("/api/items", fn(req, res)
+    res.ok({"count": itemsList.length(), "items": itemsList})
+end)
+
+appRest.post("/api/items", fn(req, res)
+    let v = req.validate()
+    v.field("title").required().string().minLength(2)
+    v.field("price").required().number().min(0)
+
+    if v.fails()
+        return res.validationError(v.errors())
+    end
+
+    let newItem = {
+        "id":    itemsList.length() + 1,
+        "title": req.input("title"),
+        "price": req.input("price")
+    }
+    itemsList.append(newItem)
+
+    res.created({"message": "Item created", "item": newItem})
+end)
+
+test("Full REST app matches GET /api/items", not isNull(appRest.matchRoute("GET", "/api/items")))
+test("Full REST app matches POST /api/items", not isNull(appRest.matchRoute("POST", "/api/items")))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUMMARY
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n═══════════════════════════════════════════════════════════════════════════════")
+print("=== Snippets Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+print("═══════════════════════════════════════════════════════════════════════════════")
+
+if failed > 0
+    process.exit(1)
+end

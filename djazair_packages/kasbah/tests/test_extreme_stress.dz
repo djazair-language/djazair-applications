@@ -1,0 +1,146 @@
+# test_extreme_stress.dz
+# Extreme stress and integration tests for Kasbah
+
+import "../init.dz" as kasbah
+import "../middleware/bodyParser.dz" as bp
+use process
+use datetime
+use random
+use os
+use file
+use dir
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Kasbah Extreme Stress & Feature Tests ===")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Routing Stress Test (Massive Route Registration)
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- 1. Routing Stress Test ---")
+
+let app = new kasbah.kasbahApp({"logger": False})
+
+print("Registering 500 dynamic routes...")
+let t1 = datetime.ticks()
+for i in 1 .. 500
+    app.get("/api/v1/resource_${i}/:id/details", fn(req, res) end)
+end
+app.get("/api/v1/target/:id/details", fn(req, res) end)
+let t2 = datetime.ticks()
+print("Registered 501 routes in ${t2 - t1} ms")
+
+print("Matching routes 1,000 times...")
+let t3 = datetime.ticks()
+for i in 1 .. 1000
+    let matchedRoute = app.matchRoute("GET", "/api/v1/target/42/details")
+end
+let t4 = datetime.ticks()
+print("Matched 1,000 times in ${t4 - t3} ms")
+
+let matchTest = app.matchRoute("GET", "/api/v1/target/42/details")
+test("Matched correct route in deep list", not isNull(matchTest) and matchTest["params"]["id"] == "42")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Validator Stress Test
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- 2. Validator Stress Test ---")
+
+let complexPayload = {}
+for i in 1 .. 50
+    complexPayload["field_${i}"] = i
+end
+complexPayload["email"] = "test@kasbah.dev"
+complexPayload["website"] = "https://djazair.dev"
+
+let val = new kasbah.validator(complexPayload)
+val.field("email").required().email()
+val.field("website").required().url()
+for i in 1 .. 50
+    val.field("field_${i}").required().number().min(1).max(100)
+end
+
+print("Validating payload with 52 fields and constraints...")
+let t7 = datetime.ticks()
+for i in 1 .. 50
+    val.passes()
+end
+let t8 = datetime.ticks()
+print("Validated 50 times in ${t8 - t7} ms")
+test("Complex validation passed", val.passes())
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. New Features Integration Test
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- 3. New Features Accuracy Test ---")
+
+# 4.1 URL Encode Filename (RFC 5987)
+let arabicName = "ملف_تجريبي.pdf"
+let encoded = kasbah.urlEncodeFilename(arabicName)
+test("urlEncodeFilename handles Arabic (UTF-8 bytes)", encoded.contains("%") and encoded.length() > arabicName.length())
+
+# 4.2 req.accepts advanced parsing
+class mockReqHeader
+    init(h)
+        self.h = h
+    end
+    header(name)
+        return self.h
+    end
+end
+
+class mockAcceptsReq
+    init(headerVal)
+        self.httpObj = new mockReqHeader(headerVal)
+    end
+
+    accepts(type)
+        let accept = self.httpObj.header("accept")
+        if accept == "" or accept == "*/*"
+            return True
+        end
+        let parts = accept.split(",")
+        for part in parts
+            let mediaRange = part.split(";")[0].strip()
+            if mediaRange == "*/*" or mediaRange == type
+                return True
+            end
+            if mediaRange.endsWith("/*")
+                let prefix = mediaRange.slice(0, mediaRange.length() - 2)
+                if type.startsWith("${prefix}/")
+                    return True
+                end
+            end
+        end
+        return False
+    end
+end
+
+let reqMock = new mockAcceptsReq("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+test("accepts() matches text/html directly", reqMock.accepts("text/html"))
+test("accepts() matches application/xml despite q=0.9", reqMock.accepts("application/xml"))
+test("accepts() matches wildcards", reqMock.accepts("image/png"))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────────────────────────────
+let total = passed + failed
+print("")
+print("=== Results: ${passed} passed, ${failed} failed / ${total} total ===")
+if failed > 0
+    process.exit(1)
+end

@@ -1,0 +1,461 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# fileManager.dz — File Upload Handler & UploadedFile Wrapper
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides validation, processing, streaming, and moving of uploaded multipart files.
+
+use file
+use dir
+use path
+use bytes
+
+import "../helpers/utils.dz" as *
+
+class uploadedFile
+    # Initializes an uploaded file wrapper.
+    #
+    # @param info {Map|String} File metadata dictionary or path string
+    init(info)
+        if isMap(info)
+            self.fieldName = if info.has("name") ? info["name"] else ""
+            self.filename = if info.has("filename") ? info["filename"] else ""
+            self.mimeType = if info.has("type") ? info["type"] else "application/octet-stream"
+            self.tempPath = if info.has("tempPath") ? info["tempPath"] else ""
+            self.size = if info.has("size") ? info["size"] else 0
+        else
+            self.fieldName = ""
+            self.filename = path.basename(str(info))
+            self.mimeType = mimeType(path.extname(str(info)))
+            self.tempPath = str(info)
+            self.size = if file.exists(str(info)) ? file.size(str(info)) else 0
+        end
+        self.savedPath = Null
+    end
+
+    # Checks if temporary file exists on disk.
+    #
+    # @return {Boolean} True if valid
+    isValid()
+        if isNull(self.tempPath) or self.tempPath == ""
+            return False
+        end
+        return file.exists(self.tempPath)
+    end
+
+    # Returns form field name.
+    #
+    # @return {String} Field name
+    getName()
+        return self.fieldName
+    end
+
+    # Returns original client filename.
+    #
+    # @return {String} Filename
+    getFilename()
+        return self.filename
+    end
+
+    # Returns temporary file path on disk.
+    #
+    # @return {String} Temp file path
+    getTempPath()
+        return self.tempPath
+    end
+
+    # Returns file size in bytes.
+    #
+    # @return {Number} Size in bytes
+    getSize()
+        return self.size
+    end
+
+    # Returns MIME type string.
+    #
+    # @return {String} MIME type
+    getMimeType()
+        return self.mimeType
+    end
+
+    # Returns lowercased file extension without leading dot.
+    #
+    # @return {String} Extension
+    getExt()
+        let ext = path.extname(self.filename)
+        if ext.length() > 0 and ext[0] == "."
+            return ext.slice(1).lower()
+        end
+        return ext.lower()
+    end
+
+    # Checks if file extension matches allowed list.
+    #
+    # @param allowedList {Array} Permitted extensions (e.g. ["jpg", "png"])
+    # @return            {Boolean} True if allowed
+    hasExt(allowedList)
+        if not isArray(allowedList)
+            return False
+        end
+        let ext = self.getExt()
+        for a in allowedList
+            let cleanA = str(a).lower()
+            if cleanA.length() > 0 and cleanA[0] == "."
+                cleanA = cleanA.slice(1)
+            end
+            if cleanA == ext
+                return True
+            end
+        end
+        return False
+    end
+
+    # Alias for hasExt()
+    hasAllowedExt(allowedList)
+        return self.hasExt(allowedList)
+    end
+
+    # Checks if file is an image based on MIME type or extension.
+    #
+    # @return {Boolean} True if image
+    isImage()
+        if self.mimeType.startsWith("image/")
+            return True
+        end
+        let ext = self.getExt()
+        let imgExts = ["jpg", "jpeg", "png", "gif", "webp", "avif", "svg", "ico"]
+        for ie in imgExts
+            if ie == ext
+                return True
+            end
+        end
+        return False
+    end
+
+    # Saves uploaded file to destination directory and removes temporary file.
+    #
+    # @param destDir     {String} Target directory
+    # @param newFilename {String|Null} Optional new filename
+    # @return            {String} Destination file path
+    saveTo(destDir, newFilename = Null)
+        if not self.isValid()
+            throw "uploadedFile.saveTo(): Temporary file is invalid or missing (${self.tempPath})"
+        end
+
+        let normDestDir = path.normalize(destDir)
+        if not file.exists(normDestDir)
+            dir.createAll(normDestDir)
+        end
+
+        let targetName = ""
+        if not isNull(newFilename) and str(newFilename) != ""
+            targetName = sanitizeFilename(str(newFilename))
+        else
+            targetName = sanitizeFilename(self.filename)
+            if targetName == ""
+                let ext = self.getExt()
+                targetName = generateId(16) + (if ext != "" ? ".${ext}" else "")
+            end
+        end
+
+        if targetName == ""
+            throw "uploadedFile.saveTo(): Invalid destination filename"
+        end
+
+        let finalPath = path.normalize("${normDestDir}/${targetName}")
+
+        let data = file.readBytes(self.tempPath)
+        file.writeBytes(finalPath, data)
+
+        try
+            if file.exists(self.tempPath)
+                file.delete(self.tempPath)
+            end
+        catch err
+        end
+
+        self.savedPath = finalPath
+        return finalPath
+    end
+
+    # Reads file contents as byte array.
+    #
+    # @return {Array} Raw bytes
+    readBytes()
+        if not self.isValid()
+            return []
+        end
+        return file.readBytes(self.tempPath)
+    end
+
+    # Reads file contents as UTF-8 string.
+    #
+    # @return {String} File text
+    readText()
+        if not self.isValid()
+            return ""
+        end
+        let data = file.readBytes(self.tempPath)
+        return bytes.toString(data)
+    end
+
+    # Deletes temporary file from disk.
+    #
+    # @return {Boolean} True if deleted
+    delete()
+        if self.isValid()
+            try
+                file.delete(self.tempPath)
+                return True
+            catch err
+                return False
+            end
+        end
+        return False
+    end
+end
+
+class fileManager
+    # Initializes file manager with request instance and validation options.
+    #
+    # @param req     {Object} Kasbah request instance
+    # @param options {Map}    Options (dest, maxSize in MB, allowedTypes, keepOriginalName, prefix)
+    init(req, options = {})
+        self.reqRef = req
+        self.destDir = if options.has("dest") ? options["dest"] else "uploads"
+        self.maxByteSize = if options.has("maxSize") ? options["maxSize"] * 1024 * 1024 else Null
+        self.allowedMimeTypes = if options.has("allowedTypes") ? options["allowedTypes"] else Null
+        self.keepOriginal = if options.has("keepOriginalName") ? options["keepOriginalName"] else False
+        self.filenamePrefix = if options.has("prefix") ? options["prefix"] else ""
+    end
+
+    # Checks if MIME type is permitted by configuration.
+    #
+    # @param mimeType {String} Target MIME type
+    # @return         {Boolean} True if allowed
+    typeAllowed(mimeType)
+        if isNull(self.allowedMimeTypes)
+            return True
+        end
+        for allowed in self.allowedMimeTypes
+            let a = str(allowed).lower()
+            let m = str(mimeType).lower()
+            if a == m
+                return True
+            end
+            if a.endsWith("/*")
+                let prefix = a.slice(0, a.length() - 2)
+                if m.startsWith(prefix + "/")
+                    return True
+                end
+            end
+        end
+        return False
+    end
+
+    # Generates a sanitized target filename.
+    #
+    # @param originalName {String} Original client filename
+    # @return             {String} Formatted filename
+    buildName(originalName)
+        if self.keepOriginal
+            return sanitizeFilename(originalName)
+        end
+        let ext = path.extname(originalName)
+        return self.filenamePrefix + generateId(16) + ext
+    end
+
+    # Validates and saves a single uploaded file entry to disk.
+    #
+    # @param rawInfo {Map} File information dictionary
+    # @return        {Map} Result `{"ok": Boolean, "file": Map, "error": String}`
+    processOneFile(rawInfo)
+        if isNull(rawInfo)
+            return { "ok": False, "file": Null, "error": "no file" }
+        end
+
+        let mimeType = if rawInfo.has("type") ? rawInfo["type"] else "application/octet-stream"
+        let size = if rawInfo.has("size") ? rawInfo["size"] else 0
+        let tempPath = if rawInfo.has("tempPath") ? rawInfo["tempPath"] else ""
+        let origName = if rawInfo.has("filename") ? rawInfo["filename"] else "file"
+
+        if not self.typeAllowed(mimeType)
+            return {
+                "ok":    False,
+                "file":  Null,
+                "error": "file type \"${mimeType}\" is not allowed"
+            }
+        end
+
+        if not isNull(self.maxByteSize) and size > self.maxByteSize
+            let maxMB = self.maxByteSize / (1024 * 1024)
+            return {
+                "ok":    False,
+                "file":  Null,
+                "error": "file exceeds maximum size of ${maxMB} MB"
+            }
+        end
+
+        let normDestDir = path.normalize(self.destDir)
+        if not file.exists(normDestDir)
+            dir.createAll(normDestDir)
+        end
+
+        let savedName = self.buildName(origName)
+        if savedName == ""
+            return { "ok": False, "file": Null, "error": "invalid destination filename" }
+        end
+        let savedPath = path.normalize("${normDestDir}/${savedName}")
+
+        try
+            let data = file.readBytes(tempPath)
+            file.writeBytes(savedPath, data)
+            if file.exists(tempPath)
+                file.delete(tempPath)
+            end
+        catch err
+            return {
+                "ok":    False,
+                "file":  Null,
+                "error": "failed to save file: ${err}"
+            }
+        end
+
+        return {
+            "ok":   True,
+            "file": {
+                "fieldname":    if rawInfo.has("name") ? rawInfo["name"] else "",
+                "originalname": origName,
+                "filename":     savedName,
+                "mimetype":     mimeType,
+                "size":         size,
+                "path":         savedPath
+            },
+            "error": Null
+        }
+    end
+
+    # Validates and saves a single file from a form field.
+    #
+    # @param fieldName {String} Form field name
+    # @return          {Map} Result map
+    single(fieldName)
+        if not self.reqRef.files.has(fieldName)
+            return { "ok": False, "file": Null, "error": "no file for field \"${fieldName}\"" }
+        end
+        let raw = self.reqRef.files[fieldName]
+        if isArray(raw)
+            if raw.length() == 0
+                return { "ok": False, "file": Null, "error": "no file for field \"${fieldName}\"" }
+            end
+            raw = raw[0]
+        end
+        return self.processOneFile(raw)
+    end
+
+    # Validates and saves multiple files from a form field.
+    #
+    # @param fieldName {String} Form field name
+    # @param maxCount  {Number} Max files count
+    # @return          {Map}    Result map with "files" list and "errors" list
+    multiple(fieldName, maxCount = 10)
+        let results = []
+        let errList = []
+        let rawFiles = []
+
+        if self.reqRef.files.has(fieldName)
+            let raw = self.reqRef.files[fieldName]
+            if isArray(raw)
+                rawFiles = raw
+            else
+                rawFiles = [raw]
+            end
+        end
+
+        if rawFiles.length() == 0
+            return { "ok": False, "files": [], "errors": ["no files for field \"${fieldName}\""] }
+        end
+
+        let count = rawFiles.length()
+        if count > maxCount
+            count = maxCount
+        end
+
+        let i = 0
+        while i < count
+            let res = self.processOneFile(rawFiles[i])
+            if res["ok"]
+                results.append(res["file"])
+            else
+                errList.append(res["error"])
+            end
+            i = i + 1
+        end
+
+        return {
+            "ok":     errList.length() == 0,
+            "files":  results,
+            "errors": errList
+        }
+    end
+
+    # Validates and saves all uploaded files across all fields.
+    #
+    # @return {Map} Result map
+    any()
+        let results = []
+        let errList = []
+
+        for fieldName, rawInfo in self.reqRef.files
+            let rawFiles = if isArray(rawInfo) ? rawInfo else [rawInfo]
+            for raw in rawFiles
+                let res = self.processOneFile(raw)
+                if res["ok"]
+                    results.append(res["file"])
+                else
+                    errList.append(res["error"])
+                end
+            end
+        end
+
+        return {
+            "ok":     errList.length() == 0,
+            "files":  results,
+            "errors": errList
+        }
+    end
+
+    # Returns metadata for a file path on disk.
+    #
+    # @param filePath {String} Path to file
+    # @return         {Map}    File information dictionary
+    info(filePath)
+        let normPath = path.normalize(filePath)
+        if not file.exists(normPath)
+            return { "exists": False }
+        end
+        let ext = path.extname(normPath)
+        return {
+            "exists":   True,
+            "name":     path.basename(normPath),
+            "size":     file.size(normPath),
+            "mimeType": mimeType(ext),
+            "path":     normPath
+        }
+    end
+
+    # Deletes a file from disk.
+    #
+    # @param filePath {String} Path to delete
+    # @return         {Boolean} True if deleted
+    remove(filePath)
+        let normPath = path.normalize(filePath)
+        if not file.exists(normPath)
+            return False
+        end
+        try
+            file.delete(normPath)
+            return True
+        catch err
+            return False
+        end
+    end
+end

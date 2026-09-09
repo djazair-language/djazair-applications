@@ -1,0 +1,81 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah Example 02 — Routing & Input Extraction
+# ═══════════════════════════════════════════════════════════════════════════════
+# Demonstrates route parameters (:param), query strings (?key=val), JSON/Form bodies,
+# and fluent input extraction methods (`param`, `query`, `input`, `all`, `inputs`, `only`, `except`).
+#
+# Usage:
+#   Run: djazair examples/02_routing.dz
+#   Endpoints:
+#     GET  /users/5                 -> Extracts dynamic :id route parameter
+#     GET  /users/5/posts/99        -> Extracts multi-level nested params (:id, :postId)
+#     GET  /search?q=kasbah         -> Accesses query string parameter
+#     GET  /inputs?name=john&age=25 -> Extracts unified inputs, only(), except()
+#     POST /users                   -> Receives JSON or URL-encoded form payload
+
+use kasbah
+
+# Initialize application instance with body parser enabled
+let app = new kasbah.app({
+    "port":       8080,
+    "bodyParser": True
+})
+
+# 1. Base route
+app.get("/", fn(req, res)
+    res.text("Kasbah Routing Demo — try /users/123 or /search?q=hello")
+end)
+
+# 2. Single dynamic parameter route
+app.get("/users/:id", fn(req, res)
+    res.json({
+        "route":  "/users/:id",
+        "userId": req.param("id"),
+        "method": req.method
+    })
+end)
+
+# 3. Multi-parameter nested route
+app.get("/users/:id/posts/:postId", fn(req, res)
+    res.json({
+        "userId": req.param("id"),
+        "postId": req.param("postId")
+    })
+end)
+
+# 4. Query string extraction
+app.get("/search", fn(req, res)
+    let q = req.input("q")
+    if isNull(q)
+        res.badRequest("Missing ?q= query parameter")
+    else
+        res.ok({"query": q, "results": ["result1", "result2"]})
+    end
+end)
+
+# 5. Unified input extraction helpers (`all`, `inputs`, `only`, `except`)
+app.get("/inputs", fn(req, res)
+    let allInputs = req.inputs()
+    res.ok({
+        "allInputs": allInputs,
+        "only":      req.only(["name", "page"]),
+        "except":    req.except(["token"])
+    })
+end)
+
+# 6. POST body handling with semantic responses
+app.post("/users", fn(req, res)
+    let name = req.input("name")
+    if isNull(name) or str(name).strip() == ""
+        return res.badRequest("Field 'name' is required and cannot be empty")
+    end
+
+    res.created({
+        "message": "User created successfully",
+        "name":    name,
+        "payload": req.body
+    })
+end)
+
+# Start server listener
+app.listen()

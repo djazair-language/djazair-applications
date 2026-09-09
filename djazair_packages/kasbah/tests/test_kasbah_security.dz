@@ -1,0 +1,52 @@
+# Focused regression tests for Kasbah's security-sensitive helpers.
+
+import "../helpers/cookie.dz" as cookie
+import "../helpers/utils.dz" as utils
+import "../core/app.dz" as appMod
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed += 1
+    else
+        print("  FAIL: ${name}")
+        failed += 1
+    end
+end
+
+print("=== Kasbah Security Tests ===")
+
+test("rejects CRLF in a cookie path", cookie.serializeCookie("sid", "value", {
+    "path": "/\r\nX-Injected: yes"
+}) == "")
+
+test("rejects invalid SameSite values", cookie.serializeCookie("sid", "value", {
+    "sameSite": "unsafe"
+}) == "")
+
+test("requires Secure for SameSite=None", cookie.serializeCookie("sid", "value", {
+    "sameSite": "None"
+}) == "")
+
+test("normalizes valid SameSite values", cookie.serializeCookie("sid", "value", {
+    "httpOnly": True,
+    "sameSite": "strict"
+}) == "sid=value; HttpOnly; SameSite=Strict")
+
+test("does not decode encoded path separators", utils.urlDecodePath("/files/a%2Fb+z%5Cc") == "/files/a%2Fb+z%5Cc")
+test("decodes ordinary path escapes", utils.urlDecodePath("/hello%20world") == "/hello world")
+test("rejects unsafe uploaded filenames", utils.sanitizeFilename("..\\..\\evil.exe") == "evil.exe" && utils.sanitizeFilename("bad:name.txt") == "")
+
+let app = new appMod.kasbahApp({"logger": False})
+test("does not trust proxy headers by default", app.appConfig["trustProxy"] == False)
+test("does not ship a known session secret", app.appConfig["sessionSecret"] == "")
+test("does not expose internal errors by default", app.appConfig["exposeErrors"] == False)
+
+print("\n=== Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+if failed > 0
+    process.exit(1)
+end

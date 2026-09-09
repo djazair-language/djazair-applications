@@ -1,0 +1,20 @@
+use sqlite
+
+let db = sqlite.connect("test.db")
+
+db.execute("CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, msg TEXT)")
+
+db.beginTransaction()
+db.safeExecute("INSERT INTO log (msg) VALUES (?)", ["This will be rolled back"])
+print("Rows before rollback: ${db.changes()}")
+db.rollback()
+print("Rolled back.")
+
+let res = db.query("SELECT COUNT(*) as cnt FROM log")
+if !isNull(res)
+    let row = res.fetchAssoc()
+    print("Rows after rollback: ${row[\"cnt\"]}")
+    res.close()
+end
+
+db.close()

@@ -1,0 +1,95 @@
+# menu.dz
+# Native desktop popup and context menu support for Djazair Webview
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+let _native = __native("_webview")
+
+# Menu class: Represents a native context or popup menu instance.
+class Menu
+    # Constructs a new popup menu.
+    init(label = "")
+        self.label = label
+        self._handle = _native.menuCreate(label)
+        self._items = []
+    end
+
+    # Appends an item to the menu with an action callback.
+    addItem(label, callback = Null)
+        _native.menuAddItem(self._handle, label, callback)
+        self._items.append(label)
+    end
+
+    # Appends a visual separator line to the menu.
+    addSeparator()
+        _native.menuAddSeparator(self._handle)
+        self._items.append("---")
+    end
+
+    # Appends a nested submenu to this menu.
+    addSubmenu(label)
+        let subHandle = _native.menuCreateSubmenu(self._handle, label)
+        let subMenu = new Menu(label)
+        subMenu._handle = subHandle
+        return subMenu
+    end
+
+    # Displays the popup menu at the current mouse cursor coordinates.
+    popup(win)
+        let winId = win
+        if type(win) == "Instance" and !isNull(win._handle)
+            winId = win._handle
+        end
+        _native.menuPopup(winId, self._handle)
+    end
+end
+
+# ── Backward Compatible Procedural API ──────────────────────────────────────
+
+fn menuCreate(label = "")
+    return _native.menuCreate(label)
+end
+
+fn menuAddItem(menu, label, callback)
+    let menuId = menu
+    if type(menu) == "Instance" and !isNull(menu._handle)
+        menuId = menu._handle
+    end
+    _native.menuAddItem(menuId, label, callback)
+end
+
+fn menuAddSeparator(menu)
+    let menuId = menu
+    if type(menu) == "Instance" and !isNull(menu._handle)
+        menuId = menu._handle
+    end
+    _native.menuAddSeparator(menuId)
+end
+
+fn menuCreateSubmenu(menu, label)
+    let menuId = menu
+    if type(menu) == "Instance" and !isNull(menu._handle)
+        menuId = menu._handle
+    end
+    return _native.menuCreateSubmenu(menuId, label)
+end
+
+fn menuSetCallback(menu, index, callback)
+    let menuId = menu
+    if type(menu) == "Instance" and !isNull(menu._handle)
+        menuId = menu._handle
+    end
+    _native.menuSetCallback(menuId, index, callback)
+end
+
+fn menuPopup(handle, menu)
+    let winId = handle
+    if type(handle) == "Instance" and !isNull(handle._handle)
+        winId = handle._handle
+    end
+    let menuId = menu
+    if type(menu) == "Instance" and !isNull(menu._handle)
+        menuId = menu._handle
+    end
+    _native.menuPopup(winId, menuId)
+end

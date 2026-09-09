@@ -1,0 +1,18 @@
+use webview
+
+let app = webview.createWindow({"title": "Navigation Demo", "debug": True})
+
+app.onReady(fn()
+    app.window.setHtml("<h1>Hello</h1>")
+    app.window.eval("document.title = 'Modified by Djazair'")
+    app.window.initJs("window.__APP_VERSION = '1.0.0'")
+    app.window.reload()
+    app.window.goBack()
+    app.window.goForward()
+    app.window.canGoBack()
+    app.window.canGoForward()
+    app.window.getUrl()
+    app.window.openDevTools()
+end)
+
+app.run()

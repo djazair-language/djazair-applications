@@ -1,0 +1,182 @@
+# test_body_parser.dz
+# Tests for Kasbah bodyParser middleware (JSON, URL-encoded, boundary validation)
+
+import "../middleware/bodyParser.dz" as bp
+import "../helpers/utils.dz" as utils
+use process
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed = passed + 1
+    else
+        print("  FAIL: ${name}")
+        failed = failed + 1
+    end
+end
+
+print("=== Kasbah BodyParser Tests ===")
+
+# Minimal mock req/res classes for unit testing without a live server
+class mockReq
+    init(method, contentType, body)
+        self.method      = method
+        self.contentType = contentType
+        self.body        = body
+        self.files       = {}
+        self.stateMap    = {}
+    end
+
+    get(key)
+        if self.stateMap.has(key)
+            return self.stateMap[key]
+        end
+        return Null
+    end
+
+    set(key, value)
+        self.stateMap[key] = value
+        return self
+    end
+
+    header(name)
+        if name.lower() == "content-type"
+            return self.contentType
+        end
+        return ""
+    end
+end
+
+class mockRes
+    init()
+        self.statusCode = 200
+        self.lastBody   = Null
+        self.sentFlag   = False
+    end
+
+    status(code)
+        self.statusCode = code
+        return self
+    end
+
+    json(data)
+        self.lastBody = data
+        self.sentFlag = True
+        return self
+    end
+
+    text(body)
+        self.lastBody = body
+        self.sentFlag = True
+        return self
+    end
+end
+
+fn makeReq(method, contentType, body)
+    return new mockReq(method, contentType, body)
+end
+
+fn makeRes()
+    return new mockRes()
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 1: JSON parsing
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 1: JSON parsing ---")
+
+let parseBody = bp.bodyParser(10)
+
+let r1 = makeReq("POST", "application/json", "{\"name\": \"Riad\", \"age\": 30}")
+let s1 = makeRes()
+parseBody(r1, s1)
+test("JSON parsed into map", isMap(r1.body))
+test("JSON string field is correct", r1.body["name"] == "Riad")
+test("JSON number field is correct", r1.body["age"] == 30)
+test("no 400 sent for valid JSON", not s1.sentFlag)
+
+let r2 = makeReq("POST", "application/json", "not_valid_json{{{")
+let s2 = makeRes()
+parseBody(r2, s2)
+test("invalid JSON triggers 400", s2.statusCode == 400)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 2: URL-encoded parsing
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 2: URL-encoded parsing ---")
+
+let r3 = makeReq("POST", "application/x-www-form-urlencoded", "username=alice&password=secret123")
+let s3 = makeRes()
+parseBody(r3, s3)
+test("URL-encoded parsed into map", isMap(r3.body))
+test("username field extracted", r3.body["username"] == "alice")
+test("password field extracted", r3.body["password"] == "secret123")
+
+let r4 = makeReq("POST", "application/x-www-form-urlencoded", "name=hello%20world&tag=a%26b")
+let s4 = makeRes()
+parseBody(r4, s4)
+test("URL-decoded spaces in value", r4.body["name"] == "hello world")
+test("URL-decoded & in value", r4.body["tag"] == "a&b")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 3: GET/HEAD/OPTIONS requests are skipped
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 3: GET/HEAD/OPTIONS skipped ---")
+
+let skipMethods = ["GET", "HEAD", "OPTIONS"]
+for skipMethod in skipMethods
+    let rSkip = makeReq(skipMethod, "application/json", "{\"should\": \"skip\"}")
+    let sSkip = makeRes()
+    parseBody(rSkip, sSkip)
+    test(skipMethod + " body left unparsed", isString(rSkip.body))
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 4: Missing Content-Type leaves body unchanged
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 4: No Content-Type ---")
+
+let rNoCT = makeReq("POST", "", "some raw text")
+let sNoCT = makeRes()
+parseBody(rNoCT, sNoCT)
+test("missing Content-Type leaves body unchanged", rNoCT.body == "some raw text")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 5: Multipart boundary injection guard
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 5: Multipart boundary validation ---")
+
+let rBad = makeReq("POST", "multipart/form-data; boundary=inject\r\nX-Evil: hdr", "--inject\r\nContent-Disposition: form-data; name=\"f\"\r\n\r\nval\r\n--inject--")
+let sBad = makeRes()
+parseBody(rBad, sBad)
+test("CRLF in boundary sends 400", sBad.statusCode == 400)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 6: urlDecode helper
+# ─────────────────────────────────────────────────────────────────────────────
+print("")
+print("--- PART 6: urlDecode helper ---")
+
+test("urlDecode %20 -> space", utils.urlDecode("hello%20world") == "hello world")
+test("urlDecode + -> space", utils.urlDecode("a+b+c") == "a b c")
+test("urlDecode UTF-8 café", utils.urlDecode("caf%C3%A9") == "café")
+test("urlDecodePath keeps encoded /", utils.urlDecodePath("/files/a%2Fb") == "/files/a%2Fb")
+test("urlDecodePath decodes %20", utils.urlDecodePath("/hello%20world") == "/hello world")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────────────────────────────
+let total = passed + failed
+print("")
+print("=== Results: ${passed} passed, ${failed} failed / ${total} total ===")
+if failed > 0
+    process.exit(1)
+end

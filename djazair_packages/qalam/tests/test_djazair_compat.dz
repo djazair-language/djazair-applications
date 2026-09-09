@@ -1,0 +1,142 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_djazair_compat.dz — Test Djazair Language Compatibility & Extended Features
+# ═══════════════════════════════════════════════════════════════════════════════
+# Verifies full compatibility with Djazair language operators:
+# - Logical: and, &&, or, ||, not, !
+# - Comparisons: ==, !=, <, <=, >, >=
+# - Membership: in, not in
+# - Identity: is, is not
+# - Ternary expressions: `if cond ? a else b` and `cond ? a : b`
+# - Arithmetic & Concat: `+`, `-`, `*`, `/`, `%`
+# - Standard Djazair Filters (String, Array, Map, Math, Types)
+
+use qalam
+
+let passed = 0
+let failed = 0
+
+fn test(name, result, expected)
+    if result == expected
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected: ${expected}")
+        print("  Got:      ${result}")
+    end
+end
+
+print("=== Running Djazair Language Compatibility Tests ===\n")
+
+# ── 1. Membership Operators (`in`, `not in`) ──────────────────────────────────
+let tplIn1 = "{% if 'admin' in user.roles %}ADMIN{% else %}USER{% endif %}"
+test("IN: array membership", qalam.renderString(tplIn1, {"user": {"roles": ["editor", "admin"]}}), "ADMIN")
+test("IN: array membership negative", qalam.renderString(tplIn1, {"user": {"roles": ["guest"]}}), "USER")
+
+let tplIn2 = "{% if 'ban' not in user.status %}ALLOWED{% else %}BLOCKED{% endif %}"
+test("NOT IN: string check true", qalam.renderString(tplIn2, {"user": {"status": "active"}}), "ALLOWED")
+test("NOT IN: string check false", qalam.renderString(tplIn2, {"user": {"status": "banned"}}), "BLOCKED")
+
+let tplIn3 = "{% if 'age' in profile %}HAS_AGE{% else %}NO_AGE{% endif %}"
+test("IN: map key check", qalam.renderString(tplIn3, {"profile": {"age": 25}}), "HAS_AGE")
+test("IN: map key check missing", qalam.renderString(tplIn3, {"profile": {"name": "Ali"}}), "NO_AGE")
+
+# ── 2. Identity Operators (`is`, `is not`) ────────────────────────────────────
+let tplIs1 = "{% if user.deletedAt is Null %}ACTIVE{% else %}DELETED{% endif %}"
+test("IS: null check", qalam.renderString(tplIs1, {"user": {"deletedAt": Null}}), "ACTIVE")
+test("IS: null check false", qalam.renderString(tplIs1, {"user": {"deletedAt": "2026-08-21"}}), "DELETED")
+
+let tplIs2 = "{% if user.token is not Null %}LOGGED_IN{% else %}GUEST{% endif %}"
+test("IS NOT: null check true", qalam.renderString(tplIs2, {"user": {"token": "xyz"}}), "LOGGED_IN")
+test("IS NOT: null check false", qalam.renderString(tplIs2, {"user": {"token": Null}}), "GUEST")
+
+# ── 3. C-Style / Djazair Alternative Operators (`&&`, `||`) ───────────────────
+let tplAndOr = "{% if user.isActive && (user.isStaff || user.isSuper) %}CAN_EDIT{% else %}READONLY{% endif %}"
+test("&& and ||: combined condition true 1", qalam.renderString(tplAndOr, {"user": {"isActive": True, "isStaff": True, "isSuper": False}}), "CAN_EDIT")
+test("&& and ||: combined condition true 2", qalam.renderString(tplAndOr, {"user": {"isActive": True, "isStaff": False, "isSuper": True}}), "CAN_EDIT")
+test("&& and ||: combined condition false (inactive)", qalam.renderString(tplAndOr, {"user": {"isActive": False, "isStaff": True, "isSuper": True}}), "READONLY")
+
+# ── 4. Ternary Expressions ───────────────────────────────────────────────────
+# Djazair syntax: if cond ? a else b
+let tplTernary1 = "{{ if user.isAdmin ? 'Admin Panel' else 'User Home' }}"
+test("TERNARY: Djazair syntax true", qalam.renderString(tplTernary1, {"user": {"isAdmin": True}}), "Admin Panel")
+test("TERNARY: Djazair syntax false", qalam.renderString(tplTernary1, {"user": {"isAdmin": False}}), "User Home")
+
+# Standard syntax: cond ? a : b
+let tplTernary2 = "{{ score >= 50 ? 'Passed' : 'Failed' }}"
+test("TERNARY: Standard syntax true", qalam.renderString(tplTernary2, {"score": 75}), "Passed")
+test("TERNARY: Standard syntax false", qalam.renderString(tplTernary2, {"score": 40}), "Failed")
+
+# ── 5. Arithmetic & String Concatenation in Expressions ───────────────────────
+let tplConcat = "{{ user.firstName + ' ' + user.lastName }}"
+test("EXPR: String concatenation", qalam.renderString(tplConcat, {"user": {"firstName": "Riad", "lastName": "Harizi"}}), "Riad Harizi")
+
+let tplAdd = "{{ count + 5 }}"
+test("EXPR: Number addition", qalam.renderString(tplAdd, {"count": 10}), "15")
+
+let tplMul = "{{ price * 2 }}"
+test("EXPR: Number multiplication", qalam.renderString(tplMul, {"price": 25}), "50")
+
+# ── 6. Extended Djazair Standard Filters ──────────────────────────────────────
+# String filters
+test("FILTER: strip", qalam.renderString("{{ '  test  ' | strip }}", {}), "test")
+test("FILTER: lstrip", qalam.renderString("{{ '  test' | lstrip }}", {}), "test")
+test("FILTER: rstrip", qalam.renderString("{{ 'test  ' | rstrip }}", {}), "test")
+test("FILTER: swapcase", qalam.renderString("{{ 'Hello World' | swapcase }}", {}), "hELLO wORLD")
+test("FILTER: split", qalam.renderString("{{ 'a,b,c' | split(',') | first }}", {}), "a")
+test("FILTER: slice", qalam.renderString("{{ 'Djazair' | slice(0, 3) }}", {}), "Dja")
+test("FILTER: substr", qalam.renderString("{{ 'Djazair' | substr(3, 4) }}", {}), "zair")
+test("FILTER: repeat", qalam.renderString("{{ '*' | repeat(4) }}", {}), "****")
+test("FILTER: contains true", qalam.renderString("{{ 'hello' | contains('ell') }}", {}), "True")
+test("FILTER: contains false", qalam.renderString("{{ 'hello' | contains('xyz') }}", {}), "False")
+test("FILTER: startswith", qalam.renderString("{{ 'image.png' | startswith('image') }}", {}), "True")
+test("FILTER: endswith", qalam.renderString("{{ 'image.png' | endswith('.png') }}", {}), "True")
+test("FILTER: count", qalam.renderString("{{ 'banana' | count('a') }}", {}), "3")
+
+# Array / Collection filters
+test("FILTER: sort", qalam.renderString("{{ [3, 1, 2] | sort | join(',') }}", {}), "1,2,3")
+test("FILTER: unique", qalam.renderString("{{ [1, 2, 2, 3] | unique | join(',') }}", {}), "1,2,3")
+test("FILTER: flatten", qalam.renderString("{{ [[1, 2], [3, 4]] | flatten | join(',') }}", {}), "1,2,3,4")
+test("FILTER: sum", qalam.renderString("{{ [10, 20, 30] | sum }}", {}), "60")
+test("FILTER: max", qalam.renderString("{{ [10, 50, 30] | max }}", {}), "50")
+test("FILTER: min", qalam.renderString("{{ [10, 50, 30] | min }}", {}), "10")
+
+# Map filters
+test("FILTER: keys", qalam.renderString("{{ data | keys | sort | join(',') }}", {"data": {"b": 2, "a": 1}}), "a,b")
+test("FILTER: has true", qalam.renderString("{{ data | has('name') }}", {"data": {"name": "Ali"}}), "True")
+test("FILTER: get with fallback", qalam.renderString("{{ data | get('age', 18) }}", {"data": {"name": "Ali"}}), "18")
+
+# Math filters
+test("FILTER: floor", qalam.renderString("{{ 3.9 | floor }}", {}), "3")
+test("FILTER: ceil", qalam.renderString("{{ 3.1 | ceil }}", {}), "4")
+test("FILTER: sqrt", qalam.renderString("{{ 16 | sqrt }}", {}), "4")
+
+# Type checking filters
+test("FILTER: isNull", qalam.renderString("{{ val | isNull }}", {"val": Null}), "True")
+test("FILTER: isString", qalam.renderString("{{ val | isString }}", {"val": "hello"}), "True")
+test("FILTER: isNumber", qalam.renderString("{{ val | isNumber }}", {"val": 42}), "True")
+test("FILTER: isArray", qalam.renderString("{{ val | isArray }}", {"val": [1, 2]}), "True")
+test("FILTER: isMap", qalam.renderString("{{ val | isMap }}", {"val": {"a": 1}}), "True")
+
+# ── 7. Direct Function Calls from Data Context ────────────────────────────────
+let fnData = {
+    "user": {"name": "Riad"},
+    "greet": fn(name)
+        return "Hello, ${name}!"
+    end,
+    "add": fn(a, b)
+        return int(a) + int(b)
+    end
+}
+test("DIRECT FN: single arg", qalam.renderString("{{ greet(user.name) }}", fnData), "Hello, Riad!")
+test("DIRECT FN: multi args", qalam.renderString("{{ add(10, 25) }}", fnData), "35")
+
+# ── Report ────────────────────────────────────────────────────────────────────
+print("\n═══════════════════════════════════════════════════════════════")
+print("Djazair Language Compatibility Tests")
+print("  Passed : ${passed}")
+print("  Failed : ${failed}")
+if failed == 0
+    print("  Result : ALL DJAZAIR COMPATIBILITY TESTS PASSED 100% ✅")
+end
+print("═══════════════════════════════════════════════════════════════")

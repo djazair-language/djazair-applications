@@ -1,0 +1,66 @@
+# assets.dz
+# Embedded asset resolver for webview JavaScript client scripts
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+use file
+use path
+use process
+use lang
+
+# Reads a webview embedded asset (e.g. bridge_client.js) reliably by probing
+# every standard install layout, from global packages to deeply nested scripts.
+#
+# Search order:
+#  1. Global packages (lang.libsDir)
+#  2. Local djazair_packages next to the script  (flat project layout)
+#  3. djazair_packages 1-3 levels above the script (monorepo / sub-app layout)
+#  4. Development / source layout (bridge/js relative to script)
+fn readWebviewAsset(name)
+    let sDir = process.scriptDir()
+    let lDir = lang.libsDir()
+    let candidates = [
+        # 1. Global packages directory (lang.libsDir / system-wide install)
+        path.join(lDir, "webview", "bridge", "js", name),
+        path.join(lDir, "webview", "js", name),
+        path.join(lDir, "webview", name),
+
+        # 2. Local djazair_packages next to the running script (flat layout)
+        #    e.g. projectRoot/main.dz + projectRoot/djazair_packages/webview/...
+        path.join(sDir, "djazair_packages", "webview", "bridge", "js", name),
+        path.join(sDir, "djazair_packages", "webview", "js", name),
+        path.join(sDir, "djazair_packages", "webview", name),
+
+        # 3. djazair_packages one level above the script (sub-directory layout)
+        #    e.g. projectRoot/djazair_packages/  +  projectRoot/src/main.dz
+        path.join(sDir, "..", "djazair_packages", "webview", "bridge", "js", name),
+        path.join(sDir, "..", "djazair_packages", "webview", "js", name),
+        path.join(sDir, "..", "djazair_packages", "webview", name),
+
+        # 4. djazair_packages two levels above (nested sub-app layout)
+        #    e.g. projectRoot/djazair_packages/  +  projectRoot/apps/myapp/main.dz
+        path.join(sDir, "..", "..", "djazair_packages", "webview", "bridge", "js", name),
+        path.join(sDir, "..", "..", "djazair_packages", "webview", "js", name),
+        path.join(sDir, "..", "..", "djazair_packages", "webview", name),
+
+        # 5. djazair_packages three levels above (deeply nested layout)
+        #    e.g. projectRoot/djazair_packages/  +  projectRoot/a/b/c/main.dz
+        path.join(sDir, "..", "..", "..", "djazair_packages", "webview", "bridge", "js", name),
+        path.join(sDir, "..", "..", "..", "djazair_packages", "webview", "js", name),
+
+        # 6. Development / source layout (running from the extension source tree)
+        path.join(sDir, "bridge", "js", name),
+        path.join(sDir, "js", name),
+        path.join(sDir, "assets", "js", name),
+        path.join(sDir, "..", "bridge", "js", name),
+
+        # 7. Bare filename fallback (asset on PATH or CWD)
+        name
+    ]
+    for candidate in candidates
+        if file.exists(candidate)
+            return file.read(candidate)
+        end
+    end
+    throw "WebviewAssetError: cannot find asset '" + name + "'"
+end

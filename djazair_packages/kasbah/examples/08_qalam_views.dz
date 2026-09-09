@@ -1,0 +1,67 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah Example 08 — MVC Views & Templating (Powered by Qalam)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Demonstrates server-side rendering (SSR) using the Qalam template engine:
+# 1. Configuring template directories via `"views": "views"`
+# 2. Rendering dynamic data contexts via `res.view(templateName, data)`
+#
+# Usage:
+#   Run: djazair examples/08_qalam_views.dz
+#   Endpoints:
+#     GET /trades -> Renders dynamic HTML view with active trades
+
+use kasbah
+use file
+use dir
+
+# Ensure views directory and sample template exist
+if not dir.exists("views")
+    dir.create("views")
+end
+
+let sampleTemplate = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+</head>
+<body style="font-family: sans-serif; padding: 2rem;">
+  <h1>{{ title }}</h1>
+  <p>Server-side rendered via Kasbah + Qalam!</p>
+  <ul>
+    {% for item in items %}
+      <li><strong>{{ item.name }}</strong> — Price: {{ item.price }}$</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>"""
+
+file.write("views/trades.html", sampleTemplate)
+
+# Initialize application with views configuration
+let app = new kasbah.app({
+    "port":  8080,
+    "views": "views"
+})
+
+# Dynamic view route
+app.get("/trades", fn(req, res)
+    let tradeItems = [
+        {"name": "Oil (Brent)", "price": 82.5},
+        {"name": "Gold (XAUUSD)", "price": 2650.0},
+        {"name": "Natural Gas", "price": 2.45}
+    ]
+
+    res.view("trades", {
+        "title": "Kasbah Market Dashboard",
+        "items": tradeItems
+    })
+end)
+
+# Fallback root route redirecting to /trades
+app.get("/", fn(req, res)
+    res.redirect("/trades")
+end)
+
+# Start server listener
+app.listen()

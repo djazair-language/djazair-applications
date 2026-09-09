@@ -1,0 +1,54 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah — Full-Featured Web Framework for the Djazair Language
+# ═══════════════════════════════════════════════════════════════════════════════
+# Exports the application orchestrator, standalone router, request/response wrappers,
+# validator, file uploader, session/cookie managers, and middleware.
+
+use http
+
+import "core/app.dz" as appMod
+import "core/router.dz" as routerMod
+import "core/request.dz" as reqMod
+import "core/response.dz" as resMod
+import "core/view.dz" as viewMod
+import "core/cookieJar.dz" as cookieMod
+import "core/sessionManager.dz" as sessMgrMod
+import "core/validator.dz" as valMod
+import "core/fileManager.dz" as fileMgrMod
+import "middleware/bodyParser.dz" as bodyMod
+import "middleware/logger.dz" as logMod
+import "middleware/session.dz" as sessMod
+import "middleware/static.dz" as staticMod
+import "middleware/cors.dz" as corsMod
+import "middleware/helmet.dz" as helmetMod
+import "helpers/utils.dz" as utilsMod
+
+# ── Core Classes ──────────────────────────────────────────────────────────────
+let app              = appMod.app
+let kasbahApp        = appMod.app
+let router           = routerMod.router
+let routerGroup      = routerMod.routerGroup
+let request          = reqMod.request
+let kasbahRequest    = reqMod.request
+let response         = resMod.response
+let kasbahResponse   = resMod.response
+let view             = viewMod.view
+let cookieJar        = cookieMod.cookieJar
+let sessionManager   = sessMgrMod.sessionManager
+let validator        = valMod.validator
+let fileManager      = fileMgrMod.fileManager
+
+# ── Built-in Middleware ───────────────────────────────────────────────────────
+let bodyParser       = bodyMod.bodyParser
+let logger           = logMod.kasbahLogger
+let kasbahLogger     = logMod.kasbahLogger
+let session          = sessMod.session
+let serveStatic      = staticMod.serveStatic
+let cors             = corsMod.cors
+let helmet           = helmetMod.helmet
+
+# ── Helpers & Utilities ───────────────────────────────────────────────────────
+let setServerConfig   = appMod.setServerConfig
+let setClientConfig   = http.setClientConfig
+let generateId        = utilsMod.generateId
+let urlEncodeFilename = utilsMod.urlEncodeFilename

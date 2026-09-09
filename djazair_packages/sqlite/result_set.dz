@@ -1,0 +1,70 @@
+# result_set.dz — SQLite ResultSet module for Djazair
+let _s = __dynamic("sqlite")
+
+let SQLITE_ROW  = 100
+let SQLITE_DONE = 101
+
+class ResultSet
+    init(stmt)
+        self.stmt = stmt
+        self._cols = Null
+    end
+
+    # Fetch next row as array
+    fetchRow()
+        if isNull(self.stmt) return Null end
+        let rc = _s.step(self.stmt)
+        if rc == SQLITE_ROW
+            return _s.fetchRow(self.stmt)
+        end
+        return Null
+    end
+
+    # Fetch next row as map (Assoc array)
+    fetchAssoc()
+        if isNull(self.stmt) return Null end
+        let rc = _s.step(self.stmt)
+        if rc == SQLITE_ROW
+            let values = _s.fetchRow(self.stmt)
+            let names  = self.columns()
+            let map    = {}
+            for i, name in names
+                map[name] = values[i]
+            end
+            return map
+        end
+        return Null
+    end
+
+    # Fetch all rows as an array of maps
+    fetchAllAssoc()
+        let results = []
+        let row = self.fetchAssoc()
+        while !isNull(row)
+            results.append(row)
+            row = self.fetchAssoc()
+        end
+        return results
+    end
+
+    # Get column names
+    columns()
+        if isNull(self.stmt) return [] end
+        if isNull(self._cols)
+            self._cols = _s.columnNames(self.stmt)
+        end
+        return self._cols
+    end
+
+    # Return the raw statement handle (Hybrid)
+    raw()
+        return self.stmt
+    end
+
+    close()
+        if !isNull(self.stmt)
+            _s.finalize(self.stmt)
+            self.stmt = Null
+        end
+    end
+end

@@ -1,0 +1,52 @@
+use webview
+
+# Message Box
+let result = webview.showMessageBox({
+    "type": "info",
+    "title": "Information",
+    "message": "File saved successfully.",
+    "detail": "The document was exported.",
+    "buttons": "ok",
+    "defaultId": 0,
+    "cancelId": 0
+})
+
+# Open File (single)
+let path = webview.showOpenFileDialog({
+    "title": "Select a File",
+    "defaultPath": "",
+    "filters": [
+        {"name": "Documents", "extensions": ["txt", "json", "md"]},
+        {"name": "All Files", "extensions": ["*"]}
+    ],
+    "multiSelections": False,
+    "properties": []
+})
+
+# Open File (multi)
+let paths = webview.showOpenFileDialog({
+    "title": "Select Multiple Files",
+    "multiSelections": True,
+    "filters": [{"name": "All Files", "extensions": ["*"]}]
+})
+
+# Save File
+let path2 = webview.showSaveFileDialog({
+    "title": "Save As",
+    "defaultPath": "output.json",
+    "filters": [
+        {"name": "JSON", "extensions": ["json"]},
+        {"name": "Text", "extensions": ["txt"]}
+    ]
+})
+
+# Folder Picker
+let folder = webview.showOpenFolderDialog({
+    "title": "Select a Folder",
+    "defaultPath": ""
+})
+
+# Color Picker
+let color = webview.showColorPicker({
+    "title": "Pick a Color"
+})

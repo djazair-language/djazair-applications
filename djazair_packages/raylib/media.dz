@@ -1,0 +1,167 @@
+# ==============================================================================
+# media.dz — Raylib Textures, Audio, Music, and Fonts for Djazair
+#
+# Provides Texture, Sound, Music, Font, and Audio Device wrappers.
+#
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# ==============================================================================
+
+let rl = __dynamic("raylib")
+use assert
+
+class Texture
+    init(path)
+        assert.string(path, "path")
+        self.res = rl.loadTexture(path)
+    end
+
+    draw(x, y)
+        assert.number(x, "x")
+        assert.number(y, "y")
+        rl.drawTexture(self.res, int(x), int(y))
+    end
+
+    drawRec(srcX, srcY, srcW, srcH, destX, destY, color = [255, 255, 255, 255])
+        rl.drawTextureRec(self.res, srcX, srcY, srcW, srcH, destX, destY, color)
+    end
+
+    drawEx(destX, destY, rotation = 0.0, scale = 1.0, color = [255, 255, 255, 255])
+        rl.drawTextureEx(self.res, destX, destY, rotation, scale, color)
+    end
+
+    unload()
+        if !isNull(self.res)
+            rl.unloadTexture(self.res)
+            self.res = Null
+        end
+    end
+end
+
+class Text
+    init(content, size = 20, color = [255, 255, 255, 255])
+        assert.string(content, "content")
+        assert.number(size, "size")
+        self.content = content
+        self.size = int(size)
+        self.color = color
+    end
+
+    draw(x, y)
+        assert.number(x, "x")
+        assert.number(y, "y")
+        rl.drawText(self.content, int(x), int(y), self.size, self.color)
+    end
+
+    measure()
+        return rl.measureText(self.content, self.size)
+    end
+end
+
+class Sound
+    init(path)
+        assert.string(path, "path")
+        self.res = rl.loadSound(path)
+    end
+
+    play()
+        if !isNull(self.res)
+            rl.playSound(self.res)
+        end
+    end
+
+    unload()
+        if !isNull(self.res)
+            rl.unloadSound(self.res)
+            self.res = Null
+        end
+    end
+end
+
+class Audio
+    init()
+        rl.initAudio()
+    end
+
+    close()
+        rl.closeAudio()
+    end
+end
+
+class Font
+    init(path)
+        assert.string(path, "path")
+        self.res = rl.loadFont(path)
+    end
+
+    draw(text, x, y, size = 32.0, spacing = 1.0, color = [255, 255, 255, 255])
+        assert.string(text, "text")
+        assert.number(x, "x")
+        assert.number(y, "y")
+        assert.number(size, "size")
+        assert.number(spacing, "spacing")
+        rl.drawTextEx(self.res, text, float(x), float(y), float(size), float(spacing), color)
+    end
+
+    unload()
+        if !isNull(self.res)
+            rl.unloadFont(self.res)
+            self.res = Null
+        end
+    end
+end
+
+class Music
+    init(path)
+        assert.string(path, "path")
+        self.res = rl.loadMusicStream(path)
+    end
+
+    play()
+        if !isNull(self.res)
+            rl.playMusicStream(self.res)
+        end
+    end
+
+    update()
+        if !isNull(self.res)
+            rl.updateMusicStream(self.res)
+        end
+    end
+
+    stop()
+        if !isNull(self.res)
+            rl.stopMusicStream(self.res)
+        end
+    end
+
+    pause()
+        if !isNull(self.res)
+            rl.pauseMusicStream(self.res)
+        end
+    end
+
+    resume()
+        if !isNull(self.res)
+            rl.resumeMusicStream(self.res)
+        end
+    end
+
+    isPlaying()
+        if isNull(self.res) return False end
+        return rl.isMusicStreamPlaying(self.res)
+    end
+
+    setVolume(vol)
+        assert.number(vol, "vol")
+        if !isNull(self.res)
+            rl.setMusicVolume(self.res, float(vol))
+        end
+    end
+
+    unload()
+        if !isNull(self.res)
+            rl.unloadMusicStream(self.res)
+            self.res = Null
+        end
+    end
+end

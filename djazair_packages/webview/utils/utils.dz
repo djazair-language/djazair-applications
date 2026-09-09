@@ -1,0 +1,148 @@
+# utils.dz
+# Logging, formatting, and utility helpers for Djazair Webview
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+use json as *
+use datetime
+use file
+
+# Global logging configuration
+let _logLevel = 2 # Default: WARN (0: NONE, 1: ERROR, 2: WARN, 3: INFO, 4: DEBUG)
+let _logColors = True
+let _logFile = Null
+let _logTimeFormat = "%H:%M:%S"
+
+# High-resolution monotonic baseline
+let _initialTs = datetime.timestamp()
+let _initialTicks = datetime.ticks()
+
+# ANSI Terminal Escape Codes
+let ESC = chr(27)
+let COLOR_RESET   = ESC + "[0m"
+let COLOR_GRAY    = ESC + "[90m"
+let COLOR_CYAN    = ESC + "[36m"
+let COLOR_GREEN   = ESC + "[32m"
+let COLOR_YELLOW  = ESC + "[33m"
+let COLOR_RED     = ESC + "[31m"
+let COLOR_MAGENTA = ESC + "[35m"
+
+# Configures global webview logging threshold.
+# Accepts "none", "error", "warn", "info", "debug" or numeric 0-4.
+fn setLogLevel(level)
+    let l = str(level).lower()
+    if l == "none" or l == "0"
+        _logLevel = 0
+    elif l == "error" or l == "1"
+        _logLevel = 1
+    elif l == "warn" or l == "2"
+        _logLevel = 2
+    elif l == "info" or l == "3"
+        _logLevel = 3
+    elif l == "debug" or l == "4"
+        _logLevel = 4
+    end
+end
+
+# Toggles colored output in console.
+fn setLogColors(enable)
+    _logColors = bool(enable)
+end
+
+# Sets output file path where log records are persisted.
+fn setLogFile(filePath)
+    _logFile = filePath
+    if !isNull(filePath)
+        try
+            file.create(filePath)
+        catch err
+            # Suppress file creation errors
+        end
+    end
+end
+
+# Sets custom strftime pattern for log timestamps (e.g. "%Y-%m-%d %H:%M:%S").
+fn setLogTimeFormat(pattern)
+    _logTimeFormat = pattern
+end
+
+# Formats high-resolution sub-second timestamp string using Djazair string methods.
+fn _getTimestamp()
+    let elapsed = (datetime.ticks() - _initialTicks) / 1000.0
+    let currentTs = _initialTs + elapsed
+    let dt = datetime.fromTimestamp(currentTs)
+    let ms = int((currentTs - int(currentTs)) * 1000)
+    let msStr = str(ms).zFill(3)
+    return "${dt.format(_logTimeFormat)}.${msStr}"
+end
+
+# Formats message payload into a readable string or JSON representation.
+fn _formatMessage(msg)
+    if isString(msg)
+        return msg
+    else
+        return encode(msg)
+    end
+end
+
+# Internal system logger with severity levels, component tagging, and ANSI coloring.
+fn sysLog(component, message, level = "info")
+    let lvlNum = 3
+    let lvlStr = "INFO"
+    let color = COLOR_CYAN
+
+    let l = str(level).lower()
+    if l == "debug" or l == "4"
+        lvlNum = 4
+        lvlStr = "DEBUG"
+        color = COLOR_GRAY
+    elif l == "info" or l == "3"
+        lvlNum = 3
+        lvlStr = "INFO"
+        color = COLOR_CYAN
+    elif l == "warn" or l == "2"
+        lvlNum = 2
+        lvlStr = "WARN"
+        color = COLOR_YELLOW
+    elif l == "error" or l == "1"
+        lvlNum = 1
+        lvlStr = "ERROR"
+        color = COLOR_RED
+    elif l == "fatal" or l == "0"
+        lvlNum = 0
+        lvlStr = "FATAL"
+        color = COLOR_MAGENTA
+    end
+
+    if lvlNum <= _logLevel
+        let ts = _getTimestamp()
+        let lvlPad = lvlStr.lJust(5)
+        let compPad = component.lJust(8)
+        let msgStr = _formatMessage(message)
+
+        let rawLog = "[${ts}] [${lvlStr}] [${component}] ${msgStr}"
+
+        if _logColors
+            let formattedConsole = "[${COLOR_GRAY}${ts}${COLOR_RESET}] [${color}${lvlPad}${COLOR_RESET}] [${COLOR_GREEN}${compPad}${COLOR_RESET}] ${msgStr}"
+            print(formattedConsole)
+        else
+            print(rawLog)
+        end
+
+        if !isNull(_logFile)
+            try
+                file.append(_logFile, "${rawLog}\n")
+            catch err
+                # Suppress write errors
+            end
+        end
+    end
+end
+
+# Safely extracts an option key with a default fallback value.
+fn getOpt(opts, key, fallback)
+    if isMap(opts) and opts.has(key)
+        return opts[key]
+    end
+    return fallback
+end

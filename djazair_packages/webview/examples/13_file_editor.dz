@@ -1,0 +1,119 @@
+use webview
+use file
+
+let app = webview.createWindow({
+    "title": "Djazair File Editor",
+    "width": 900,
+    "height": 650,
+    "debug": True
+})
+
+app.onReady(fn()
+    app.bridge.on("openFile", fn(p)
+        let path = webview.showOpenFileDialog({
+            "title": "Open Text File",
+            "filters": [
+                {"name": "Text Files", "extensions": ["txt", "md", "dz"]},
+                {"name": "All Files", "extensions": ["*"]}
+            ]
+        })
+        if isNull(path) return {"error": "Cancelled"} end
+        let content = file.read(path)
+        return {"path": path, "content": content}
+    end)
+
+    app.bridge.on("saveFile", fn(p)
+        let path = p["currentPath"]
+        if isNull(path) or path == ""
+            path = webview.showSaveFileDialog({
+                "title": "Save File",
+                "defaultPath": p["suggestedName"],
+                "filters": [{"name": "Text Files", "extensions": ["txt"]}]
+            })
+            if isNull(path) return {"error": "Cancelled"} end
+        end
+        file.write(path, p["content"])
+        return {"path": path}
+    end)
+
+    app.bridge.on("showInfo", fn(p)
+        webview.showMessageBox({
+            "type": "info",
+            "title": p["title"],
+            "message": p["message"]
+        })
+        return True
+    end)
+
+    app.window.setHtml("
+        <html>
+        <head>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: 'Segoe UI', sans-serif;
+                    background: #0d1117; color: #c9d1d9;
+                    display: flex; flex-direction: column; height: 100vh;
+                }
+                .toolbar {
+                    display: flex; gap: 8px; padding: 10px 16px;
+                    background: #161b22; border-bottom: 1px solid #30363d;
+                }
+                button {
+                    background: #21262d; border: 1px solid #30363d;
+                    color: #c9d1d9; padding: 8px 16px; border-radius: 6px;
+                    cursor: pointer; font-size: 13px;
+                }
+                button:hover { background: #30363d; }
+                .status {
+                    padding: 8px 16px; background: #161b22;
+                    border-bottom: 1px solid #30363d;
+                    font-size: 12px; color: #8b949e;
+                }
+                textarea {
+                    flex: 1; padding: 16px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+                    font-size: 14px; background: #0d1117; color: #c9d1d9;
+                    border: none; outline: none; resize: none;
+                }
+            </style>
+        </head>
+        <body>
+            <div class='toolbar'>
+                <button onclick='openFile()'>Open</button>
+                <button onclick='saveFile()'>Save</button>
+                <button onclick='showAbout()'>About</button>
+            </div>
+            <div class='status' id='status'>No file open</div>
+            <textarea id='editor' placeholder='Start typing...'></textarea>
+            <script>
+                var currentPath = '';
+                async function openFile() {
+                    var r = await window.djazair.invoke('openFile');
+                    if (r.error) return;
+                    currentPath = r.path;
+                    document.getElementById('editor').value = r.content;
+                    document.getElementById('status').innerText = r.path;
+                }
+                async function saveFile() {
+                    var content = document.getElementById('editor').value;
+                    var name = currentPath.split('/').pop().split('\\\\').pop() || 'untitled.txt';
+                    var r = await window.djazair.invoke('saveFile', {
+                        content: content, suggestedName: name, currentPath: currentPath
+                    });
+                    if (r.error) return;
+                    currentPath = r.path;
+                    document.getElementById('status').innerText = 'Saved: ' + r.path;
+                }
+                async function showAbout() {
+                    await window.djazair.invoke('showInfo', {
+                        title: 'About',
+                        message: 'Djazair File Editor\\nBuilt with WebView extension'
+                    });
+                }
+            </script>
+        </body>
+        </html>
+    ")
+end)
+
+app.run()

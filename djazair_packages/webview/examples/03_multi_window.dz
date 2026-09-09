@@ -1,0 +1,14 @@
+use webview
+
+let app1 = webview.createWindow({"title": "Window 1", "width": 600, "height": 400})
+let app2 = webview.createWindow({"title": "Window 2", "width": 400, "height": 300})
+
+app1.onReady(fn()
+    app1.window.setHtml("<h1>First Window</h1>")
+end)
+
+app2.onReady(fn()
+    app2.window.setHtml("<h1>Second Window</h1>")
+end)
+
+app1.run()

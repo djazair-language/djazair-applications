@@ -1,0 +1,45 @@
+﻿# ── Example 01: Basic Variable Rendering ─────────────────────────────────────
+# Demonstrates escaped output {{ var }}, raw output {{{ raw }}},
+# dot-notation {{ user.name }}, and negation with !.
+
+use qalam
+
+# ── Escaped output (XSS-safe) ─────────────────────────────────────────────────
+let html = qalam.renderString(
+    "<h1>Hello, {{ name }}!</h1>",
+    {"name": "Riad"}
+)
+print(html)
+# → <h1>Hello, Riad!</h1>
+
+# ── XSS escaping in action ────────────────────────────────────────────────────
+let xss = qalam.renderString(
+    "<p>{{ comment }}</p>",
+    {"comment": "<script>alert('xss')</script>"}
+)
+print(xss)
+# → <p>&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;</p>
+
+# ── Raw HTML injection (use only for trusted content) ─────────────────────────
+let raw = qalam.renderString(
+    "<div>{{{ content }}}</div>",
+    {"content": "<strong>Bold</strong>"}
+)
+print(raw)
+# → <div><strong>Bold</strong></div>
+
+# ── Dot-notation for nested data ──────────────────────────────────────────────
+let nested = qalam.renderString(
+    "<p>{{ user.profile.city }}</p>",
+    {"user": {"profile": {"city": "Algiers"}}}
+)
+print(nested)
+# → <p>Algiers</p>
+
+# ── Negation with ! ───────────────────────────────────────────────────────────
+let badge = qalam.renderString(
+    "{% if !user.isGuest %}<a href='/logout'>Sign out</a>{% endif %}",
+    {"user": {"isGuest": False}}
+)
+print(badge)
+# → <a href='/logout'>Sign out</a>

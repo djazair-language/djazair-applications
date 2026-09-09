@@ -1,0 +1,9 @@
+let _native = __native("_webview")
+
+fn protocolRegister(scheme, handler)
+    _native.protocolRegister(scheme, handler)
+end
+
+fn protocolUnregister(scheme)
+    _native.protocolUnregister(scheme)
+end

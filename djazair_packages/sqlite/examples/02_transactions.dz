@@ -1,0 +1,22 @@
+use sqlite
+
+let db = sqlite.connect("test.db")
+
+db.execute("CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY, name TEXT, balance REAL)")
+
+db.beginTransaction()
+
+db.safeExecute("INSERT INTO accounts (name, balance) VALUES (?, ?)", ["Alice", 1000.0])
+db.safeExecute("INSERT INTO accounts (name, balance) VALUES (?, ?)", ["Bob", 500.0])
+
+db.commit()
+print("Transaction committed.")
+
+let res = db.query("SELECT * FROM accounts")
+if !isNull(res)
+    let rows = res.fetchAllAssoc()
+    print("Accounts: ${rows.length()}")
+    res.close()
+end
+
+db.close()

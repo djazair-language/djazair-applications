@@ -1,0 +1,19 @@
+use webview
+
+# System Tray
+let tray = webview.trayCreate("Djazair App", "icon.ico")
+if !isNull(tray)
+    webview.traySetTooltip(tray, "Djazair Application v1.0")
+    webview.trayShowBalloon(tray, "Title", "Message text", 5)
+    webview.trayDestroy(tray)
+end
+
+# Toast Notification
+webview.notificationShow(
+    "Djazair App",
+    "Hello from Djazair!",
+    "Notification Subtitle",
+    True,
+    "",
+    5
+)

@@ -1,0 +1,170 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# cors.dz — Cross-Origin Resource Sharing (CORS) Middleware
+# ═══════════════════════════════════════════════════════════════════════════════
+# Provides configurable CORS headers (Access-Control-Allow-Origin, Methods, Headers,
+# Credentials, Exposed Headers, Max-Age) and automatic preflight (OPTIONS) resolution.
+
+import "../helpers/utils.dz" as *
+
+# Normalizes an array or string of values into a comma-delimited string.
+#
+# @param value {Array|String} Raw headers or methods
+# @return      {String}       Comma-separated string
+fn joinHeaders(value)
+    if isArray(value)
+        return value.join(", ")
+    end
+    if isString(value)
+        return value
+    end
+    return ""
+end
+
+# Checks if a given origin matches allowed origin configurations.
+#
+# @param reqOrigin {String}             Client Origin header value
+# @param allowed   {String|Array|Fn|Bool} Allowed origin rule
+# @param req       {Object}             Kasbah request instance
+# @return          {String|Null}        Resolved origin string or Null
+fn resolveAllowedOrigin(reqOrigin, allowed, req)
+    if isBool(allowed)
+        return if allowed ? "*" else Null
+    end
+
+    if isNull(allowed) or allowed == "*"
+        return "*"
+    end
+
+    if isString(allowed)
+        if allowed.contains(",")
+            let list = allowed.split(",")
+            for item in list
+                let trimmed = item.strip()
+                if trimmed == reqOrigin or trimmed == "*"
+                    return reqOrigin
+                end
+            end
+            return Null
+        end
+        if allowed == reqOrigin or reqOrigin == ""
+            return allowed
+        end
+        return Null
+    end
+
+    if isArray(allowed)
+        for item in allowed
+            let trimmed = str(item).strip()
+            if trimmed == reqOrigin or trimmed == "*"
+                return reqOrigin
+            end
+        end
+        return Null
+    end
+
+    if isFunction(allowed)
+        let result = allowed(reqOrigin, req)
+        if isBool(result)
+            return if result ? reqOrigin else Null
+        end
+        if isString(result)
+            return result
+        end
+    end
+
+    return Null
+end
+
+# Factory function creating CORS middleware.
+#
+# @param options {Map} CORS configuration options:
+#                      - origin {String|Array|Boolean|Function} Allowed origins (default: "*")
+#                      - methods {Array|String} Allowed HTTP verbs (default: "GET,HEAD,PUT,PATCH,POST,DELETE")
+#                      - allowedHeaders {Array|String} Allowed request headers (default: reflects request or standard)
+#                      - exposedHeaders {Array|String} Headers exposed to client scripts
+#                      - credentials {Boolean} Allow cookies/auth headers (default: False)
+#                      - maxAge {Number} Preflight cache duration in seconds
+#                      - preflightContinue {Boolean} Pass preflight OPTIONS to downstream handlers (default: False)
+# @return        {Function} Kasbah middleware function `fn(req, res)`
+fn cors(options = {})
+    let allowedOriginOpt = if options.has("origin") ? options["origin"] else "*"
+    let methodsOpt = if options.has("methods") ? joinHeaders(options["methods"]) else "GET,HEAD,PUT,PATCH,POST,DELETE"
+    let allowedHeadersOpt = if options.has("allowedHeaders") ? joinHeaders(options["allowedHeaders"]) else Null
+    let exposedHeadersOpt = if options.has("exposedHeaders") ? joinHeaders(options["exposedHeaders"]) else Null
+    let credentialsOpt = if options.has("credentials") ? options["credentials"] else False
+    let maxAgeOpt = if options.has("maxAge") ? options["maxAge"] else Null
+    let preflightContinue = if options.has("preflightContinue") ? options["preflightContinue"] else False
+
+    return fn(req, res)
+        let reqOrigin = req.header("origin")
+
+        # 1. Resolve Access-Control-Allow-Origin
+        let resolvedOrigin = resolveAllowedOrigin(reqOrigin, allowedOriginOpt, req)
+
+        if not isNull(resolvedOrigin) and resolvedOrigin != ""
+            # RFC compliance: credentials require explicit origin, not wildcard "*"
+            if credentialsOpt and resolvedOrigin == "*" and reqOrigin != ""
+                res.header("Access-Control-Allow-Origin", reqOrigin)
+            else
+                res.header("Access-Control-Allow-Origin", resolvedOrigin)
+            end
+
+            # Always emit Vary: Origin when origin is dynamically evaluated
+            if resolvedOrigin != "*" or credentialsOpt
+                let currentVary = res.header("Vary")
+                if currentVary == ""
+                    res.header("Vary", "Origin")
+                elif not currentVary.contains("Origin")
+                    res.header("Vary", "${currentVary}, Origin")
+                end
+            end
+        end
+
+        # 2. Access-Control-Allow-Credentials
+        if credentialsOpt
+            res.header("Access-Control-Allow-Credentials", "true")
+        end
+
+        # 3. Access-Control-Expose-Headers
+        if not isNull(exposedHeadersOpt) and exposedHeadersOpt != ""
+            res.header("Access-Control-Expose-Headers", exposedHeadersOpt)
+        end
+
+        # 4. Preflight (OPTIONS) Request Handling
+        if req.method == "OPTIONS"
+            # Access-Control-Allow-Methods
+            if methodsOpt != ""
+                res.header("Access-Control-Allow-Methods", methodsOpt)
+            end
+
+            # Access-Control-Allow-Headers
+            if not isNull(allowedHeadersOpt)
+                if allowedHeadersOpt != ""
+                    res.header("Access-Control-Allow-Headers", allowedHeadersOpt)
+                end
+            else
+                let reqHeaders = req.header("access-control-request-headers")
+                if reqHeaders != ""
+                    res.header("Access-Control-Allow-Headers", reqHeaders)
+                    let curVary = res.header("Vary")
+                    if curVary == ""
+                        res.header("Vary", "Access-Control-Request-Headers")
+                    elif not curVary.contains("Access-Control-Request-Headers")
+                        res.header("Vary", "${curVary}, Access-Control-Request-Headers")
+                    end
+                end
+            end
+
+            # Access-Control-Max-Age
+            if not isNull(maxAgeOpt) and isNumber(maxAgeOpt)
+                res.header("Access-Control-Max-Age", str(maxAgeOpt))
+            end
+
+            # End preflight with 204 No Content unless configured to continue
+            if not preflightContinue
+                res.status(204).noContent()
+                return
+            end
+        end
+    end
+end

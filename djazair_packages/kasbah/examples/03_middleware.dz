@@ -1,0 +1,67 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah Example 03 — Middleware Pipeline, Static Files & AJAX Detection
+# ═══════════════════════════════════════════════════════════════════════════════
+# Demonstrates custom authentication middleware, request timing/metrics,
+# AJAX request inspection (`isAjax()`), and static directory exposure.
+#
+# Usage:
+#   Run: djazair examples/03_middleware.dz
+#   Endpoints:
+#     GET /                   -> Public endpoint accessible to all clients
+#     GET /admin              -> Protected: returns 401 without valid token
+#     GET /admin?token=secret -> Authorized access, returns response timing
+#     GET /admin?token=secret (with X-Requested-With: XMLHttpRequest) -> Returns AJAX response
+
+use kasbah
+use datetime
+
+# Initialize application instance with static directory configuration
+let app = new kasbah.app({
+    "port":   8080,
+    "static": "./public"
+})
+
+# 1. Global Authentication Guard Middleware
+app.middleware(fn(req, res)
+    # Guard all /admin routes — reject requests without the required token
+    if req.path.slice(0, 6) == "/admin"
+        let token = req.query("token")
+        if isNull(token) or token != "secret"
+            res.unauthorized("Unauthorized access — please provide ?token=secret")
+            return
+        end
+    end
+end)
+
+# 2. Request Timing Middleware
+app.middleware(fn(req, res)
+    req.set("startTime", datetime.ticks())
+end)
+
+# 3. Public Route
+app.get("/", fn(req, res)
+    res.text("Public Home — everyone can see this!")
+end)
+
+# 4. Protected Admin Route with AJAX Inspection
+app.get("/admin", fn(req, res)
+    let startTicks = req.get("startTime")
+    let elapsedMs = if not isNull(startTicks) ? (datetime.ticks() - startTicks) / 1000 else 0
+
+    if req.isAjax()
+        res.ok({
+            "isAjax":         True,
+            "message":        "AJAX request detected",
+            "responseTimeMs": elapsedMs
+        })
+    else
+        res.ok({
+            "isAjax":         False,
+            "message":        "Welcome to the admin panel",
+            "responseTimeMs": elapsedMs
+        })
+    end
+end)
+
+# Start server listener
+app.listen()

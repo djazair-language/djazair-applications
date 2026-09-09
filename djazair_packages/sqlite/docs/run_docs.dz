@@ -1,0 +1,25 @@
+# run_docs.dz
+# Standalone desktop runner for Djazair SQLite Interactive Documentation
+# Author: Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright (c) 2026 Djazair Language Project
+
+use webview
+
+let app = webview.createWindow({
+    "title": "Djazair SQLite — Official Documentation & Interactive Studio",
+    "width": 1280,
+    "height": 840,
+    "minWidth": 850,
+    "minHeight": 600,
+    "center": True,
+    "darkTitleBar": True,
+    "debug": True,
+    "singleInstance": True,
+    "appId": "com.djazair.sqlite.docs"
+})
+
+app.onReady(fn()
+    app.window.navigate("index.html")
+end)
+
+app.run()

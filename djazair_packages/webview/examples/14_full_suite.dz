@@ -1,0 +1,187 @@
+use webview
+use file
+use json as *
+
+let app = webview.createWindow({
+    "title": "Djazair Desktop Suite",
+    "width": 1024,
+    "height": 768,
+    "debug": True,
+    "minWidth": 600,
+    "minHeight": 400
+})
+
+app.onError(fn(err)
+    print("[ERROR] ${err}")
+end)
+
+app.onReady(fn()
+    # Native Context Menu
+    let ctxMenu = webview.menuCreate("Main Menu")
+    webview.menuAddItem(ctxMenu, "Show Notification", fn()
+        webview.notificationShow("Menu Action", "Triggered from context menu!", "", True)
+    end)
+    webview.menuAddSeparator(ctxMenu)
+
+    let viewSub = webview.menuCreateSubmenu(ctxMenu, "View")
+    webview.menuAddItem(viewSub, "Fullscreen Hint", fn()
+        webview.showMessageBox({"type": "info", "title": "Hint",
+            "message": "Press F11 for fullscreen (not yet implemented)"})
+    end)
+
+    webview.menuAddSeparator(ctxMenu)
+    webview.menuAddItem(ctxMenu, "Quit", fn() app.quit() end)
+
+    # System Tray
+    let tray = Null
+    try
+        tray = webview.trayCreate("Djazair Suite", "")
+        webview.traySetTooltip(tray, "Djazair Desktop Suite")
+    catch err
+        print("Tray not available: ${err}")
+    end
+
+    # Bridge Handlers
+    app.bridge.on("showContextMenu", fn(d)
+        webview.menuPopup(app.window._handle, ctxMenu)
+        return True
+    end)
+
+    app.bridge.on("dialogMessage", fn(d)
+        return webview.showMessageBox({
+            "type": d["type"],
+            "title": d["title"],
+            "message": d["message"],
+            "buttons": d["buttons"]
+        })
+    end)
+
+    app.bridge.on("dialogOpenFile", fn(d)
+        return webview.showOpenFileDialog({
+            "title": d["title"],
+            "filters": d["filters"]
+        })
+    end)
+
+    app.bridge.on("getWindowInfo", fn(d)
+        return {
+            "title": app.window.title(),
+            "size": app.window.getSize(),
+            "position": app.window.getPosition(),
+            "zoom": app.window.zoomLevel(),
+            "visible": app.window.isVisible(),
+            "maximized": app.window.isMaximized(),
+            "url": app.window.getUrl()
+        }
+    end)
+
+    app.bridge.on("quit", fn(d)
+        app.quit()
+        return True
+    end)
+
+    # UI
+    app.window.setHtml(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: 'Segoe UI', -apple-system, sans-serif;
+                    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+                    color: #e2e8f0; min-height: 100vh;
+                    display: flex; align-items: center; justify-content: center;
+                    user-select: none;
+                }
+                .card {
+                    background: rgba(255,255,255,0.05);
+                    backdrop-filter: blur(12px);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    padding: 48px; border-radius: 20px;
+                    text-align: center; max-width: 520px; width: 90%;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+                }
+                h1 {
+                    background: linear-gradient(135deg, #a78bfa, #38bdf8);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    font-size: 2.8rem; margin-bottom: 8px;
+                }
+                p { color: #94a3b8; margin-bottom: 24px; font-size: 15px; }
+                .row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+                button {
+                    background: rgba(255,255,255,0.08);
+                    border: 1px solid rgba(255,255,255,0.12);
+                    color: #e2e8f0; padding: 12px 20px; border-radius: 10px;
+                    cursor: pointer; font-size: 14px; font-weight: 500;
+                    transition: all 0.25s ease; flex: 1; min-width: 120px;
+                }
+                button:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+                button.accent { background: linear-gradient(135deg, #8b5cf6, #3b82f6); border: none; }
+                button.accent:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(139,92,246,0.3); }
+                button.danger { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.3); }
+                #info { margin-top: 20px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; font-family: monospace; font-size: 13px; color: #38bdf8; word-break: break-all; }
+            </style>
+        </head>
+        <body oncontextmenu='event.preventDefault(); window.djazair.invoke("showContextMenu")'>
+            <div class='card'>
+                <h1>Djazair Suite</h1>
+                <p>Right-click anywhere for native context menu.</p>
+                <div class='row'>
+                    <button onclick='showInfo()'>Info Dialog</button>
+                    <button onclick='showWarning()'>Warning</button>
+                    <button onclick='showError()'>Error</button>
+                </div>
+                <div class='row' style='margin-top:8px'>
+                    <button onclick='pickFile()'>Open File</button>
+                    <button onclick='saveFile()'>Save File</button>
+                    <button onclick='pickFolder()'>Pick Folder</button>
+                </div>
+                <div class='row' style='margin-top:8px'>
+                    <button class='accent' onclick='getInfo()'>Window Info</button>
+                    <button class='danger' onclick='quit()'>Quit</button>
+                </div>
+                <div id='info'>Ready.</div>
+            </div>
+            <script>
+                var info = document.getElementById('info');
+                function setInfo(msg) { info.innerText = msg; }
+                async function showInfo() {
+                    var r = await window.djazair.invoke('dialogMessage', {type:'info', title:'Info', message:'This is an information dialog.', buttons:'ok'});
+                    setInfo('Result: ' + r);
+                }
+                async function showWarning() {
+                    var r = await window.djazair.invoke('dialogMessage', {type:'warning', title:'Warning', message:'Are you sure?', buttons:'yes-no'});
+                    setInfo('Result: ' + r);
+                }
+                async function showError() {
+                    var r = await window.djazair.invoke('dialogMessage', {type:'error', title:'Error', message:'Something went wrong.', buttons:'ok-cancel'});
+                    setInfo('Result: ' + r);
+                }
+                async function pickFile() {
+                    var r = await window.djazair.invoke('dialogOpenFile', {title:'Select File', filters:[{name:'All Files', extensions:['*']}]});
+                    setInfo(r ? 'Selected: ' + r : 'Cancelled');
+                }
+                async function saveFile() {
+                    var r = await window.djazair.invoke('dialogMessage', {type:'info', title:'Save', message:'Save dialog would open here.', buttons:'ok'});
+                }
+                async function pickFolder() {
+                    var r = await window.djazair.invoke('dialogMessage', {type:'info', title:'Folder', message:'Folder picker would open.', buttons:'ok'});
+                }
+                async function getInfo() {
+                    var r = await window.djazair.invoke('getWindowInfo');
+                    setInfo(JSON.stringify(r, null, 2));
+                }
+                async function quit() {
+                    var r = await window.djazair.invoke('dialogMessage', {type:'question', title:'Quit', message:'Are you sure you want to quit?', buttons:'yes-no'});
+                    if (r === 'yes') { window.djazair.invoke('quit'); }
+                }
+            </script>
+        </body>
+        </html>
+    `)
+end)
+
+app.run()

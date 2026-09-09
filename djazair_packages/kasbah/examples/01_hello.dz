@@ -1,0 +1,56 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kasbah Example 01 — Hello World & Core Responses
+# ═══════════════════════════════════════════════════════════════════════════════
+# Minimal HTTP web server demonstrating fundamental response types in Kasbah:
+# Plain text, JSON serialization, HTML output, HTTP status codes, and custom headers.
+#
+# Usage:
+#   Run: djazair examples/01_hello.dz
+#   Endpoints:
+#     GET /        -> Plain text ("Hello from Kasbah!")
+#     GET /json    -> Structured JSON response with framework metadata
+#     GET /html    -> Formatted HTML response
+#     GET /status  -> 200 OK via sendStatus()
+#     GET /headers -> Custom HTTP headers inspection via res.header()
+
+use kasbah
+
+# Initialize application instance with port 8080
+let app = new kasbah.app({
+    "port": 8080
+})
+
+# 1. Plain text endpoint
+app.get("/", fn(req, res)
+    res.text("Hello from Kasbah!")
+end)
+
+# 2. JSON endpoint
+app.get("/json", fn(req, res)
+    res.json({
+        "message":   "Hello from Kasbah!",
+        "version":   "0.2.0",
+        "framework": "Kasbah",
+        "status":    "running"
+    })
+end)
+
+# 3. HTML endpoint
+app.get("/html", fn(req, res)
+    res.html("<h1>Kasbah Web Framework</h1><p>Running on Djazair runtime.</p>")
+end)
+
+# 4. Semantic HTTP status code endpoint
+app.get("/status", fn(req, res)
+    res.sendStatus(200)
+end)
+
+# 5. Custom HTTP headers endpoint
+app.get("/headers", fn(req, res)
+    res.header("X-Powered-By", "Kasbah")
+    res.header("X-Framework-Version", "0.2.0")
+    res.json({"status": "check response headers for X-Powered-By"})
+end)
+
+# Start server listener
+app.listen()

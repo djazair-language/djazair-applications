@@ -1,0 +1,12 @@
+# init.dz — SQLite Hybrid & Protected Library for Djazair
+import "result_set.dz" as rs
+import "connection.dz" as conn
+
+let SQLITE_ROW  = rs.SQLITE_ROW
+let SQLITE_DONE = rs.SQLITE_DONE
+
+let ResultSet = rs.ResultSet
+let Connection = conn.Connection
+
+let connect = conn.connect
+let libversion = conn.libversion

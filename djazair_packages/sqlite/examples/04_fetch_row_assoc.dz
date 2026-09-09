@@ -1,0 +1,32 @@
+use sqlite
+
+let db = sqlite.connect("test.db")
+
+db.execute("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, name TEXT, price REAL)")
+db.safeExecute("INSERT OR IGNORE INTO products VALUES (1, 'Widget', 9.99)")
+db.safeExecute("INSERT OR IGNORE INTO products VALUES (2, 'Gadget', 24.99)")
+db.safeExecute("INSERT OR IGNORE INTO products VALUES (3, 'Doohickey', 4.99)")
+
+let res = db.query("SELECT * FROM products ORDER BY price DESC")
+if !isNull(res)
+    print("--- fetchRow (indexed) ---")
+    let row = res.fetchRow()
+    while !isNull(row)
+        print("Row: ${row}")
+        row = res.fetchRow()
+    end
+    res.close()
+end
+
+let res2 = db.query("SELECT * FROM products ORDER BY price ASC")
+if !isNull(res2)
+    print("--- fetchAssoc (named) ---")
+    let row2 = res2.fetchAssoc()
+    while !isNull(row2)
+        print("Product: ${row2[\"name\"]} ($${row2[\"price\"]})")
+        row2 = res2.fetchAssoc()
+    end
+    res2.close()
+end
+
+db.close()

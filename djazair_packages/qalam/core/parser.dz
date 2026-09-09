@@ -1,0 +1,196 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# parser.dz — Abstract Syntax Tree (AST) Parser
+# ═══════════════════════════════════════════════════════════════════════════════
+# Transforms a flat token stream into a nested hierarchical AST structure.
+# Handles conditionals (`if` / `elif` / `else` / `endif`), loops (`for` / `endfor`),
+# template inheritance (`extends`, `block`), and partial includes (`include`).
+
+import "constants.dz" as consts
+
+class parser
+    # Initializes the AST Parser.
+    init()
+    end
+
+    # Strips enclosing single or double quotes from string literals.
+    #
+    # @param strVal {String} Quoted string (e.g. '"views/layout"')
+    # @return       {String} Unquoted string (e.g. 'views/layout')
+    stripQuotes(strVal)
+        let s = str(strVal).strip()
+        if (s.startsWith("\"") and s.endsWith("\"")) or (s.startsWith("'") and s.endsWith("'"))
+            if s.length() >= 2
+                return s.slice(1, s.length() - 1)
+            end
+        end
+        return s
+    end
+
+    # Recursively parses tokens into an AST node tree.
+    #
+    # @param tokens {Array} Token list from Lexer.tokenize()
+    # @param state  {Map}   Mutable state map `{"i": currentIndex}`
+    # @return       {Array} Structured AST node list
+    parse(tokens, state = {"i": 0})
+        let nodes = []
+        let tokensLength = tokens.length()
+
+        while state["i"] < tokensLength
+            let token = tokens[state["i"]]
+            state["i"] += 1
+
+            let tokenType = token["type"]
+            let tokenVal  = token["val"]
+            let tokenLine = token["line"]
+
+            if tokenType == consts.TOKEN_TEXT
+                nodes.append({
+                    "type": consts.NODE_TEXT,
+                    "val": tokenVal,
+                    "line": tokenLine
+                })
+            elif tokenType == consts.TOKEN_VAR
+                nodes.append({
+                    "type": consts.NODE_VAR,
+                    "val": tokenVal,
+                    "line": tokenLine
+                })
+            elif tokenType == consts.TOKEN_RAW
+                nodes.append({
+                    "type": consts.NODE_RAW,
+                    "val": tokenVal,
+                    "line": tokenLine
+                })
+            elif tokenType == consts.TOKEN_TAG
+                let tagString = tokenVal.strip()
+                let spaceIndex = tagString.index(" ")
+                let tagCommand = tagString
+                let tagArgs = ""
+                if spaceIndex != -1
+                    tagCommand = tagString.slice(0, spaceIndex).strip()
+                    tagArgs = tagString.slice(spaceIndex + 1).strip()
+                end
+
+                if tagCommand == "if"
+                    let branches = []
+                    let firstCond = tagArgs
+                    let currentBody = self.parse(tokens, state)
+                    branches.append({"cond": firstCond, "body": currentBody})
+
+                    while state["i"] <= tokensLength
+                        let lastIdx = state["i"] - 1
+                        if lastIdx < 0 or lastIdx >= tokensLength
+                            break
+                        end
+                        let lastToken = tokens[lastIdx]
+                        if lastToken["type"] != consts.TOKEN_TAG
+                            break
+                        end
+                        let lastTag = lastToken["val"].strip()
+
+                        if lastTag.startsWith("elif ") or lastTag.startsWith("else if ")
+                            let elifCond = ""
+                            if lastTag.startsWith("elif ")
+                                elifCond = lastTag.slice(5).strip()
+                            else
+                                elifCond = lastTag.slice(8).strip()
+                            end
+                            let elifBody = self.parse(tokens, state)
+                            branches.append({"cond": elifCond, "body": elifBody})
+                        elif lastTag == "else"
+                            let elseBody = self.parse(tokens, state)
+                            branches.append({"cond": Null, "body": elseBody})
+                        elif lastTag == "endif" or lastTag.startsWith("endif ") or lastTag == "end" or lastTag == "end if" or lastTag.startsWith("end if ")
+                            break
+                        else
+                            break
+                        end
+                    end
+
+                    # Backward compatibility fields
+                    let trueNodes = branches[0]["body"]
+                    let falseNodes = []
+                    if branches.length() > 1 and isNull(branches[branches.length() - 1]["cond"])
+                        falseNodes = branches[branches.length() - 1]["body"]
+                    end
+
+                    nodes.append({
+                        "type": consts.NODE_IF,
+                        "cond": firstCond,
+                        "branches": branches,
+                        "trueNodes": trueNodes,
+                        "falseNodes": falseNodes,
+                        "line": tokenLine
+                    })
+
+                elif tagCommand == "elif" or tagCommand == "else" or tagCommand == "else if" or tagCommand == "endif" or tagCommand == "end" or tagCommand == "endfor" or tagCommand == "endblock"
+                    return nodes
+
+                elif tagCommand == "for"
+                    let inIndex = tagArgs.index(" in ")
+                    if inIndex == -1
+                        throw "Syntax error: 'for' tag must use syntax 'for item in collection' at line ${tokenLine}"
+                    end
+                    let varPart  = tagArgs.slice(0, inIndex).strip()
+                    let listPart = tagArgs.slice(inIndex + 4).strip()
+                    let bodyNodes = self.parse(tokens, state)
+
+                    let elseBody = []
+                    let lastIdx = state["i"] - 1
+                    if lastIdx >= 0 and lastIdx < tokensLength
+                        let lastToken = tokens[lastIdx]
+                        if lastToken["type"] == consts.TOKEN_TAG and lastToken["val"].strip() == "else"
+                            elseBody = self.parse(tokens, state)
+                        end
+                    end
+
+                    nodes.append({
+                        "type": consts.NODE_FOR,
+                        "var": varPart,
+                        "list": listPart,
+                        "body": bodyNodes,
+                        "elseBody": elseBody,
+                        "line": tokenLine
+                    })
+
+                elif tagCommand == "endfor" or tagCommand == "end" or tagCommand == "end for"
+                    return nodes
+
+                elif tagCommand == "include"
+                    let templateName = self.stripQuotes(tagArgs)
+                    nodes.append({
+                        "type": consts.NODE_INCLUDE,
+                        "val": templateName,
+                        "line": tokenLine
+                    })
+
+                elif tagCommand == "extends"
+                    let templateName = self.stripQuotes(tagArgs)
+                    nodes.append({
+                        "type": consts.NODE_EXTENDS,
+                        "val": templateName,
+                        "line": tokenLine
+                    })
+
+                elif tagCommand == "block"
+                    let blockName = tagArgs
+                    let bodyNodes = self.parse(tokens, state)
+                    nodes.append({
+                        "type": consts.NODE_BLOCK,
+                        "name": blockName,
+                        "body": bodyNodes,
+                        "line": tokenLine
+                    })
+
+                elif tagCommand == "endblock" or tagCommand == "end" or tagCommand == "end block"
+                    return nodes
+
+                else
+                    throw "Unknown template tag '{% ${tagString} %}' at line ${tokenLine}"
+                end
+            end
+        end
+
+        return nodes
+    end
+end

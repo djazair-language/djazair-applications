@@ -1,0 +1,62 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# test_inheritance.dz — Tests for Template Inheritance & Partial Includes
+# ═══════════════════════════════════════════════════════════════════════════════
+# Validates layout inheritance (`{% extends %}` + `{% block %}`), unoverridden
+# blocks retaining default content, and nested partial inclusions (`{% include %}`).
+
+use qalam
+use os
+use file
+use dir
+
+let passed = 0
+let failed = 0
+
+fn test(name, result, expected)
+    if result == expected
+        passed += 1
+    else
+        failed += 1
+        print("FAIL: ${name}")
+        print("  Expected: ${expected}")
+        print("  Got:      ${result}")
+    end
+end
+
+let tmpDir = "${os.tmpDir()}/qalam_inherit_tests"
+if not file.exists(tmpDir)
+    dir.createAll(tmpDir)
+end
+if not file.exists("${tmpDir}/partials")
+    dir.createAll("${tmpDir}/partials")
+end
+
+let v = new qalam.view({"views": tmpDir, "cache": False})
+
+# ── 1. Base Layout & Simple Child ─────────────────────────────────────────────
+file.write("${tmpDir}/base.html", "<!DOCTYPE html><html><head><title>{% block title %}Default App{% endblock %}</title></head><body><header>{% block header %}Default Header{% endblock %}</header><main>{% block content %}{% endblock %}</main></body></html>")
+
+file.write("${tmpDir}/page1.html", "{% extends \"base\" %}{% block title %}Home Page{% endblock %}{% block content %}<h1>Welcome to Home</h1>{% endblock %}")
+
+test("INHERITANCE: overrides title and content, keeps default header",
+    v.render("page1", {}),
+    "<!DOCTYPE html><html><head><title>Home Page</title></head><body><header>Default Header</header><main><h1>Welcome to Home</h1></main></body></html>")
+
+# ── 2. Partial Inclusions ─────────────────────────────────────────────────────
+file.write("${tmpDir}/partials/nav.html", "<nav><a href=\"/\">Home</a> | <a href=\"/about\">About</a></nav>")
+
+file.write("${tmpDir}/page2.html", "{% extends \"base\" %}{% block header %}{% include \"partials/nav\" %}{% endblock %}{% block content %}<p>About Us</p>{% endblock %}")
+
+test("INHERITANCE + INCLUDE: partial rendered inside block override",
+    v.render("page2", {}),
+    "<!DOCTYPE html><html><head><title>Default App</title></head><body><header><nav><a href=\"/\">Home</a> | <a href=\"/about\">About</a></nav></header><main><p>About Us</p></main></body></html>")
+
+# ── Report ────────────────────────────────────────────────────────────────────
+print("\n══════════════════════════════════════")
+print("Qalam Inheritance Tests")
+print("  Passed : ${passed}")
+print("  Failed : ${failed}")
+if failed == 0
+    print("  Result : ALL PASSED")
+end
+print("══════════════════════════════════════")

@@ -1,0 +1,17 @@
+use webview
+
+let app = webview.createWindow({"title": "My App", "debug": True})
+
+app.onReady(fn()
+    print("App is ready!")
+end)
+
+app.onQuit(fn()
+    print("Goodbye!")
+end)
+
+app.onError(fn(err)
+    print("Error: ${err}")
+end)
+
+app.run()

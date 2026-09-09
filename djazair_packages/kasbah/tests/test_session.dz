@@ -1,0 +1,121 @@
+﻿# test_session.dz
+# Tests for Kasbah session middleware and sessionManager
+
+import "../middleware/session.dz" as sessMw
+import "../core/sessionManager.dz" as sm
+import "../helpers/utils.dz" as utils
+use process
+use file
+use dir
+use os
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed += 1
+    else
+        print("  FAIL: ${name}")
+        failed += 1
+    end
+end
+
+print("=== Kasbah Session Tests ===")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 1: fileStore read / write / destroy
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 1: fileStore ---")
+
+let storeDir = "${os.tmpDir()}/kasbah_test_sess_${utils.generateId(8)}"
+let store = new sessMw.fileStore(storeDir)
+test("store dir is created", file.exists(storeDir))
+
+store.write("abc123", {"user": "Riad", "visits": 5})
+let data = store.read("abc123")
+test("write then read returns correct data", data.has("user") && data["user"] == "Riad")
+test("numeric value preserved", data.has("visits") && data["visits"] == 5)
+
+store.destroy("abc123")
+let afterDestroy = store.read("abc123")
+test("destroy removes session file", afterDestroy.keys().length() == 0)
+
+let missing = store.read("nonexistent_sid")
+test("reading nonexistent session returns {}", missing.keys().length() == 0)
+
+store.write("update_test", {"a": 1})
+store.write("update_test", {"a": 2, "b": 3})
+let updated = store.read("update_test")
+test("overwrite session data works", updated["a"] == 2 && updated["b"] == 3)
+
+store.write("sid_empty", {"x": 1})
+store.write("sid_empty", {})
+let emptyResult = store.read("sid_empty")
+test("writing empty map auto-destroys session", emptyResult.keys().length() == 0)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 2: sessionManager API
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 2: sessionManager ---")
+
+let mgr = new sm.sessionManager({"name": "Alice", "role": "admin"}, "test_sid", False)
+
+test("get() returns existing value", mgr.get("name") == "Alice")
+test("get() returns fallback for missing key", mgr.get("missing", "default") == "default")
+test("has() returns True for existing key", mgr.has("name"))
+test("has() returns False for missing key", !mgr.has("nonexistent"))
+test("id() returns session ID", mgr.id() == "test_sid")
+test("isNew() returns False", !mgr.isNew())
+
+mgr.set("visits", 10)
+test("set() adds new key", mgr.get("visits") == 10)
+
+mgr.delete("role")
+test("delete() removes key", !mgr.has("role"))
+
+let allData = mgr.all()
+test("all() returns copy with correct keys", allData.has("name") && allData["name"] == "Alice")
+
+mgr.clear()
+test("clear() removes all session data", mgr.all().keys().length() == 0)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 3: session middleware — secret validation
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 3: Secret validation ---")
+
+let shortSecretRejected = False
+try
+    sessMw.session({"secret": "tooshort"})
+catch err
+    shortSecretRejected = True
+end
+test("session() rejects secret shorter than 32 chars", shortSecretRejected)
+
+let longSecretAccepted = True
+try
+    sessMw.session({"secret": "this_is_a_valid_secret_with_32chars_minimum!"})
+catch err
+    longSecretAccepted = False
+end
+test("session() accepts secret >= 32 chars", longSecretAccepted)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 4: generateId uses crypto entropy
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n--- PART 4: generateId entropy ---")
+
+let id1 = utils.generateId(32)
+let id2 = utils.generateId(32)
+test("generateId produces 32-char string", id1.length() == 32)
+test("two generateId calls produce different IDs", id1 != id2)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────────────────────────────
+print("\n=== Results: ${passed} passed, ${failed} failed / ${passed + failed} total ===")
+if failed > 0
+    process.exit(1)
+end
