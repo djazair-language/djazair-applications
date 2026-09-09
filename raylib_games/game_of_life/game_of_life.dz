@@ -16,9 +16,9 @@ let KEY_C = 67
 
 # Grid Settings
 let GRID_SIZE = 16
-let GRID_W = SCREEN_WIDTH / GRID_SIZE    # 50 columns
-let GRID_H = 480 / GRID_SIZE             # 30 rows
-let GRID_AREA_HEIGHT = GRID_H * GRID_SIZE  # 480 pixels
+let GRID_W = int(SCREEN_WIDTH / GRID_SIZE)    # 50 columns
+let GRID_H = int(480 / GRID_SIZE)             # 30 rows
+let GRID_AREA_HEIGHT = GRID_H * GRID_SIZE     # 480 pixels
 
 class CellParticle
     init(x, y, color)
