@@ -508,33 +508,118 @@
         });
 
         // ── 7. Tab: Browser Engine & Navigation ──────────────────────────────
-        $('#btnNavNewWin').on('click', function() {
+        function navigateBrowser(targetUrl) {
+            if (!targetUrl) targetUrl = $('#inputNavUrl').val() || 'https://wikipedia.org';
+            targetUrl = targetUrl.trim();
+            if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('file://')) {
+                targetUrl = 'https://' + targetUrl;
+            }
+            $('#inputNavUrl').val(targetUrl);
+            $('#lblCurrentBrowserUrl').text(targetUrl);
+
+            const iframe = document.getElementById('browserViewport');
+            if (iframe) {
+                $('#browserLoadingOverlay').removeClass('hidden');
+                iframe.src = targetUrl;
+            }
+
+            appendLog('info', `Browser navigating to: ${targetUrl}`);
+            window.djazair.invoke('nav_navigate', { url: targetUrl }).then(function(res) {
+                if (res && res.target === 'browserWindow') {
+                    appendLog('success', `Dedicated browser window synced to: ${targetUrl}`);
+                }
+            });
+        }
+
+        const browserIframe = document.getElementById('browserViewport');
+        if (browserIframe) {
+            browserIframe.addEventListener('load', function() {
+                $('#browserLoadingOverlay').addClass('hidden');
+                appendLog('event', `Browser viewport loaded: ${browserIframe.src}`);
+            });
+        }
+
+        $('#btnNavGo').on('click', function() {
+            navigateBrowser($('#inputNavUrl').val());
+        });
+
+        $('#inputNavUrl').on('keypress', function(e) {
+            if (e.which === 13) {
+                navigateBrowser($(this).val());
+            }
+        });
+
+        $('#btnNavNewWin, #btnPopoutBrowser').on('click', function() {
             const targetUrl = $('#inputNavUrl').val() || 'https://google.com';
             appendLog('info', `Spawning dedicated native browser window: ${targetUrl}`);
             window.djazair.invoke('nav_openInWindow', { url: targetUrl })
                 .then(function(res) {
                     appendLog('success', `Dedicated browser window opened for: ${targetUrl}`, res);
+                    $('#badgeViewportType').text('Popout Native Window (Active)').removeClass('tag-blue').addClass('tag-purple');
                 });
-        });
-
-        $('#btnNavGo').on('click', function() {
-            const targetUrl = $('#inputNavUrl').val();
-            if (targetUrl) {
-                appendLog('warn', `Navigating primary window directly to: ${targetUrl}`);
-                window.djazair.invoke('nav_navigate', { url: targetUrl });
-            }
         });
 
         $('.btn-quick-url').on('click', function() {
             const url = $(this).data('url');
             $('#inputNavUrl').val(url);
-            appendLog('info', `Selected bookmark: ${url}`);
+            navigateBrowser(url);
         });
 
-        $('#btnNavReload').on('click', () => window.djazair.invoke('nav_reload'));
-        $('#btnNavBack').on('click', () => window.djazair.invoke('nav_goBack'));
-        $('#btnNavForward').on('click', () => window.djazair.invoke('nav_goForward'));
-        $('#btnNavDevTools').on('click', () => window.djazair.invoke('nav_openDevTools'));
+        $('#btnNavReload').on('click', function() {
+            window.djazair.invoke('nav_reload').then(function(res) {
+                if (res && res.target === 'browserWindow') {
+                    appendLog('info', 'Reloaded dedicated browser window');
+                } else {
+                    const iframe = document.getElementById('browserViewport');
+                    if (iframe) {
+                        $('#browserLoadingOverlay').removeClass('hidden');
+                        iframe.src = iframe.src;
+                        appendLog('info', 'Reloaded embedded browser viewport');
+                    }
+                }
+            });
+        });
+
+        $('#btnNavBack').on('click', function() {
+            window.djazair.invoke('nav_goBack').then(function(res) {
+                if (res && res.target === 'browserWindow') {
+                    appendLog('info', 'Navigated back in dedicated browser window');
+                } else {
+                    const iframe = document.getElementById('browserViewport');
+                    if (iframe && iframe.contentWindow) {
+                        try {
+                            iframe.contentWindow.history.back();
+                            appendLog('info', 'Navigated back in embedded browser');
+                        } catch(e) {
+                            appendLog('warn', 'History back restricted by cross-origin policy');
+                        }
+                    }
+                }
+            });
+        });
+
+        $('#btnNavForward').on('click', function() {
+            window.djazair.invoke('nav_goForward').then(function(res) {
+                if (res && res.target === 'browserWindow') {
+                    appendLog('info', 'Navigated forward in dedicated browser window');
+                } else {
+                    const iframe = document.getElementById('browserViewport');
+                    if (iframe && iframe.contentWindow) {
+                        try {
+                            iframe.contentWindow.history.forward();
+                            appendLog('info', 'Navigated forward in embedded browser');
+                        } catch(e) {
+                            appendLog('warn', 'History forward restricted by cross-origin policy');
+                        }
+                    }
+                }
+            });
+        });
+
+        $('#btnNavDevTools').on('click', function() {
+            window.djazair.invoke('nav_openDevTools');
+        });
+
         $('#btnNavClearCache').on('click', function() {
             window.djazair.invoke('nav_clearCache')
                 .then(() => appendLog('success', 'WebView2 browser cache cleared'));
@@ -619,6 +704,11 @@
             window.djazair.on('evt_secondaryClosed', function() {
                 appendLog('info', 'Secondary window closed');
                 $('#badgeSecondaryStatus').text('Closed').removeClass('tag-green').addClass('tag-amber');
+            });
+
+            window.djazair.on('evt_browserWinClosed', function() {
+                appendLog('info', 'Dedicated browser window closed');
+                $('#badgeViewportType').text('Embedded In-App View').removeClass('tag-purple').addClass('tag-blue');
             });
 
             window.djazair.on('evt_log', function(data) {

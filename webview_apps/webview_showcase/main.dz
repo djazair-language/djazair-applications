@@ -18,6 +18,7 @@ use datetime
 class ShowcaseApp
     init()
         self.secondaryWin = Null
+        self.browserWin = Null
         self.trayInstance = Null
         self.tickerActive = False
         self.tickerCounter = 0
@@ -393,6 +394,12 @@ class ShowcaseApp
                 targetUrl = "https://google.com"
             end
 
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                selfRef.browserWin.navigate(targetUrl)
+                selfRef.browserWin.focus()
+                return {"opened": True, "url": targetUrl, "reused": True}
+            end
+
             let bWin = selfRef.app.createWindow({
                 "title": "Browser View - " + targetUrl,
                 "width": 1100,
@@ -401,45 +408,88 @@ class ShowcaseApp
                 "darkTitleBar": True,
                 "debug": True
             })
+
+            bWin.onClose(fn()
+                selfRef.browserWin = Null
+                if !isNull(selfRef.app.bridge)
+                    selfRef.app.bridge.send("evt_browserWinClosed", {})
+                end
+            end)
+
             bWin.navigate(targetUrl)
+            selfRef.browserWin = bWin
             return {"opened": True, "url": targetUrl}
         end)
 
         bridge.on("nav_navigate", fn(payload)
+            let targetUrl = payload["url"]
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                selfRef.browserWin.navigate(targetUrl)
+                return {"target": "browserWindow", "url": targetUrl}
+            end
+            return {"target": "embedded", "url": targetUrl}
+        end)
+
+        bridge.on("nav_navigateMain", fn(payload)
             let targetUrl = payload["url"]
             win.navigate(targetUrl)
             return True
         end)
 
         bridge.on("nav_reload", fn(_)
-            win.reload()
-            return True
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                selfRef.browserWin.reload()
+                return {"target": "browserWindow"}
+            end
+            return {"target": "embedded"}
         end)
 
         bridge.on("nav_goBack", fn(_)
-            win.goBack()
-            return True
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                selfRef.browserWin.goBack()
+                return {"target": "browserWindow"}
+            end
+            return {"target": "embedded"}
         end)
 
         bridge.on("nav_goForward", fn(_)
-            win.goForward()
-            return True
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                selfRef.browserWin.goForward()
+                return {"target": "browserWindow"}
+            end
+            return {"target": "embedded"}
         end)
 
         bridge.on("nav_getStatus", fn(_)
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                return {
+                    "canGoBack": selfRef.browserWin.canGoBack(),
+                    "canGoForward": selfRef.browserWin.canGoForward(),
+                    "url": selfRef.browserWin.getUrl(),
+                    "target": "browserWindow"
+                }
+            end
             return {
                 "canGoBack": win.canGoBack(),
                 "canGoForward": win.canGoForward(),
-                "url": win.getUrl()
+                "url": win.getUrl(),
+                "target": "embedded"
             }
         end)
 
         bridge.on("nav_openDevTools", fn(_)
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                selfRef.browserWin.openDevTools()
+                return True
+            end
             win.openDevTools()
             return True
         end)
 
         bridge.on("nav_clearCache", fn(_)
+            if !isNull(selfRef.browserWin) and selfRef.browserWin.isValid()
+                selfRef.browserWin.clearCache()
+            end
             win.clearCache()
             return True
         end)

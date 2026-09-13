@@ -611,6 +611,32 @@
                         </div>
                     </div>
 
+                    <!-- Embedded In-App Browser Viewport Card -->
+                    <div class="glass-card p-0 overflow-hidden flex flex-col border border-white/10 rounded-xl">
+                        <div class="px-4 py-2.5 bg-slate-900/90 border-b border-white/5 flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                <span class="font-semibold text-slate-200">Active Viewport</span>
+                                <span id="lblCurrentBrowserUrl" class="text-slate-400 font-mono text-[11px] truncate max-w-md">https://wikipedia.org</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span id="badgeViewportType" class="status-tag tag-blue text-[10px]">Embedded In-App View</span>
+                                <button id="btnPopoutBrowser" class="btn-action btn-secondary py-0.5 px-2 text-[11px]" title="Popout to dedicated native browser window">
+                                    <i class="fas fa-external-link-alt"></i> Popout Window
+                                </button>
+                            </div>
+                        </div>
+                        <div class="relative w-full h-[450px] bg-slate-950">
+                            <iframe id="browserViewport" src="https://wikipedia.org" class="w-full h-full border-0 bg-white" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+                            <div id="browserLoadingOverlay" class="hidden absolute inset-0 bg-slate-950/75 flex items-center justify-center z-10">
+                                <div class="flex items-center gap-3 text-sky-400 bg-slate-900 px-4 py-2 rounded-lg border border-white/10">
+                                    <i class="fas fa-spinner fa-spin text-lg"></i>
+                                    <span class="text-xs font-semibold">Loading page...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card space-y-4">
                             <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
