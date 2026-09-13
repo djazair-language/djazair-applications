@@ -6,6 +6,7 @@
 
 use file
 use path
+use process
 import "../helpers/utils.dz" as * 
 
 # Factory function that creates a static file serving middleware.
@@ -13,7 +14,14 @@ import "../helpers/utils.dz" as *
 # @param root {String} Directory path to expose
 # @return     {Function} Middleware function `fn(req, res)`
 fn serveStatic(root)
-    let normRoot = path.normalize(root)
+    let targetRoot = root
+    let sDir = process.scriptDir()
+    if not path.isAbsolute(targetRoot) and !isNull(sDir) and sDir != ""
+        targetRoot = path.resolve(sDir, targetRoot)
+    else
+        targetRoot = path.resolve(targetRoot)
+    end
+    let normRoot = path.normalize(targetRoot)
     let normRootLower = normRoot.lower()
 
     return fn(req, res)

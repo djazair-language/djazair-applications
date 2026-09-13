@@ -10,6 +10,7 @@ use http
 use file
 use path
 use bytes
+use process
 import "../helpers/cookie.dz" as *
 import "../helpers/utils.dz" as *
 import "view.dz" as viewMod
@@ -199,7 +200,14 @@ class response
     # @param filePath {String} Path to file
     # @return         {Object} Self for chaining
     file(filePath)
-        let safePath = path.normalize(filePath)
+        let target = filePath
+        let sDir = process.scriptDir()
+        if not path.isAbsolute(target) and !isNull(sDir) and sDir != ""
+            target = path.resolve(sDir, target)
+        else
+            target = path.resolve(target)
+        end
+        let safePath = path.normalize(target)
 
         if not file.exists(safePath)
             self.status(404).send("File not found")

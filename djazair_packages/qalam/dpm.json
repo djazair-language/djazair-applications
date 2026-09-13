@@ -1,11 +1,11 @@
 {
-  "source": "github:djazair-language/djazair-extensions/qalam",
+  "name": "qalam",
+  "version": "0.2.0",
   "description": "Modular, high-performance AST-based HTML template engine for the Djazair language",
   "type": "pure",
+  "source": "github:djazair-language/djazair-extensions/qalam",
   "developer": {
     "name": "Harizi Riyadh",
     "email": "hariziriyadh@gmail.com"
-  },
-  "name": "qalam",
-  "version": "0.2.0"
+  }
 }

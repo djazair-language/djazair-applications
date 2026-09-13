@@ -114,12 +114,29 @@ class app
             if srvOpts.has("port") self.appConfig["port"] = srvOpts["port"] end
         end
 
+        let sDir = process.scriptDir()
         if self.appConfig["static"] != ""
-            self.appConfig["static"] = path.resolve(self.appConfig["static"])
+            if not path.isAbsolute(self.appConfig["static"]) and !isNull(sDir) and sDir != ""
+                self.appConfig["static"] = path.resolve(sDir, self.appConfig["static"])
+            else
+                self.appConfig["static"] = path.resolve(self.appConfig["static"])
+            end
         end
 
         if self.appConfig["views"] != ""
-            self.appConfig["views"] = path.resolve(self.appConfig["views"])
+            if not path.isAbsolute(self.appConfig["views"]) and !isNull(sDir) and sDir != ""
+                self.appConfig["views"] = path.resolve(sDir, self.appConfig["views"])
+            else
+                self.appConfig["views"] = path.resolve(self.appConfig["views"])
+            end
+        end
+
+        if self.appConfig["sessionDir"] != ""
+            if not path.isAbsolute(self.appConfig["sessionDir"]) and !isNull(sDir) and sDir != ""
+                self.appConfig["sessionDir"] = path.resolve(sDir, self.appConfig["sessionDir"])
+            else
+                self.appConfig["sessionDir"] = path.resolve(self.appConfig["sessionDir"])
+            end
         end
 
         # Standalone router instance

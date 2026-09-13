@@ -6,6 +6,7 @@
 
 use file
 use path
+use process
 
 class templateLoader
     # Initializes the loader with views directory and cache configuration.
@@ -13,7 +14,12 @@ class templateLoader
     # @param viewsDir     {String}  Base directory containing templates
     # @param cacheEnabled {Boolean} Enable AST compilation caching (default: True)
     init(viewsDir = "views", cacheEnabled = True)
-        self.viewsDir = path.resolve(viewsDir)
+        let sDir = process.scriptDir()
+        if not path.isAbsolute(viewsDir) and !isNull(sDir) and sDir != ""
+            self.viewsDir = path.resolve(sDir, viewsDir)
+        else
+            self.viewsDir = path.resolve(viewsDir)
+        end
         self.cacheEnabled = cacheEnabled
         self.astCache = {}
     end

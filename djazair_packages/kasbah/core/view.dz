@@ -7,6 +7,7 @@
 
 use qalam
 use path
+use process
 
 class view
     # Initializes the View renderer with configuration options.
@@ -17,6 +18,12 @@ class view
         let viewsDir = "views"
         if isMap(config) and config.has("views") and str(config["views"]) != ""
             viewsDir = config["views"]
+        end
+        let sDir = process.scriptDir()
+        if not path.isAbsolute(viewsDir) and !isNull(sDir) and sDir != ""
+            viewsDir = path.resolve(sDir, viewsDir)
+        else
+            viewsDir = path.resolve(viewsDir)
         end
         self.configMap = config
         self.engine = new qalam.view({"views": viewsDir})
