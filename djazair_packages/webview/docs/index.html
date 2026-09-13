@@ -24,7 +24,7 @@
 
     <div class="search-container">
       <i class="fas fa-search search-icon"></i>
-      <input type="text" id="apiSearch" class="search-input" placeholder="Search 70+ APIs: fullscreen, flash, drag, singleInstance, zoom, cache, tray, dialogs, bridge..." autocomplete="off" />
+      <input type="text" id="apiSearch" class="search-input" placeholder="Search 70+ APIs: version, fullscreen, flash, drag, singleInstance, zoom, cache, tray, dialogs, bridge..." autocomplete="off" />
     </div>
 
     <div class="header-actions">
@@ -364,6 +364,32 @@ app.run()</code></pre>
         <p class="section-desc">
           The <code>App</code> class manages the primary operating system message loop, window hierarchy, and single-instance mutex enforcement.
         </p>
+
+        <div class="method-card">
+          <div class="method-header">
+            <span class="method-sig">webview.<span class="method-name">version</span>() &rarr; String / webview.VERSION</span>
+            <span class="method-badge new">v0.4.0</span>
+          </div>
+          <div class="method-desc">
+            Returns the current semantic release version of the installed Djazair WebView framework (e.g. <code>"0.4.0"</code>). Useful for runtime version detection, feature gating, and diagnostics. Constant <code>webview.VERSION</code> is also exported for static inspections.
+          </div>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use webview
+
+print("Running WebView v" + webview.version())
+# Output: Running WebView v0.4.0
+
+if webview.version() &gt;= "0.4.0"
+    print("Framework v0.4.0+ features active!")
+end</code></pre>
+            </div>
+          </div>
+        </div>
 
         <div class="method-card">
           <div class="method-header">
@@ -1820,21 +1846,31 @@ webview.protocolUnregister("djazair")</code></pre>
 
       <!-- Section: Logging & Diagnostic Utilities -->
       <section id="logging-utils" class="doc-section">
-        <h2 class="section-title"><i class="fas fa-terminal"></i> Logging &amp; Diagnostic Utilities</h2>
+        <h2 class="section-title"><i class="fas fa-terminal"></i> Logging &amp; Framework Diagnostics</h2>
         <p class="section-desc">
-          Configure output verbosity, terminal colors, timestamps, and persistent log files for debugging.
+          Configure output verbosity, terminal colors, timestamps, persistent log files, and inspect framework version metadata.
         </p>
 
         <div class="table-wrapper">
           <table class="api-table">
             <thead>
               <tr>
-                <th>Function</th>
+                <th>Function / Constant</th>
                 <th>Accepted Values</th>
                 <th>Description</th>
               </tr>
             </thead>
             <tbody>
+              <tr>
+                <td><code>webview.version()</code></td>
+                <td>None</td>
+                <td>Returns the current semantic version string (e.g. <code>"0.4.0"</code>). Useful for version gating and diagnostics.</td>
+              </tr>
+              <tr>
+                <td><code>webview.VERSION</code></td>
+                <td>String (read-only)</td>
+                <td>Framework release version constant string (e.g. <code>"0.4.0"</code>).</td>
+              </tr>
               <tr>
                 <td><code>webview.setLogLevel(level)</code></td>
                 <td><code>"none"</code> (0), <code>"error"</code> (1), <code>"warn"</code> (2), <code>"info"</code> (3), <code>"debug"</code> (4)</td>

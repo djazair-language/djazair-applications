@@ -109,6 +109,17 @@ A native window opens displaying the HTML content. The `app.run()` call blocks u
 
 ## 3. App Lifecycle
 
+### Framework Version
+
+Query the framework release version programmatically at runtime:
+
+```djazair
+use webview
+
+print(webview.version())  # e.g. "0.4.0"
+print(webview.VERSION)    # "0.4.0"
+```
+
 ### Creating an App
 
 `webview.createWindow(options)` returns an `App` instance.
@@ -1460,10 +1471,12 @@ app.run()
 | `notificationShow(title, msg, subtitle, sound, icon, timeout)` | System toast |
 | `protocolRegister(scheme, handler)` | Register custom protocol |
 
-### Logging
+### Logging & Framework Metadata
 
-| Function | Description |
-|----------|-------------|
+| Function / Constant | Description |
+|---------------------|-------------|
+| `webview.version()` | Returns framework semantic version string (e.g. `"0.4.0"`) |
+| `webview.VERSION` | Framework release version constant string (`"0.4.0"`) |
 | `setLogLevel(level)` | Set log level (none/error/warn/info/debug) |
 | `setLogColors(bool)` | Toggle ANSI colors |
 | `setLogFile(path)` | Log to file |
@@ -1477,6 +1490,7 @@ app.run()
 ### v0.4.0 — 2026-09-13
 
 #### ✨ New Features & APIs
+- **`webview.version()` & `webview.VERSION`** — Added module-level version query function and constant to inspect framework release version programmatically.
 - **`window.toggleMaximize()`** — Automatically inverts between maximized and restored states.
 - **`window.toggleFullscreen()` & `window.fullscreen([enable])`** — Direct helper to toggle borderless immersive fullscreen with unified getter/setter.
 - **`window.getTitle()`** — Programmatic getter for OS caption bar title.

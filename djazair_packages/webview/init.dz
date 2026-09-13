@@ -20,14 +20,26 @@ import "notification/notification.dz" as *
 import "protocol/protocol.dz" as *
 
 # -----------------------------------------------------------------------------
-# Core Framework Class Exports
+# Core Framework Class & Metadata Exports
 # -----------------------------------------------------------------------------
+let VERSION      = "0.4.0"
 let App          = application.App
 let Window       = Window
 let Bridge       = Bridge
 let Menu         = Menu
 let Tray         = Tray
 let Notification = Notification
+
+# -----------------------------------------------------------------------------
+# Framework Version API
+# -----------------------------------------------------------------------------
+
+# Returns the current semantic version of the webview framework.
+#
+# @return {String} Semantic version string (e.g. "0.4.0")
+fn version()
+    return VERSION
+end
 
 # -----------------------------------------------------------------------------
 # Application Factory Functions
