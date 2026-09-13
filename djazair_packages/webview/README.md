@@ -1,6 +1,6 @@
 # Djazair WebView — Desktop Application Framework
 
-![Version](https://img.shields.io/badge/version-0.3.0-blue)
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![WebView2](https://img.shields.io/badge/engine-WebView2%20(Edge%20Chromium)-green)
 
@@ -216,12 +216,27 @@ app.window.hide()
 app.window.minimize()
 app.window.maximize()
 app.window.restore()
+app.window.toggleMaximize()  # Toggle between maximized and restored bounds
 app.window.focus()
 
 app.window.isVisible()     # Bool
 app.window.isMaximized()   # Bool
 app.window.isMinimized()   # Bool
 app.window.isFocused()     # Bool: True if active foreground window
+
+# Immersive Fullscreen
+app.window.setFullscreen(True)
+app.window.isFullscreen()          # Bool: True if currently fullscreen
+app.window.toggleFullscreen()      # Toggle between fullscreen and normal window
+app.window.fullscreen()            # Getter/setter property alias
+
+# Title & Inspection
+app.window.setTitle("My App")
+let title = app.window.getTitle()  # String
+
+# Always On Top (HWND_TOPMOST)
+app.window.setAlwaysOnTop(True)
+app.window.isAlwaysOnTop()         # Bool
 
 # Taskbar attention flash
 app.window.flash(True)           # Flash taskbar icon until focused
@@ -1369,16 +1384,22 @@ app.run()
 
 | Method | Description |
 |--------|-------------|
-| `setTitle(t)` / `title()` | Set/get window title |
+| `setTitle(t)` / `getTitle()` / `title([t])` | Set/get window title |
 | `setSize(w,h)` / `getSize()` | Set/get window size |
 | `setPosition(x,y)` / `getPosition()` | Set/get window position |
 | `show()` / `hide()` | Show/hide window |
 | `minimize()` / `maximize()` / `restore()` | Window state |
+| `toggleMaximize()` | Toggle between maximized and restored bounds |
+| `setFullscreen(bool)` / `isFullscreen()` / `toggleFullscreen()` / `fullscreen([bool])` | Immersive borderless fullscreen |
+| `setAlwaysOnTop(bool)` / `isAlwaysOnTop()` | Pin window topmost (`HWND_TOPMOST`) |
 | `focus()` | Bring window to front |
-| `isMaximized()` / `isMinimized()` / `isVisible()` | State queries |
+| `isMaximized()` / `isMinimized()` / `isVisible()` / `isFocused()` | State queries |
 | `setResizable(bool)` | Toggle resize capability |
 | `setMinimumSize(w,h)` / `setMaximumSize(w,h)` | Size constraints |
 | `setBackgroundColor(r,g,b,a)` | Set webview background |
+| `setOpacity(level)` | Window opacity (`0.0` to `1.0`) |
+| `setDarkTitleBar(bool)` | Immersive dark title bar |
+| `popupMenu(menu)` | Show context menu at cursor |
 | `navigate(url)` | Load URL or local file |
 | `setHtml(html)` | Load raw HTML |
 | `eval(js)` | Execute JavaScript |
@@ -1392,8 +1413,8 @@ app.run()
 | `isLoaded()` | Check if page loaded |
 | `onClose(cb)` / `onMove(cb)` / `onResize(cb)` | Event callbacks |
 | `onFocus(cb)` / `onBlur(cb)` | Focus events |
-| `onMaximize(cb)` / `onMinimize(cb)` / `onRestore(cb)` | State events |
-| `onNavigate(cb)` / `onTitleChange(cb)` / `onLoad(cb)` | Content events (`onLoad(cb)` fires once per completed navigation and receives the loaded URL) |
+| `onMaximize(cb)` / `onMinimize(cb)` / `onRestore(cb)` | State events (Win32 `WM_SIZE` transition tracking) |
+| `onNavigate(cb)` / `onTitleChange(cb)` / `onTitle(cb)` / `onLoad(cb)` | Content events (`onLoad(cb)` fires once per completed navigation and receives the loaded URL) |
 
 ### Bridge Methods
 
@@ -1452,6 +1473,29 @@ app.run()
 ---
 
 ## Changelog
+
+### v0.4.0 — 2026-09-13
+
+#### ✨ New Features & APIs
+- **`window.toggleMaximize()`** — Automatically inverts between maximized and restored states.
+- **`window.toggleFullscreen()` & `window.fullscreen([enable])`** — Direct helper to toggle borderless immersive fullscreen with unified getter/setter.
+- **`window.getTitle()`** — Programmatic getter for OS caption bar title.
+- **`window.isAlwaysOnTop()`** — Direct query for `HWND_TOPMOST` pinning state.
+- **`window.popupMenu(menu)`** — Window-level invocation for native context menus at current mouse cursor coordinates.
+- **`window.onTitle(callback)`** — Ergonomic alias for `window.onTitleChange(callback)`.
+- **Win32 `WM_SIZE` Transition Engine** — Subclass window procedure now inspects `SIZE_MAXIMIZED`, `SIZE_RESTORED`, and `SIZE_MINIMIZED` transitions in `WM_SIZE` and dispatches `onMaximize`, `onRestore`, and `onMinimize` native callbacks on Windows snap and hotkey events (`Win + Up` / `Win + Down`).
+
+#### 🖥️ Showcase Application
+- **Dynamic Maximize/Restore Synchronization** — Titlebar control dynamically flips between square maximize (`far fa-square`) and dual-window restore (`far fa-window-restore`), with titlebar double-click support.
+- **Interactive Dual-Tab Code Viewer** — View and copy backend Djazair `.dz` and frontend JavaScript `.js` implementation snippets with 1-click clipboard copy.
+- **100% Offline Dependencies** — Bundled local FontAwesome and jQuery resources with zero external CDN dependencies.
+
+#### 📄 Docs
+- Complete 100% API coverage (107 functions/methods across all 6 core modules).
+- Full copyable examples for all native dialogs (`showSaveFileDialog`, `showOpenFolderDialog`, `showColorPicker`).
+- Standalone offline docs runner with local fallback assets.
+
+---
 
 ### v0.3.0 — 2026-09-09
 

@@ -36,7 +36,6 @@ class ShowcaseApp
             "center": True,
             "darkTitleBar": True,
             "debug": False,
-            "frameless": True,
             "singleInstance": True,
             "appId": "com.djazair.webview.showcase"
         })
@@ -637,7 +636,7 @@ class ShowcaseApp
                 "libsDir": lang.libsDir(),
                 "time": datetime.now(),
                 "os": "Windows (Microsoft Edge WebView2)",
-                "frameworkVersion": "0.3.0",
+                "frameworkVersion": "0.4.0",
                 "djazairEngine": "Djazair Native VM"
             }
         end)
