@@ -88,7 +88,9 @@
         });
 
         $('#btnWinMax').on('click', function() {
-            window.djazair.invoke('win_maximize');
+            window.djazair.invoke('win_toggleMaximize').then(function(isMax) {
+                updateMaximizeUI(isMax);
+            });
         });
 
         $('#btnWinClose').on('click', function() {
@@ -138,10 +140,28 @@
                 });
         });
 
+        function updateMaximizeUI(isMax) {
+            $('#valMaximized').text(isMax ? 'Yes' : 'No');
+            const $btn = $('#btnWinMax');
+            if (isMax) {
+                $btn.attr('title', 'Restore').html('<i id="iconWinMax" class="far fa-window-restore text-xs"></i>');
+                $('#btnActionMax').removeClass('btn-emerald').addClass('btn-secondary');
+                $('#btnActionRestore').removeClass('btn-secondary').addClass('btn-emerald');
+            } else {
+                $btn.attr('title', 'Maximize').html('<i id="iconWinMax" class="far fa-square text-xs"></i>');
+                $('#btnActionRestore').removeClass('btn-emerald').addClass('btn-secondary');
+                $('#btnActionMax').removeClass('btn-secondary').addClass('btn-emerald');
+            }
+        }
+
         // Window States
         $('#btnActionMin').on('click', () => window.djazair.invoke('win_minimize'));
-        $('#btnActionMax').on('click', () => window.djazair.invoke('win_maximize'));
-        $('#btnActionRestore').on('click', () => window.djazair.invoke('win_restore'));
+        $('#btnActionMax').on('click', function() {
+            window.djazair.invoke('win_maximize').then(() => updateMaximizeUI(true));
+        });
+        $('#btnActionRestore').on('click', function() {
+            window.djazair.invoke('win_restore').then(() => updateMaximizeUI(false));
+        });
 
         function updateFullscreenUI(isFs) {
             $('#valFullscreen').text(isFs ? 'Yes' : 'No');
@@ -695,12 +715,12 @@
             });
 
             window.djazair.on('evt_windowMaximize', function() {
-                $('#valMaximized').text('Yes');
+                updateMaximizeUI(true);
                 appendLog('event', 'Window Maximized');
             });
 
             window.djazair.on('evt_windowRestore', function() {
-                $('#valMaximized').text('No');
+                updateMaximizeUI(false);
                 appendLog('event', 'Window Restored');
             });
 
@@ -755,7 +775,9 @@
                     if (state.zoomLevel) {
                         $('#valZoomLevel').text(`${Math.round(state.zoomLevel * 100)}%`);
                     }
-                    $('#valMaximized').text(state.isMaximized ? 'Yes' : 'No');
+                    if (state.isMaximized !== undefined) {
+                        updateMaximizeUI(state.isMaximized);
+                    }
                     if (state.isFullscreen !== undefined) {
                         updateFullscreenUI(state.isFullscreen);
                     }

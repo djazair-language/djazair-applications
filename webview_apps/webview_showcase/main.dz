@@ -197,6 +197,14 @@ class ShowcaseApp
             return True
         end)
 
+        bridge.on("win_isMaximized", fn(_)
+            return win.isMaximized()
+        end)
+
+        bridge.on("win_toggleMaximize", fn(_)
+            return win.toggleMaximize()
+        end)
+
         bridge.on("win_isFullscreen", fn(_)
             return win.isFullscreen()
         end)

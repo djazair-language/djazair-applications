@@ -27,7 +27,7 @@
         </div>
 
         <!-- Draggable Central Area -->
-        <div class="titlebar-drag-zone" onmousedown="if(window.djazair) window.djazair.startDragging();">
+        <div class="titlebar-drag-zone" onmousedown="if(window.djazair) window.djazair.startDragging();" ondblclick="if(window.djazair) window.djazair.invoke('win_toggleMaximize');">
             <span class="text-[11px] text-slate-500 mx-auto hidden md:inline">Drag Titlebar to Move Window</span>
         </div>
 
@@ -36,8 +36,8 @@
             <div id="btnWinMin" class="titlebar-btn" title="Minimize">
                 <i class="fas fa-minus text-xs"></i>
             </div>
-            <div id="btnWinMax" class="titlebar-btn" title="Maximize / Restore">
-                <i class="far fa-square text-xs"></i>
+            <div id="btnWinMax" class="titlebar-btn" title="Maximize">
+                <i id="iconWinMax" class="far fa-square text-xs"></i>
             </div>
             <div id="btnWinClose" class="titlebar-btn btn-close" title="Close">
                 <i class="fas fa-times text-xs"></i>
