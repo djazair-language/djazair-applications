@@ -90,7 +90,7 @@ fn session(options = {})
 
     let sessionDir = "${os.tmpDir()}/kasbah_sessions"
     if options.has("dir")
-        sessionDir = options["dir"]
+        sessionDir = resolveScriptPath(options["dir"])
     end
 
     let store = new fileStore(sessionDir)

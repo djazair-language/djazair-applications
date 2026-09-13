@@ -1,6 +1,16 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/13_file_editor.dz
+# Description:  Full-Featured Desktop Text and Code Editor Application
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 use file
 
+# Initializes native desktop code editor window
 let app = webview.createWindow({
     "title": "Djazair File Editor",
     "width": 900,

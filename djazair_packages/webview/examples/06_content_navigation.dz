@@ -1,5 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/06_content_navigation.dz
+# Description:  HTML Injection, Script Evaluation, History Navigation, and DevTools
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
+# Demonstrates content rendering, JavaScript evaluation, and browser navigation APIs
 let app = webview.createWindow({"title": "Navigation Demo", "debug": True})
 
 app.onReady(fn()

@@ -1,3 +1,14 @@
+/**
+ * =============================================================================
+ * Project:      Djazair WebView Desktop Application Framework
+ * File:         bridge/js/debug_console.js
+ * Description:  Browser Console Forwarder to Native Djazair Diagnostics Log
+ * Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+ * Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+ * License:      MIT License
+ * =============================================================================
+ */
+
 (function() {
   if (!window.djazair || window.__djazairConsoleForwarded) return;
   window.__djazairConsoleForwarded = true;

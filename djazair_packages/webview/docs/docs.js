@@ -1,4 +1,15 @@
-﻿$(document).ready(function() {
+/**
+ * =============================================================================
+ * Project:      Djazair WebView Desktop Application Framework
+ * File:         docs/docs.js
+ * Description:  Interactive Documentation UI Controller, Search, and Live Code Runner
+ * Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+ * Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+ * License:      MIT License
+ * =============================================================================
+ */
+
+$(document).ready(function() {
   // ── 1. Real-Time Search Filter ─────────────────────────────────────────────
   $("#apiSearch").on("input", function() {
     var query = $(this).val().toLowerCase().trim();

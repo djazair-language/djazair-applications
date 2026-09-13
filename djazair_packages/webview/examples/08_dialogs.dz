@@ -1,6 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/08_dialogs.dz
+# Description:  Native Platform File, Folder, Message, and Color Dialog Pickers
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
-# Message Box
+# 1. Standard Informational Message Box
 let result = webview.showMessageBox({
     "type": "info",
     "title": "Information",

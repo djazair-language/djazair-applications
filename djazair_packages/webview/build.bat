@@ -1,12 +1,14 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-:: ─────────────────────────────────────────────
-::  build.bat  –  webview extension for Djazair
-::  Usage: build.bat <ROOT>
-::    ROOT = path to the djazair-language repo root
-::  Requires: g++ (MinGW-w64 / MSYS2)
-:: ─────────────────────────────────────────────
+:: =============================================================================
+:: Project:      Djazair WebView Desktop Application Framework
+:: File:         build.bat
+:: Description:  Windows Native Extension Automated Compiler Script (MinGW-w64)
+:: Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+:: Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+:: License:      MIT License
+:: =============================================================================
 
 :: ── Locate Djazair SDK / Installation (General Use) ────────────────────────
 set "DJAZAIR_DIR=%~f1"
@@ -75,8 +77,7 @@ g++ -shared -O2 -std=c++14 -DUNICODE -D_UNICODE ^
     src\webview_native.cc ^
     -o webview.dll ^
     -L"%LIB_DIR%" -ldjazair ^
-    -lole32 -lshell32 -lshlwapi -luser32 -lversion -lcomdlg32 -ladvapi32 -ldwmapi -luuid ^
-    -Wl,--disable-dynamicbase
+    -lole32 -lshell32 -lshlwapi -luser32 -lversion -lcomdlg32 -ladvapi32 -ldwmapi -luuid
 
 if errorlevel 1 (
     echo [ERROR] Build failed.

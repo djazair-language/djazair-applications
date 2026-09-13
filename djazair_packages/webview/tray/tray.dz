@@ -1,20 +1,35 @@
-# tray.dz
-# System Tray (Notification Area) integration for Djazair Webview
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         tray/tray.dz
+# Description:  Operating System System Tray (Notification Area) Integration
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 let _native = __native("_webview")
 
-# Tray class: Represents an interactive icon in the operating system's system tray notification area.
+# =============================================================================
+# Class: Tray
+# =============================================================================
+# Manages an interactive application icon inside the operating system's taskbar
+# notification area (system tray). Supports context menus, tooltip changes,
+# dynamic icon swapping, and notification balloons.
 class Tray
-    # Creates a new system tray icon.
+    # Creates and registers a new system tray icon.
+    #
+    # @param tooltip  {String} Hover tooltip text displayed to user (default: "")
+    # @param iconPath {String} Path to the .ico/.png image file (default: "")
     init(tooltip = "", iconPath = "")
         self.tooltip = tooltip
         self.iconPath = iconPath
         self._handle = _native.trayCreate(tooltip, iconPath)
     end
 
-    # Updates the icon image displayed in the tray.
+    # Updates the icon image displayed in the system tray.
+    #
+    # @param  iconPath {String} Absolute or relative path to the new icon image
+    # @return          {Void}
     setIcon(iconPath)
         self.iconPath = iconPath
         if !isNull(self._handle)
@@ -22,7 +37,10 @@ class Tray
         end
     end
 
-    # Attaches a context menu to be displayed on right-clicking the tray icon.
+    # Attaches a popup context menu to be triggered upon right-clicking the tray icon.
+    #
+    # @param  menu {Menu|Integer} Menu class instance or native menu handle
+    # @return      {Void}
     setMenu(menu)
         let menuHandle = menu
         if type(menu) == "Instance" and !isNull(menu._handle)
@@ -33,7 +51,10 @@ class Tray
         end
     end
 
-    # Updates the tooltip text shown when hovering over the tray icon.
+    # Updates the hover tooltip text displayed when mouse pointer hovers over tray icon.
+    #
+    # @param  tooltip {String} The new tooltip text string
+    # @return         {Void}
     setTooltip(tooltip)
         self.tooltip = tooltip
         if !isNull(self._handle)
@@ -41,14 +62,21 @@ class Tray
         end
     end
 
-    # Displays a system notification balloon near the tray icon.
+    # Displays a native balloon notification popup anchored to the tray icon.
+    #
+    # @param  title   {String} Header title of the notification
+    # @param  message {String} Body content message
+    # @param  timeout {Number} Visibility duration in seconds (default: 5)
+    # @return         {Void}
     showBalloon(title, message, timeout = 5)
         if !isNull(self._handle)
             _native.trayShowBalloon(self._handle, title, message, timeout)
         end
     end
 
-    # Removes the tray icon from the system notification area and frees resources.
+    # Removes the tray icon from the notification area and frees all associated OS resources.
+    #
+    # @return {Void}
     destroy()
         if !isNull(self._handle)
             _native.trayDestroy(self._handle)
@@ -57,7 +85,10 @@ class Tray
     end
 end
 
-# ── Backward Compatible Procedural API ──────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Backward-Compatible Procedural Tray API
+# -----------------------------------------------------------------------------
+
 
 fn trayCreate(label, iconPath)
     return _native.trayCreate(label, iconPath)

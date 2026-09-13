@@ -1,7 +1,11 @@
-# run_docs.dz
-# Standalone desktop runner for Djazair WebView Interactive Documentation
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         docs/run_docs.dz
+# Description:  Interactive Offline Desktop Documentation Viewer Application
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 use webview
 

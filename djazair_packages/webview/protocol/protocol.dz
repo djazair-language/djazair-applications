@@ -1,9 +1,32 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         protocol/protocol.dz
+# Description:  Custom URI Protocol Scheme Management (e.g., app://, custom://)
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 let _native = __native("_webview")
 
+# -----------------------------------------------------------------------------
+# Protocol Scheme Handlers
+# -----------------------------------------------------------------------------
+
+# Registers a custom URI protocol scheme (such as "app://" or "djazair://")
+# with a dedicated native callback handler for intercepting asset requests.
+#
+# @param scheme  {String}   The URI scheme name without delimiter (e.g., "myapp")
+# @param handler {Function} Interceptor callback receiving (url) and returning data
+# @return        {Void}
 fn protocolRegister(scheme, handler)
     _native.protocolRegister(scheme, handler)
 end
 
+# Unregisters an existing custom URI protocol scheme previously registered.
+#
+# @param scheme  {String} The URI scheme name to remove
+# @return        {Void}
 fn protocolUnregister(scheme)
     _native.protocolUnregister(scheme)
 end

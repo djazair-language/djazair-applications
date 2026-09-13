@@ -1,5 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/02_lifecycle.dz
+# Description:  Application Lifecycle Hooks (onReady, onQuit, onError)
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
+# Create window with debug mode enabled for console monitoring
 let app = webview.createWindow({"title": "My App", "debug": True})
 
 app.onReady(fn()

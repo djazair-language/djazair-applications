@@ -1,4 +1,15 @@
-﻿:root {
+/**
+ * =============================================================================
+ * Project:      Djazair WebView Desktop Application Framework
+ * File:         docs/docs.css
+ * Description:  Official Modern Glassmorphism Styling for Documentation Viewer
+ * Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+ * Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+ * License:      MIT License
+ * =============================================================================
+ */
+
+:root {
   --bg-primary: #0b0f19;
   --bg-secondary: #111827;
   --bg-card: #1f2937;

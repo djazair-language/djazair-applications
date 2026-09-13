@@ -1,7 +1,11 @@
-# bridge.dz
-# Bidirectional IPC Bridge between Djazair and Webview JavaScript environments
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         bridge/bridge.dz
+# Description:  Bidirectional IPC Inter-Process Communication and RPC Bridge
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 use json as *
 import "../utils/utils.dz" as *
@@ -9,8 +13,14 @@ import "assets.dz" as *
 
 let _native = __native("_webview")
 
-# Bridge class: Manages bidirectional IPC communication between Djazair runtime and Webview JavaScript environment.
+# =============================================================================
+# Class: Bridge
+# =============================================================================
+# Manages bidirectional RPC and push events between the native Djazair backend
+# and the Chromium/WebKit JavaScript frontend runtime. Provides request routing,
+# automatic JSON serialization/deserialization, error isolation, and native bindings.
 class Bridge
+
     # Constructs a new IPC bridge instance attached to a window.
     init(app, win)
         self.app = app
@@ -53,9 +63,15 @@ class Bridge
         if name == "__dz_invoke"
             let channel = args[0]
             let payload = args[1]
-            let handler = self._handlers[channel]
+
+            # Guard before indexing: _handlers[missing] raises KeyError
+            let handler = Null
+            if self._handlers.has(channel)
+                handler = self._handlers[channel]
+            end
 
             if isNull(handler)
+                self._notifyError("No handler for channel: " + str(channel))
                 return encode({ "__dz_ok": False, "__dz_error": "No handler for channel: " + str(channel) })
             end
 
@@ -63,11 +79,15 @@ class Bridge
                 let result = handler(payload)
                 return encode({ "__dz_ok": True, "__dz_data": result })
             catch err
+                # Fix #6: Always surface handler errors to Djazair log — not only to JS Promise
+                sysLog("Bridge", "Handler error on channel '${channel}': ${err}", "error")
+                self._notifyError("Handler error on channel '${channel}': ${err}")
                 return encode({ "__dz_ok": False, "__dz_error": "${err}" })
             end
         else
             let handler = self._handlers[name]
             if isNull(handler)
+                self._notifyError("No handler for binding: " + str(name))
                 return encode({ "__dz_ok": False, "__dz_error": "No handler for binding: " + str(name) })
             end
 
@@ -75,8 +95,18 @@ class Bridge
                 let result = handler(args)
                 return encode({ "__dz_ok": True, "__dz_data": result })
             catch err
+                # Fix #6: Always surface binding errors to Djazair log — not only to JS Promise
+                sysLog("Bridge", "Binding error on '${name}': ${err}", "error")
+                self._notifyError("Binding error on '${name}': ${err}")
                 return encode({ "__dz_ok": False, "__dz_error": "${err}" })
             end
+        end
+    end
+
+    # Routes framework-level errors to the application's onError callback.
+    _notifyError(msg)
+        if !isNull(self.app) and !isNull(self.app._errorCallback)
+            self.app._errorCallback(msg)
         end
     end
 

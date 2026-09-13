@@ -1,14 +1,12 @@
 #!/bin/sh
-# ─────────────────────────────────────────────
-#  build.sh  –  webview extension for Djazair
-#  Usage: ./build.sh <ROOT>
-#    ROOT = path to the djazair-language repo root
-#
-#  Platform dependencies:
-#    Linux   : libwebkit2gtk-4.0-dev, libgtk-3-dev
-#    macOS   : WebKit.framework (built-in)
-#    Windows : Edge WebView2 (via COM, linked with ole32/shell32)
-# ─────────────────────────────────────────────
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         build.sh
+# Description:  Unix/Linux/macOS/POSIX Cross-Platform Native Extension Compiler
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 set -e
 
 # Locate Djazair SDK / Installation (General Use)
@@ -78,8 +76,8 @@ case "$OS" in
     MINGW*|MSYS*|CYGWIN*)
         OUT="webview.dll"
         SHARED="-shared"
-        PLATFORM_FLAGS="-DUNICODE -D_UNICODE -Wl,--disable-dynamicbase"
-        PLATFORM_LIBS="-lole32 -lshell32 -lshlwapi -luser32 -lversion -lcomdlg32 -ladvapi32"
+        PLATFORM_FLAGS="-DUNICODE -D_UNICODE"
+        PLATFORM_LIBS="-lole32 -lshell32 -lshlwapi -luser32 -lversion -lcomdlg32 -ladvapi32 -ldwmapi -luuid"
         ;;
     *)
         # Linux — requires libwebkit2gtk-4.0-dev and libgtk-3-dev

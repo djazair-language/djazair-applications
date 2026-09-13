@@ -9,6 +9,7 @@ use random
 use file
 use path
 use bytes
+use process
 
 # ── Module-level Constants ────────────────────────────────────────────────────
 
@@ -380,3 +381,20 @@ fn urlEncodeFilename(filename)
     end
     return result
 end
+
+# Resolves a filesystem path relative to the running script's directory if relative.
+#
+# @param targetPath {String} Path to resolve
+# @return           {String} Absolute normalized filesystem path
+fn resolveScriptPath(targetPath)
+    if isNull(targetPath) or str(targetPath) == ""
+        return ""
+    end
+    let strPath = str(targetPath)
+    let sDir = process.scriptDir()
+    if not path.isAbsolute(strPath) and !isNull(sDir) and sDir != ""
+        return path.resolve(sDir, strPath)
+    end
+    return path.resolve(strPath)
+end
+

@@ -14,14 +14,18 @@ class templateLoader
     # @param viewsDir     {String}  Base directory containing templates
     # @param cacheEnabled {Boolean} Enable AST compilation caching (default: True)
     init(viewsDir = "views", cacheEnabled = True)
-        let sDir = process.scriptDir()
-        if not path.isAbsolute(viewsDir) and !isNull(sDir) and sDir != ""
-            self.viewsDir = path.resolve(sDir, viewsDir)
-        else
-            self.viewsDir = path.resolve(viewsDir)
-        end
+        self.viewsDir = self.resolveViewsDir(viewsDir)
         self.cacheEnabled = cacheEnabled
         self.astCache = {}
+    end
+
+    # Resolves views directory relative to process.scriptDir() if not absolute.
+    resolveViewsDir(vDir)
+        let sDir = process.scriptDir()
+        if not path.isAbsolute(vDir) and !isNull(sDir) and sDir != ""
+            return path.resolve(sDir, vDir)
+        end
+        return path.resolve(vDir)
     end
 
     # Resolves and validates an absolute filesystem path for a template.

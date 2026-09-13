@@ -1,5 +1,9 @@
 # Djazair WebView — Desktop Application Framework
 
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![WebView2](https://img.shields.io/badge/engine-WebView2%20(Edge%20Chromium)-green)
+
 Build modern desktop GUI applications for Windows using **HTML, CSS, and JavaScript** for the frontend and **Djazair** for the backend. Powered by Microsoft Edge WebView2 (Chromium).
 
 ---
@@ -18,8 +22,9 @@ Build modern desktop GUI applications for Windows using **HTML, CSS, and JavaScr
 10. [System Tray Icon](#10-system-tray-icon)
 11. [Toast Notifications](#11-toast-notifications)
 12. [Custom URL Protocols](#12-custom-url-protocols)
-13. [Logging System](#13-logging-system)
-14. [Complete Examples](#14-complete-examples)
+13. [Security & Trust Boundaries](#13-security--trust-boundaries)
+14. [Logging System](#14-logging-system)
+15. [Complete Examples](#15-complete-examples)
 
 ---
 
@@ -92,8 +97,8 @@ Available options with defaults:
 | `title` | String | `"Djazair App"` | Window title |
 | `width` | Number | `1024` | Initial width in pixels |
 | `height` | Number | `768` | Initial height in pixels |
-| `x` | Number | `-1` | X position (`-1` = OS default) |
-| `y` | Number | `-1` | Y position (`-1` = OS default) |
+| `x` | Number | `-1` | X position in pixels (`-1` = OS default position) |
+| `y` | Number | `-1` | Y position in pixels (`-1` = OS default position) |
 | `resizable` | Bool | `True` | Allow window resizing |
 | `frameless` | Bool | `False` | Remove title bar and borders |
 | `minWidth` | Number | `400` | Minimum width constraint |
@@ -120,7 +125,8 @@ app.onQuit(fn()
     print("Goodbye!")
 end)
 
-# Catches bridge/internal errors
+# Catches internal errors, including uncaught bridge handler/binding errors
+# (handlers that `throw`, or unknown channels/bindings)
 app.onError(fn(err)
     print("Error: " + err)
 end)
@@ -278,8 +284,8 @@ app.window.onClose(fn()
     print("Window closing")
 end)
 
-app.window.onLoad(fn()
-    print("Page fully loaded: ${app.window.getUrl()}")
+app.window.onLoad(fn(url)
+    print("Page fully loaded: ${url}")
 end)
 
 app.window.onNavigate(fn(url)
@@ -306,12 +312,28 @@ app.window.setHtml("<h1>Hello</h1>")
 # 2. Navigate to a URL
 app.window.navigate("https://example.com")
 
-# 3. Load a local file (auto-mapped to http://djazair.local/ to avoid CORS)
+# 3. Load a local file (auto-mapped to http://djazair.localhost/ with
+#    same-origin access only — remote pages cannot read it cross-origin)
 app.window.navigate("index.html")
 
 # 4. Load a local file from a subdirectory
 app.window.navigate("views/main.html")
 ```
+
+Local files are mapped to `http://djazair.localhost/...` which is served with **same-origin access only** (native `DENY_CORS`): pages loaded from your own local files can fetch these assets freely, but pages loaded from untrusted remote URLs cannot read them cross-origin. By default the whole script directory is mapped; to restrict the mapping to a dedicated subfolder, pass `"virtualHostDir"` when creating the window:
+
+```djazair
+let app = webview.createWindow({
+    "title": "Locked Down",
+    "virtualHostDir": "assets"   # only ./assets is exposed at http://djazair.localhost/
+})
+```
+
+> **Why `.localhost` and not `.local`?** Chromium performs a DNS (mDNS) lookup for
+> `*.local` virtual hosts before applying the mapping; on many machines the
+> navigation stalls or fails entirely with a `chrome-error` page. Names under
+> RFC 6761's `.localhost` TLD resolve instantly with no network query, so the
+> virtual-host mapping is applied immediately and reliably.
 
 ### JavaScript Execution
 
@@ -400,6 +422,18 @@ try {
     await window.djazair.invoke("willFail");
 } catch (e) {
     console.error(e.message);  // "Something went wrong!"
+}
+
+// Custom timeout (default is 10 000 ms)
+let result = await window.djazair.invoke("slowQuery", {id: 1}, 30000);
+
+// Catch timeout errors explicitly
+try {
+    await window.djazair.invoke("heavyTask", null, 5000);
+} catch (e) {
+    if (e.message.startsWith("TimeoutError")) {
+        console.warn("Handler did not respond in 5 s");
+    }
 }
 ```
 
@@ -538,10 +572,11 @@ The bridge injects `window.djazair` automatically via `initJs()`:
 
 | Method | Description |
 |--------|-------------|
-| `djazair.invoke(channel, data)` | Call a Djazair handler. Returns `Promise<any>` |
+| `djazair.invoke(channel, data [, timeoutMs])` | Call a Djazair handler. Returns `Promise<any>`. Auto-rejects after `timeoutMs` ms (default: **10 000**) |
 | `djazair.on(channel, callback)` | Subscribe to push events from Djazair |
-| `djazair.off(channel, callback?)` | Unsubscribe. Omitting callback removes all |
-| `djazair.send(channel, data)` | (Internal) Dispatches data to JS listeners |
+| `djazair.off(channel, callback?)` | Unsubscribe. Omitting callback removes all listeners |
+| `djazair.send(channel, data)` | *(Internal)* Dispatch data to JS listeners |
+| `djazair.startDragging()` | Initiate native window drag from a frameless titlebar |
 
 ---
 
@@ -833,7 +868,29 @@ webview.protocolUnregister("myapp")
 
 ---
 
-## 13. Logging System
+## 13. Security & Trust Boundaries
+
+Desktop webview apps grant more native power than browser pages: the bridge exposes native functions, dialogs, menus, tray, and notifications to JavaScript. Treat the web content as **untrusted input**, not as part of your trusted native code.
+
+### Trust model
+
+- Content you ship in `assets/` (or the folder passed via `"virtualHostDir"`) and static HTML you pass to `setHtml()` is **first-party** content. It is served under a virtual host real name with `DENY_CORS`, so it has the same origin as the bridge and may call it freely.
+- Remote or third-party pages (anything loaded from the network, or a page you did not author) are **untrusted**. If you ever point `navigate()` at a remote URL, remember that page can call the same IPC bridge and native functions you expose. Only bridge trusted content.
+- The native ↔ JavaScript bridge is a full trust boundary. Registering a JS-visible native binding is equivalent to exposing a public API to whoever controls the rendered page. Validate and authorize anything sensitive.
+
+### Hardening notes
+
+- `debug: True` enables DevTools and forwards JS console output. Do not ship with it in production — it lets a user inspect and tamper with bridge traffic.
+- File dialogs return paths with user-selected filesystem access. Never auto-open, copy, or delete returned paths without validating them, especially when the request originates from web content.
+- The packaged `webview.dll` is compiled with OS defenses enabled (ASLR/DYNAMICBASE). Rebuild the extension only from sources you trust.
+
+### Reporting
+
+If you find a security issue in this extension, report it privately to the maintainers (see package metadata) before disclosing publicly. Do not open a public issue with exploit details.
+
+---
+
+## 14. Logging System
 
 The library has a built-in logging system with levels and colored console output:
 
@@ -861,7 +918,7 @@ When `debug: True` is set in `createWindow()`, console messages from JavaScript 
 
 ---
 
-## 14. Complete Examples
+## 15. Complete Examples
 
 ### Example 1: Counter App with Bridge
 
@@ -1313,7 +1370,7 @@ app.run()
 | `onClose(cb)` / `onMove(cb)` / `onResize(cb)` | Event callbacks |
 | `onFocus(cb)` / `onBlur(cb)` | Focus events |
 | `onMaximize(cb)` / `onMinimize(cb)` / `onRestore(cb)` | State events |
-| `onNavigate(cb)` / `onTitleChange(cb)` / `onLoad(cb)` | Content events |
+| `onNavigate(cb)` / `onTitleChange(cb)` / `onLoad(cb)` | Content events (`onLoad(cb)` fires once per completed navigation and receives the loaded URL) |
 
 ### Bridge Methods
 
@@ -1328,9 +1385,10 @@ app.run()
 
 | Method | Description |
 |--------|-------------|
-| `djazair.invoke(channel, data)` | Call Djazair handler, returns Promise |
+| `djazair.invoke(channel, data [, timeoutMs])` | Call Djazair handler, returns `Promise`. Rejects after `timeoutMs` ms (default: 10 000) |
 | `djazair.on(channel, callback)` | Listen for Djazair push events |
 | `djazair.off(channel, callback?)` | Remove listener(s) |
+| `djazair.startDragging()` | Start native window drag (frameless titlebar) |
 
 ### Dialogs
 
@@ -1367,3 +1425,39 @@ app.run()
 | `setLogFile(path)` | Log to file |
 | `setLogTimeFormat(pattern)` | Set timestamp format |
 | `log(message, level?)` | Convenience logging |
+
+---
+
+## Changelog
+
+### v0.3.0 — 2026-09-09
+
+#### 🐛 Bug Fixes
+- **`nativeWindowCreate` (C++)** — `x` / `y` window-position options were read but **never applied**. Window now appears at the exact coordinates specified in `createWindow({ x, y })`.
+- **`WM_CLOSE` handler (C++)** — When no `onClose` callback was registered, the native close message bypassed the Djazair cleanup path. Now always routes through `dispatch → terminate()` so `PostQuitMessage` fires correctly.
+- **`nativeWindowDestroy` (C++)** — Fixed a **use-after-free** UB: the window ID is now saved to a local variable before `delete c`, then used for `g_contexts.erase()`.
+- **`invoke()` (JavaScript)** — Promises could hang indefinitely if a handler was unreachable. Added `Promise.race()` with a configurable timeout (default **10 000 ms**). Orphaned `setTimeout` timers are cleared immediately via `clearTimeout()` to prevent memory accumulation.
+
+#### 🔧 Improvements
+- **`readWebviewAsset()` (assets.dz)** — Expanded search paths to cover projects where the entry script lives in a sub-directory (e.g. `webview_apps/todo_app/main.dz`) while `djazair_packages` lives at the project root. Now traverses up to **3 parent levels**.
+
+#### 📄 Docs
+- Updated `invoke()` signature to `invoke(channel, payload [, timeoutMs])` in all reference tables.
+- Added `startDragging()` to both JS API tables (was missing from quick-reference).
+- Added `TimeoutError` handling examples in README code blocks and HTML docs.
+
+---
+
+### v0.2.0 — 2026-09-07
+
+#### ✨ New Features
+- **`window.startDragging()`** — Initiates native Win32 window drag from a frameless HTML titlebar (`window.djazair.startDragging()` in JS).
+- **`window.flash(enable?)` / `window.requestAttention(enable?)`** — Flash taskbar button to alert user; `requestAttention()` is a semantic alias.
+- **`window.isFocused()`** — Returns `True` if the window currently holds keyboard focus.
+- **Single Instance Lock** — `singleInstance: True` / `appId` options; second launch focuses the existing window and exits.
+
+---
+
+### v0.1.0 — 2026-09-06
+
+- Initial release with full WebView2 window framework, IPC bridge, native dialogs, system tray, menus, virtual host mapping, dark-mode title bar, and comprehensive HTML/jQuery documentation.

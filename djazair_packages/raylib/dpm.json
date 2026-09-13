@@ -1,11 +1,11 @@
 {
   "name": "raylib",
   "version": "0.1.0",
-  "source": "github:djazair-language/djazair-extensions/raylib",
   "description": "Raylib 2D game development and graphics extension for Djazair",
+  "type": "hybrid",
+  "source": "github:djazair-language/djazair-extensions/raylib",
   "developer": {
     "name": "Harizi Riyadh",
     "email": "hariziriyadh@gmail.com"
-  },
-  "type": "hybrid"
+  }
 }

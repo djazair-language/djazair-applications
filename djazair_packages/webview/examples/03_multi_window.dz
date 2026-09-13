@@ -1,5 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/03_multi_window.dz
+# Description:  Multi-Window Desktop Application Architecture
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
+# Spawn multiple independent native desktop windows
 let app1 = webview.createWindow({"title": "Window 1", "width": 600, "height": 400})
 let app2 = webview.createWindow({"title": "Window 2", "width": 400, "height": 300})
 

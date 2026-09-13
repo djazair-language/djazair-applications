@@ -1,5 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/09_context_menus.dz
+# Description:  Native Operating System Context Menu and Submenu Creation
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
+# Demonstrates building native popup context menus with actions and submenus
 let app = webview.createWindow({"title": "Menu Demo", "debug": True})
 
 app.onReady(fn()

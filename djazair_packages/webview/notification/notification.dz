@@ -1,19 +1,48 @@
-# notification.dz
-# Native system desktop notification support for Djazair Webview
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         notification/notification.dz
+# Description:  Native Operating System Desktop Toast and Notification Support
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 let _native = __native("_webview")
 
-# Notification class: Utility for displaying desktop system notifications.
+# =============================================================================
+# Class: Notification
+# =============================================================================
+# Provides utilities for dispatching native platform desktop notifications,
+# action center toasts, and tray balloons.
 class Notification
-    # Displays a desktop notification balloon or toast.
+    # Displays a native desktop notification toast or balloon.
+    #
+    # @param  title    {String}  Notification header title
+    # @param  message  {String}  Main notification body text
+    # @param  subtitle {String}  Optional secondary subtitle text (default: "")
+    # @param  sound    {Bool}    Whether to play standard system notification audio chime (default: False)
+    # @param  icon     {String}  Path to custom icon image or empty for app icon (default: "")
+    # @param  timeout  {Number}  Display duration in seconds before auto-dismiss (default: 5)
+    # @return          {Void}
     show(title, message, subtitle = "", sound = False, icon = "", timeout = 5)
         _native.notificationShow(title, message, subtitle, sound, icon, timeout)
     end
 end
 
-# Helper function to trigger a system notification (procedural API)
+# -----------------------------------------------------------------------------
+# Procedural Notification Helper API
+# -----------------------------------------------------------------------------
+
+# Convenience procedural wrapper for triggering native notifications without class instantiation.
+#
+# @param  title    {String}  Notification header title
+# @param  message  {String}  Main notification body text
+# @param  subtitle {String}  Optional secondary subtitle text (default: "")
+# @param  sound    {Bool}    Whether to play standard system notification audio chime (default: False)
+# @param  icon     {String}  Path to custom icon image or empty for app icon (default: "")
+# @param  timeout  {Number}  Display duration in seconds before auto-dismiss (default: 5)
+# @return          {Void}
 fn notificationShow(title, message, subtitle = "", sound = False, icon = "", timeout = 5)
     _native.notificationShow(title, message, subtitle, sound, icon, timeout)
 end
+

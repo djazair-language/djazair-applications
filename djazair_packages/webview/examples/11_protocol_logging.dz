@@ -1,6 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/11_protocol_logging.dz
+# Description:  Custom URL Protocol Schemes and Framework Logging Configuration
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
-# Custom URL Protocol
+# 1. Custom URI Protocol Scheme Registration
 webview.protocolRegister("myapp", fn(request)
     return "Custom response"
 end)

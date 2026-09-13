@@ -1,7 +1,17 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/14_full_suite.dz
+# Description:  Comprehensive Feature Demonstration Suite (Bridge, Menus, Dialogs, Tray)
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 use file
 use json as *
 
+# Initializes full showcase desktop application suite
 let app = webview.createWindow({
     "title": "Djazair Desktop Suite",
     "width": 1024,

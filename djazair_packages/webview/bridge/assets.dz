@@ -1,7 +1,11 @@
-# assets.dz
-# Embedded asset resolver for webview JavaScript client scripts
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         bridge/assets.dz
+# Description:  Multi-Tier Asset Resolution and Embedded Script Loading System
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 use file
 use path

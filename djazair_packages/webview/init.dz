@@ -1,7 +1,11 @@
-# init.dz
-# Public Entry Point for Djazair Webview Desktop Framework Extension
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         init.dz
+# Description:  Main Package Entry Point and High-Level Public API Exports
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 let _native = __dynamic("webview")
 
@@ -15,29 +19,73 @@ import "tray/tray.dz" as *
 import "notification/notification.dz" as *
 import "protocol/protocol.dz" as *
 
-# Re-export core classes
-let App = application.App
-let Window = Window
-let Bridge = Bridge
-let Menu = Menu
-let Tray = Tray
+# -----------------------------------------------------------------------------
+# Core Framework Class Exports
+# -----------------------------------------------------------------------------
+let App          = application.App
+let Window       = Window
+let Bridge       = Bridge
+let Menu         = Menu
+let Tray         = Tray
 let Notification = Notification
 
-# Creates a new application instance with an initial primary window.
-# Primary entry point for Djazair Webview applications.
+# -----------------------------------------------------------------------------
+# Application Factory Functions
+# -----------------------------------------------------------------------------
+
+# Creates and initializes a new top-level WebView application instance.
+# This serves as the primary gateway for building graphical desktop software in Djazair.
+#
+# @param  options {Map} Configuration dictionary:
+#                       - "title":          {String}  Window title (default: "Djazair App")
+#                       - "width":          {Number}  Initial width in pixels (default: 1024)
+#                       - "height":         {Number}  Initial height in pixels (default: 768)
+#                       - "x":              {Number}  Horizontal coordinate or -1 for OS default
+#                       - "y":              {Number}  Vertical coordinate or -1 for OS default
+#                       - "resizable":      {Bool}    Allow user resizing (default: True)
+#                       - "frameless":      {Bool}    Borderless/custom chrome (default: False)
+#                       - "minWidth":       {Number}  Minimum width limit (default: 400)
+#                       - "minHeight":      {Number}  Minimum height limit (default: 300)
+#                       - "maxWidth":       {Number}  Maximum width limit (0 for unconstrained)
+#                       - "maxHeight":      {Number}  Maximum height limit (0 for unconstrained)
+#                       - "closable":       {Bool}    Enable standard close button (default: True)
+#                       - "debug":          {Bool}    Enable DevTools & console logs (default: False)
+#                       - "singleInstance": {Bool}    Enforce single app instance (default: False)
+#                       - "appId":          {String}  Unique identifier mutex key
+# @return         {App} Ready application instance
 fn createWindow(options = {})
     sysLog("App", "Initializing new window application...")
     return new application.App(options)
 end
 
-# ── Public Logging API ──────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Global Framework Logging API
+# -----------------------------------------------------------------------------
 
+# Logs an application message through the framework's standardized logging pipeline.
+#
+# @param message {String} Text message payload to log
+# @param level   {String} Log severity: "debug", "info", "warn", or "error" (default: "info")
+# @return        {Void}
 fn log(message, level = "info")
     sysLog("App", message, level)
 end
 
-# ── Native Dialogs API ──────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Native System Dialogs API
+# -----------------------------------------------------------------------------
 
+# Displays a native modal message box / prompt dialog to the user.
+#
+# @param  options {Map}    Dialog options:
+#                          - "type":      {String} "info", "warn", "error", or "question"
+#                          - "title":     {String} Dialog window title text
+#                          - "message":   {String} Primary message text
+#                          - "detail":    {String} Secondary explanation / description
+#                          - "buttons":   {String} Button layout: "ok", "okcancel", "yesno", "yesnocancel"
+#                          - "defaultId": {Number} Index of button selected by default
+#                          - "cancelId":  {Number} Index of button treated as cancel action
+# @return         {String} ID string of the clicked button (e.g. "ok", "yes", "no", "cancel")
 fn showMessageBox(options = {})
     let type = getOpt(options, "type", "info")
     let title = getOpt(options, "title", "")
@@ -50,6 +98,15 @@ fn showMessageBox(options = {})
     return _native.dialogMessage(type, title, message, detail, buttons, defaultId, cancelId)
 end
 
+# Displays a native modal Open File selection dialog.
+#
+# @param  options {Map}                  Dialog options:
+#                                        - "title":           {String} Dialog title
+#                                        - "defaultPath":     {String} Starting directory or file
+#                                        - "filters":         {Array}  Allowed file types
+#                                        - "multiSelections": {Bool}   Allow multiple files
+#                                        - "properties":      {Array}  Platform flags
+# @return         {String|Array|Null} Selected path string, array of paths, or Null if cancelled
 fn showOpenFileDialog(options = {})
     let title = getOpt(options, "title", "Open File")
     let defaultPath = getOpt(options, "defaultPath", "")
@@ -60,6 +117,13 @@ fn showOpenFileDialog(options = {})
     return _native.dialogOpenFile(title, defaultPath, filters, multi, properties)
 end
 
+# Displays a native modal Save File selection dialog.
+#
+# @param  options {Map}          Dialog options:
+#                                - "title":       {String} Dialog title
+#                                - "defaultPath": {String} Suggested filename or directory
+#                                - "filters":     {Array}  Allowed file extensions
+# @return         {String|Null} Selected target filepath string, or Null if cancelled
 fn showSaveFileDialog(options = {})
     let title = getOpt(options, "title", "Save File")
     let defaultPath = getOpt(options, "defaultPath", "")
@@ -68,6 +132,12 @@ fn showSaveFileDialog(options = {})
     return _native.dialogSaveFile(title, defaultPath, filters)
 end
 
+# Displays a native directory / folder selection dialog.
+#
+# @param  options {Map}          Dialog options:
+#                                - "title":       {String} Dialog title
+#                                - "defaultPath": {String} Starting folder path
+# @return         {String|Null} Selected directory path string, or Null if cancelled
 fn showOpenFolderDialog(options = {})
     let title = getOpt(options, "title", "Select Folder")
     let defaultPath = getOpt(options, "defaultPath", "")
@@ -75,6 +145,11 @@ fn showOpenFolderDialog(options = {})
     return _native.dialogOpenFolder(title, defaultPath)
 end
 
+# Displays a native platform color selection palette dialog.
+#
+# @param  options {Map}          Dialog options:
+#                                - "title": {String} Dialog title
+# @return         {String|Null} Hex color string (e.g., "#336699"), or Null if cancelled
 fn showColorPicker(options = {})
     let title = getOpt(options, "title", "Pick Color")
     sysLog("Dialog", "showColorPicker: ${title}")

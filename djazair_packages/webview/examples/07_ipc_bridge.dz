@@ -1,5 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/07_ipc_bridge.dz
+# Description:  Bidirectional RPC and Event Streaming between Djazair & JavaScript
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
+# Demonstrates RPC request/response handling, push events, and error propagation
 let app = webview.createWindow({"title": "Bridge Demo", "debug": True})
 
 app.onReady(fn()

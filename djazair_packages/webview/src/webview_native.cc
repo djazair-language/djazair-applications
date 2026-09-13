@@ -1,13 +1,19 @@
 /**
- * @file webview_native.cc
- * @brief Webview Desktop Framework native module for Djazair Programming Language
- * @author Harizi Riyadh (hariziriyadh@gmail.com)
- * @copyright Copyright (c) 2026 Djazair Language Project
+ * =============================================================================
+ * Project:      Djazair WebView Desktop Application Framework
+ * File:         src/webview_native.cc
+ * Description:  Native C++ Engine Integration for Djazair (WebView2 / WebKit)
+ * Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+ * Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+ * License:      MIT License
+ * =============================================================================
  *
- * Implements high-performance desktop WebView integration powered by Microsoft WebView2 on Windows,
- * WebKitGTK on Linux, and Cocoa/WebKit on macOS. Provides seamless bidirectional IPC bridging,
- * window lifecycle management, dialogs, menus, and system tray integration.
+ * Implements high-performance desktop WebView integration powered by Microsoft
+ * Edge WebView2 on Windows, WebKitGTK on Linux, and Cocoa/WebKit on macOS.
+ * Provides bidirectional IPC bridging, window lifecycle management, dialogs,
+ * menus, system tray integration, and robust error surfacing.
  */
+
 
 #include <string.h>
 #include <stdlib.h>
@@ -66,6 +72,8 @@ struct WindowContext {
     bool              has_navigated;
     bool              can_go_forward;
     bool              is_fullscreen;
+    bool              is_frameless;
+    bool              deferred_destroy;
     std::vector<int>  menu_items;
 
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
@@ -75,6 +83,10 @@ struct WindowContext {
     WNDPROC           original_wndproc;
     HICON             last_icon_small;
     HICON             last_icon_big;
+    // Navigation-completed event registration so onLoad fires on real
+    // navigations (not only setHtml).
+    EventRegistrationToken nav_completed_token;
+    void*             nav_event_handler;
 #endif
 
     WindowContext()
@@ -84,11 +96,13 @@ struct WindowContext {
         , focus_callback(NULL_VAL), blur_callback(NULL_VAL)
         , maximize_callback(NULL_VAL), minimize_callback(NULL_VAL), restore_callback(NULL_VAL)
         , navigate_callback(NULL_VAL), title_callback(NULL_VAL), load_callback(NULL_VAL)
-        , id(0), zoom_level(1.0), has_navigated(false), can_go_forward(false), is_fullscreen(false)
+        , id(0), zoom_level(1.0), has_navigated(false), can_go_forward(false), is_fullscreen(false), is_frameless(false)
+        , deferred_destroy(false)
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
         , saved_style(0), saved_exstyle(0)
         , original_wndproc(nullptr)
         , last_icon_small(nullptr), last_icon_big(nullptr)
+        , nav_completed_token({0}), nav_event_handler(nullptr)
 #endif
     {}
 };
@@ -113,6 +127,10 @@ struct TrayContext {
 static std::mutex g_ctx_mtx;
 static std::unordered_map<int, WindowContext*> g_contexts;
 static int g_next_id = 100;
+// Context whose `wv->run()` message loop is currently active on this thread.
+// Used to defer destruction of a webview that is being destroyed from inside
+// one of its own callbacks (e.g. an IPC handler calling app.close()).
+static int g_active_run_ctx = -1;
 
 static std::mutex g_menu_mtx;
 static std::unordered_map<int, Value> g_menu_callbacks;
@@ -134,6 +152,18 @@ static std::wstring utf8_to_wide(const char* utf8_str) {
     std::wstring wstr(len - 1, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, utf8_str, -1, &wstr[0], len);
     return wstr;
+}
+
+/**
+ * @brief Converts a Windows wide string (UTF-16) to a UTF-8 encoded string.
+ */
+static std::string wide_to_utf8(const wchar_t* wide_str) {
+    if (!wide_str || !*wide_str) return std::string();
+    int len = WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, NULL, 0, NULL, NULL);
+    if (len <= 1) return std::string();
+    std::string out(len - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, &out[0], len, NULL, NULL);
+    return out;
 }
 
 struct FocusTarget {
@@ -303,12 +333,18 @@ static LRESULT CALLBACK WebviewWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
     switch (msg) {
         case WM_CLOSE:
             if (!IS_NULL(c->close_callback)) {
+                // Delegate to Djazair close handler — it will call windowDestroy
                 c->wv->dispatch([c]() {
                     invoke_callback_0(c, c->close_callback);
                 });
-                return 0; // Managed by Djazair close handler
+            } else {
+                // No user-defined close handler: terminate cleanly via webview
+                // to ensure on_window_destroyed → PostQuitMessage path is used.
+                c->wv->dispatch([c]() {
+                    c->wv->terminate();
+                });
             }
-            break;
+            return 0; // Always prevent default WM_CLOSE → DestroyWindow chain
 
         case WM_MOVE:
             c->wv->dispatch([c, lParam]() {
@@ -349,6 +385,19 @@ static LRESULT CALLBACK WebviewWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
                     break;
             }
             break;
+
+        case WM_NCCALCSIZE:
+            if (c->is_frameless && wParam == TRUE) {
+                if (IsZoomed(hwnd)) {
+                    // Maximized: let Windows calculate the work area first
+                    // (this properly clips to the taskbar/monitor work area)
+                    // then accept it by returning 0
+                    DefWindowProcW(hwnd, WM_NCCALCSIZE, wParam, lParam);
+                }
+                // Normal state: client = full window rect (no NC borders, no caption gap)
+                return 0;
+            }
+            break;
     }
 
     if (c->original_wndproc) {
@@ -361,6 +410,7 @@ static void hook_window_proc(WindowContext* c) {
     if (!c || !c->wv) return;
     HWND hwnd = get_hwnd(c->wv);
     if (!hwnd) return;
+    if (c->original_wndproc) return;
     c->original_wndproc = (WNDPROC)SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)WebviewWndProc);
 }
 #else
@@ -423,6 +473,8 @@ static std::string value_to_json_result(djazairVM *vm, Value value) {
 // APP LIFECYCLE API
 // ===========================================================================
 
+static void destroy_context(WindowContext* c);
+
 extern "C" DJAZAIR_FUNC(nativeAppRun) {
     djazair_check_args(0, argCount);
     WindowContext* active_ctx = nullptr;
@@ -433,7 +485,14 @@ extern "C" DJAZAIR_FUNC(nativeAppRun) {
         }
     }
     if (active_ctx && active_ctx->wv) {
+        g_active_run_ctx = active_ctx->id;
         active_ctx->wv->run();
+        g_active_run_ctx = -1;
+        // If the window was destroyed from inside its own loop (deferred),
+        // complete the teardown now that the loop has fully unwound.
+        if (active_ctx->deferred_destroy) {
+            destroy_context(active_ctx);
+        }
     }
     return djazair_null();
 }
@@ -556,15 +615,17 @@ extern "C" DJAZAIR_FUNC(nativeWindowCreate) {
     djazair_check_bool(11);
 
     const char *title = AS_CSTRING(args[0]);
-    int width = (int)AS_NUMBER(args[1]);
-    int height = (int)AS_NUMBER(args[2]);
-    bool frameless = AS_BOOL(args[5]);
-    bool resizable = AS_BOOL(args[6]);
-    int min_w = (int)AS_NUMBER(args[7]);
-    int min_h = (int)AS_NUMBER(args[8]);
-    int max_w = (int)AS_NUMBER(args[9]);
-    int max_h = (int)AS_NUMBER(args[10]);
-    bool debug = AS_BOOL(args[11]);
+    int width    = (int)AS_NUMBER(args[1]);
+    int height   = (int)AS_NUMBER(args[2]);
+    int pos_x    = (int)AS_NUMBER(args[3]); // -1 = OS default
+    int pos_y    = (int)AS_NUMBER(args[4]); // -1 = OS default
+    bool frameless  = AS_BOOL(args[5]);
+    bool resizable  = AS_BOOL(args[6]);
+    int min_w    = (int)AS_NUMBER(args[7]);
+    int min_h    = (int)AS_NUMBER(args[8]);
+    int max_w    = (int)AS_NUMBER(args[9]);
+    int max_h    = (int)AS_NUMBER(args[10]);
+    bool debug   = AS_BOOL(args[11]);
 
     auto c = new WindowContext();
     c->id = g_next_id++;
@@ -572,7 +633,16 @@ extern "C" DJAZAIR_FUNC(nativeWindowCreate) {
 
     try {
         c->wv = new webview::webview(debug, nullptr);
+    } catch (const std::exception& ex) {
+        fprintf(stderr, "[WebView ERROR] Failed to create webview window: %s\n", ex.what());
+        fflush(stderr);
+        delete c;
+        return djazair_null();
     } catch (...) {
+        fprintf(stderr, "[WebView ERROR] Failed to create webview window: unknown exception.\n"
+                        "               Ensure Microsoft Edge WebView2 Runtime is installed.\n"
+                        "               Download: https://developer.microsoft.com/en-us/microsoft-edge/webview2/\n");
+        fflush(stderr);
         delete c;
         return djazair_null();
     }
@@ -581,9 +651,18 @@ extern "C" DJAZAIR_FUNC(nativeWindowCreate) {
     pump_windows_messages();
     HWND hwnd_cr = get_hwnd(c->wv);
     if (hwnd_cr) {
-        SetWindowPos(hwnd_cr, NULL, 0, 0, width > 0 ? width : 800,
-                     height > 0 ? height : 600,
-                     SWP_NOMOVE | SWP_NOZORDER | SWP_SHOWWINDOW);
+        int final_w = width  > 0 ? width  : 800;
+        int final_h = height > 0 ? height : 600;
+
+        if (pos_x >= 0 && pos_y >= 0) {
+            // Explicit position requested — move and resize in one call
+            SetWindowPos(hwnd_cr, NULL, pos_x, pos_y, final_w, final_h,
+                         SWP_NOZORDER | SWP_SHOWWINDOW);
+        } else {
+            // Keep OS default position, only set size
+            SetWindowPos(hwnd_cr, NULL, 0, 0, final_w, final_h,
+                         SWP_NOMOVE | SWP_NOZORDER | SWP_SHOWWINDOW);
+        }
         UpdateWindow(hwnd_cr);
         pump_windows_messages();
     }
@@ -593,14 +672,32 @@ extern "C" DJAZAIR_FUNC(nativeWindowCreate) {
     c->wv->set_size(width, height, WEBVIEW_HINT_NONE);
     if (!resizable) c->wv->set_size(width, height, WEBVIEW_HINT_FIXED);
 
+    c->is_frameless = frameless;
+
     if (frameless) {
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
         HWND hwnd = get_hwnd(c->wv);
         if (hwnd) {
+            hook_window_proc(c);
             LONG style = GetWindowLongW(hwnd, GWL_STYLE);
             style &= ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU);
             SetWindowLongW(hwnd, GWL_STYLE, style);
-            SetWindowPos(hwnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            RECT wr{};
+            GetWindowRect(hwnd, &wr);
+            int fw = wr.right - wr.left;
+            int fh = wr.bottom - wr.top;
+            SetWindowPos(hwnd, NULL, 0, 0, fw, fh, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            pump_windows_messages();
+            // Extend DWM frame to cover entire window — eliminates 1-2px NC border artifacts on left/right/bottom
+            MARGINS margins = {-1, -1, -1, -1};
+            DwmExtendFrameIntoClientArea(hwnd, &margins);
+            // Force WebView2 controller to fill the new full client area
+            RECT cr{};
+            GetClientRect(hwnd, &cr);
+            if (c->original_wndproc) {
+                CallWindowProcW(c->original_wndproc, hwnd, WM_SIZE, SIZE_RESTORED,
+                               MAKELPARAM(cr.right, cr.bottom));
+            }
             pump_windows_messages();
         }
 #elif defined(WEBVIEW_PLATFORM_LINUX)
@@ -622,19 +719,106 @@ extern "C" DJAZAIR_FUNC(nativeWindowCreate) {
     return djazair_int(c->id);
 }
 
-extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
-    djazair_check_args(1, argCount);
-    int id = (int)AS_NUMBER(args[0]);
-    WindowContext* c = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(g_ctx_mtx);
-        auto it = g_contexts.find(id);
-        if (it == g_contexts.end()) return djazair_null();
-        c = it->second;
+// ---------------------------------------------------------------------------
+// Navigation-Completed → onLoad wiring (Windows)
+// ---------------------------------------------------------------------------
+// The window's "loaded" callback is triggered by the WebView2
+// NavigationCompleted event so that onLoad fires for real navigations
+// (navigate to a local file or URL), not only for setHtml.
+#if defined(WEBVIEW_PLATFORM_WINDOWS)
+
+class NavCompletedHandler : public ICoreWebView2NavigationCompletedEventHandler {
+    int  m_ctx_id;
+    LONG m_ref = 1;
+
+public:
+    explicit NavCompletedHandler(int ctx_id) : m_ctx_id(ctx_id) {}
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void**) override { return E_NOINTERFACE; }
+    ULONG STDMETHODCALLTYPE AddRef() override { return InterlockedIncrement(&m_ref); }
+    ULONG STDMETHODCALLTYPE Release() override {
+        if (InterlockedDecrement(&m_ref) == 0) { delete this; }
+        return 0;
     }
+
+    HRESULT STDMETHODCALLTYPE Invoke(ICoreWebView2* sender,
+                                     ICoreWebView2NavigationCompletedEventArgs* args) override {
+        if (!sender || !args) return S_OK;
+        BOOL ok = FALSE;
+        if (FAILED(args->get_IsSuccess(&ok)) || !ok) return S_OK;
+
+        // Only real document navigations: the initial about:blank page is
+        // never the target of a user load, and setHtml (about:blank) is
+        // reported by the setHtml dispatch path with its own URI instead.
+        PWSTR source = nullptr;
+        if (FAILED(sender->get_Source(&source))) return S_OK;
+        std::wstring src = source ? source : L"";
+        if (source) CoTaskMemFree(source);
+        if (src.empty() || src.rfind(L"about:", 0) == 0) return S_OK;
+
+        WindowContext* wc = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(g_ctx_mtx);
+            auto it = g_contexts.find(m_ctx_id);
+            if (it == g_contexts.end() || IS_NULL(it->second->load_callback)) return S_OK;
+            wc = it->second;
+        }
+
+        std::string url = wide_to_utf8(src.c_str());
+        wc->wv->dispatch([wc, url]() { invoke_callback_str(wc, wc->load_callback, url.c_str()); });
+        return S_OK;
+    }
+};
+
+static void attach_navigation_completed(WindowContext* wc) {
+    if (wc->nav_event_handler) return;
+    auto* controller = (ICoreWebView2Controller*)webview_get_native_handle(
+        (webview_t)wc->wv, WEBVIEW_NATIVE_HANDLE_KIND_BROWSER_CONTROLLER);
+    if (!controller) return;
+    ICoreWebView2* webview = nullptr;
+    if (FAILED(controller->get_CoreWebView2(&webview)) || !webview) return;
+
+    NavCompletedHandler* handler = new NavCompletedHandler(wc->id);
+    EventRegistrationToken token{};
+    if (SUCCEEDED(webview->add_NavigationCompleted(handler, &token))) {
+        wc->nav_completed_token = token;
+        wc->nav_event_handler = handler;
+    } else {
+        handler->Release();
+    }
+    webview->Release();
+}
+
+static void detach_navigation_completed(WindowContext* wc) {
+    if (!wc->nav_event_handler) return;
+    auto* controller = (ICoreWebView2Controller*)webview_get_native_handle(
+        (webview_t)wc->wv, WEBVIEW_NATIVE_HANDLE_KIND_BROWSER_CONTROLLER);
+    if (controller) {
+        ICoreWebView2* webview = nullptr;
+        if (SUCCEEDED(controller->get_CoreWebView2(&webview)) && webview) {
+            webview->remove_NavigationCompleted(wc->nav_completed_token);
+            webview->Release();
+        }
+    }
+    ((NavCompletedHandler*)wc->nav_event_handler)->Release();
+    wc->nav_event_handler = nullptr;
+}
+
+#endif // WEBVIEW_PLATFORM_WINDOWS
+
+// ---------------------------------------------------------------------------
+// WindowContext destroy (deferred-safe)
+// ---------------------------------------------------------------------------
+
+// Fully tears down a window context: releases the webview engine, unpins all
+// GC callbacks, frees the context and removes it from the global registry.
+// Safe to call after the context's message loop has fully unwound.
+static void destroy_context(WindowContext* c) {
+    int id = c->id; // Save ID before any deallocation
 
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
     pump_windows_messages();
+    detach_navigation_completed(c);
 #endif
 
     if (c->wv) {
@@ -648,24 +832,26 @@ extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
     if (c->last_icon_big)   { DestroyIcon(c->last_icon_big);   c->last_icon_big   = nullptr; }
 #endif
 
+    // Unprotect all GC-pinned callbacks before freeing the context
     auto gc_cleanup = [&](const char* prefix, Value val) {
         if (!IS_NULL(val)) {
             std::string k = gc_key(prefix, c->id);
             gc_unprotect(c->vm, k.c_str(), (int)k.length());
         }
     };
-    gc_cleanup("__wv_disp", c->dispatcher);
-    gc_cleanup("__wv_close", c->close_callback);
-    gc_cleanup("__wv_move", c->move_callback);
-    gc_cleanup("__wv_resize", c->resize_callback);
-    gc_cleanup("__wv_focus", c->focus_callback);
-    gc_cleanup("__wv_blur", c->blur_callback);
-    gc_cleanup("__wv_max", c->maximize_callback);
-    gc_cleanup("__wv_min", c->minimize_callback);
+    gc_cleanup("__wv_disp",    c->dispatcher);
+    gc_cleanup("__wv_close",   c->close_callback);
+    gc_cleanup("__wv_err",     c->error_callback);
+    gc_cleanup("__wv_move",    c->move_callback);
+    gc_cleanup("__wv_resize",  c->resize_callback);
+    gc_cleanup("__wv_focus",   c->focus_callback);
+    gc_cleanup("__wv_blur",    c->blur_callback);
+    gc_cleanup("__wv_max",     c->maximize_callback);
+    gc_cleanup("__wv_min",     c->minimize_callback);
     gc_cleanup("__wv_restore", c->restore_callback);
-    gc_cleanup("__wv_nav", c->navigate_callback);
-    gc_cleanup("__wv_title", c->title_callback);
-    gc_cleanup("__wv_load", c->load_callback);
+    gc_cleanup("__wv_nav",     c->navigate_callback);
+    gc_cleanup("__wv_title",   c->title_callback);
+    gc_cleanup("__wv_load",    c->load_callback);
 
     // Clean up menu items owned by this window
     {
@@ -680,12 +866,14 @@ extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
         }
     }
 
+    // Free the context struct BEFORE erasing from the map;
+    // `id` is already saved as a local — no use-after-free here.
     delete c;
 
     bool is_empty = false;
     {
         std::lock_guard<std::mutex> lock(g_ctx_mtx);
-        g_contexts.erase(id);
+        g_contexts.erase(id); // Uses local `id`, not c->id (c is deleted above)
         is_empty = g_contexts.empty();
     }
 
@@ -694,7 +882,32 @@ extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
         PostQuitMessage(0);
     }
 #endif
+}
 
+extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
+    djazair_check_args(1, argCount);
+    int id = (int)AS_NUMBER(args[0]);
+    WindowContext* c = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(g_ctx_mtx);
+        auto it = g_contexts.find(id);
+        if (it == g_contexts.end()) return djazair_null();
+        c = it->second;
+    }
+
+    // Fix: if this window's message loop is currently running, the destroy is
+    // being requested from inside one of its own callbacks (e.g. an IPC
+    // bridge handler or the close handler). Deleting `c->wv` here would free
+    // the webview while its callback is still on the stack, leaving the
+    // interpreter unable to return to the rest of the script after the loop.
+    // Defer the actual teardown until wv->run() has returned.
+    if (g_active_run_ctx == id) {
+        c->deferred_destroy = true;
+        if (c->wv) c->wv->terminate();
+        return djazair_null();
+    }
+
+    destroy_context(c);
     return djazair_null();
 }
 
@@ -718,18 +931,19 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetVirtualHostMapping) {
             ICoreWebView2_3* webview3 = nullptr;
             hr = webview->QueryInterface(local_IID_ICoreWebView2_3, (void**)&webview3);
             if (SUCCEEDED(hr) && webview3) {
-                const char* host = AS_CSTRING(args[1]);
+                const char* host   = AS_CSTRING(args[1]);
                 const char* folder = AS_CSTRING(args[2]);
 
-                int host_len = MultiByteToWideChar(CP_UTF8, 0, host, -1, NULL, 0);
-                wchar_t* w_host = new wchar_t[host_len];
-                MultiByteToWideChar(CP_UTF8, 0, host, -1, w_host, host_len);
+                int host_len   = MultiByteToWideChar(CP_UTF8, 0, host,   -1, NULL, 0);
+                wchar_t* w_host   = new wchar_t[host_len];
+                MultiByteToWideChar(CP_UTF8, 0, host,   -1, w_host,   host_len);
 
                 int folder_len = MultiByteToWideChar(CP_UTF8, 0, folder, -1, NULL, 0);
                 wchar_t* w_folder = new wchar_t[folder_len];
                 MultiByteToWideChar(CP_UTF8, 0, folder, -1, w_folder, folder_len);
 
-                HRESULT map_hr = webview3->SetVirtualHostNameToFolderMapping(w_host, w_folder, COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_ALLOW);
+                HRESULT map_hr = webview3->SetVirtualHostNameToFolderMapping(
+                    w_host, w_folder, COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);
 
                 delete[] w_host;
                 delete[] w_folder;
@@ -739,10 +953,27 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetVirtualHostMapping) {
                 if (SUCCEEDED(map_hr)) {
                     return djazair_bool(true);
                 }
+                // Fix #2: surface the HRESULT so developers know why mapping failed
+                fprintf(stderr, "[WebView ERROR] SetVirtualHostNameToFolderMapping failed: "
+                                "host='%s' folder='%s' HRESULT=0x%08lX\n",
+                        host, folder, (unsigned long)map_hr);
+                fflush(stderr);
             } else {
+                // WebView2 version too old to support virtual host mapping (needs >= 88)
+                fprintf(stderr, "[WebView ERROR] Virtual host mapping unavailable: "
+                                "ICoreWebView2_3 not supported (HRESULT=0x%08lX). "
+                                "Update WebView2 Runtime.\n", (unsigned long)hr);
+                fflush(stderr);
                 webview->Release();
             }
+        } else {
+            fprintf(stderr, "[WebView ERROR] get_CoreWebView2 failed (HRESULT=0x%08lX)\n",
+                    (unsigned long)hr);
+            fflush(stderr);
         }
+    } else {
+        fprintf(stderr, "[WebView ERROR] SetVirtualHostMapping: no WebView2 controller available\n");
+        fflush(stderr);
     }
 #endif
     return djazair_bool(false);
@@ -1145,7 +1376,7 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetIcon) {
     GET_WINDOW(0);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
     HWND hwnd = get_hwnd(wc->wv);
-    HICON hIcon = (HICON)LoadImageA(NULL, AS_CSTRING(args[1]), IMAGE_ICON,
+    HICON hIcon = (HICON)LoadImageW(NULL, utf8_to_wide(AS_CSTRING(args[1])).c_str(), IMAGE_ICON,
         0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
     if (hIcon) {
         SendMessageW(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
@@ -1317,6 +1548,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetUserAgent) {
                         settings2->put_UserAgent(w_ua);
                         delete[] w_ua;
                         settings2->Release();
+                    } else {
+                        // Fix #3: ICoreWebView2Settings2 requires WebView2 >= 91
+                        fprintf(stderr, "[WebView ERROR] setUserAgent() failed: ICoreWebView2Settings2 "
+                                        "not available (HRESULT=0x%08lX). Update WebView2 Runtime.\n",
+                                (unsigned long)hr);
+                        fflush(stderr);
                     }
                     settings->Release();
                 }
@@ -1326,6 +1563,7 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetUserAgent) {
 #endif
     }
     return djazair_null();
+
 }
 
 extern "C" DJAZAIR_FUNC(nativeWindowClearCache) {
@@ -1397,7 +1635,7 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetHtml) {
         wc->has_navigated = true;
         wc->wv->set_html(AS_CSTRING(args[1]));
         wc->wv->dispatch([wc]() {
-            invoke_callback_0(wc, wc->load_callback);
+            invoke_callback_str(wc, wc->load_callback, "about:blank");
         });
     }
     return djazair_null();
@@ -1641,6 +1879,9 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetLoadCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
     set_callback(wc, vm, "__wv_load", wc->load_callback, args[1]);
+#if defined(WEBVIEW_PLATFORM_WINDOWS)
+    attach_navigation_completed(wc);
+#endif
     return djazair_null();
 }
 
@@ -1734,7 +1975,10 @@ extern "C" DJAZAIR_FUNC(nativeDialogMessage) {
     std::string fullMsg = message;
     if (detail && strlen(detail) > 0) { fullMsg += "\n"; fullMsg += detail; }
 
-    int result = MessageBoxA(NULL, fullMsg.c_str(), title, uType);
+    std::wstring w_title = utf8_to_wide(title);
+    std::wstring w_fullMsg = utf8_to_wide(fullMsg.c_str());
+
+    int result = MessageBoxW(NULL, w_fullMsg.c_str(), w_title.c_str(), uType);
     const char *resultStr = "cancel";
     if (result == IDOK) resultStr = "ok";
     else if (result == IDCANCEL) resultStr = "cancel";
@@ -1757,18 +2001,23 @@ extern "C" DJAZAIR_FUNC(nativeDialogOpenFile) {
     bool multi = AS_BOOL(args[3]);
 
 #if defined(_WIN32)
-    OPENFILENAMEA ofn = {0};
-    char fileName[32768] = {0};
+    wchar_t origCwd[MAX_PATH] = {0};
+    GetCurrentDirectoryW(MAX_PATH, origCwd);
+
+    OPENFILENAMEW ofn = {0};
+    wchar_t fileName[32768] = {0};
+
+    std::wstring w_title = utf8_to_wide(title);
 
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = NULL;
     ofn.lpstrFile = fileName;
-    ofn.nMaxFile = sizeof(fileName);
-    ofn.lpstrTitle = title;
-    ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_EXPLORER;
+    ofn.nMaxFile = sizeof(fileName) / sizeof(wchar_t);
+    ofn.lpstrTitle = w_title.c_str();
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_EXPLORER | OFN_NOCHANGEDIR;
     if (multi) ofn.Flags |= OFN_ALLOWMULTISELECT;
 
-    std::string filterStr;
+    std::wstring filterWide;
     Value filters = args[2];
     int filterLen = djazair_array_len(vm, filters);
     for (int i = 0; i < filterLen; i++) {
@@ -1778,42 +2027,48 @@ extern "C" DJAZAIR_FUNC(nativeDialogOpenFile) {
         Value nameVal = NULL_VAL, extVal = NULL_VAL;
         djazair_map_get(vm, filter, nameKey, &nameVal);
         djazair_map_get(vm, filter, extKey, &extVal);
-        const char *fname = IS_STRING(nameVal) ? AS_CSTRING(nameVal) : "Files";
-        filterStr += fname; filterStr += '\0';
+        if (IS_STRING(nameVal)) filterWide += utf8_to_wide(AS_CSTRING(nameVal));
+        else filterWide += L"Files";
+        filterWide += L'\0';
         if (IS_ARRAY(extVal)) {
             int extLen = djazair_array_len(vm, extVal);
             for (int j = 0; j < extLen; j++) {
                 Value ext = djazair_array_get(vm, extVal, j);
                 if (IS_STRING(ext)) {
-                    if (j > 0) filterStr += ";";
+                    if (j > 0) filterWide += L";";
                     std::string extStr = AS_CSTRING(ext);
                     if (extStr.size() >= 2 && extStr.substr(0, 2) == "*.") extStr = extStr.substr(2);
-                    filterStr += "*."; filterStr += extStr;
+                    filterWide += L"*.";
+                    filterWide += utf8_to_wide(extStr.c_str());
                 }
             }
         }
-        filterStr += '\0';
+        filterWide += L'\0';
     }
-    if (filterStr.empty()) filterStr = "All Files\0*.*\0";
-    else filterStr += '\0';
-    ofn.lpstrFilter = filterStr.data();
+    if (filterWide.empty()) filterWide = L"All Files\0*.*\0";
+    else filterWide += L'\0';
+    ofn.lpstrFilter = filterWide.c_str();
 
-    if (GetOpenFileNameA(&ofn)) {
+    BOOL got = GetOpenFileNameW(&ofn);
+    if (origCwd[0] != L'\0') {
+        SetCurrentDirectoryW(origCwd);
+    }
+    if (got) {
         if (!multi) {
-            return djazair_str(vm, fileName);
+            return djazair_str(vm, wide_to_utf8(fileName).c_str());
         }
-        std::string dir(fileName);
-        char* p = fileName + dir.length() + 1;
-        if (*p == '\0') {
-            return djazair_str(vm, fileName);
+        std::wstring dir(fileName);
+        const wchar_t* p = fileName + dir.length() + 1;
+        if (*p == L'\0') {
+            return djazair_str(vm, wide_to_utf8(fileName).c_str());
         }
         Value arr = djazair_new_array(vm);
-        std::string sep = "\\";
-        if (dir.back() == '\\') sep = "";
+        std::wstring sep = L"\\";
+        if (dir.back() == L'\\') sep = L"";
         while (*p) {
-            std::string full = dir + sep + p;
+            std::string full = wide_to_utf8((dir + sep + p).c_str());
             djazair_array_push(vm, arr, djazair_str(vm, full.c_str()));
-            p += strlen(p) + 1;
+            p += wcslen(p) + 1;
         }
         return arr;
     }
@@ -1829,18 +2084,27 @@ extern "C" DJAZAIR_FUNC(nativeDialogSaveFile) {
     const char *defaultPath = AS_CSTRING(args[1]);
 
 #if defined(_WIN32)
-    OPENFILENAMEA ofn = {0};
-    char fileName[MAX_PATH] = {0};
-    if (defaultPath && strlen(defaultPath) > 0) strncpy(fileName, defaultPath, MAX_PATH - 1);
+    wchar_t origCwd[MAX_PATH] = {0};
+    GetCurrentDirectoryW(MAX_PATH, origCwd);
+
+    OPENFILENAMEW ofn = {0};
+    wchar_t fileName[MAX_PATH] = {0};
+    if (defaultPath && strlen(defaultPath) > 0) {
+        std::wstring w_default = utf8_to_wide(defaultPath);
+        if (w_default.size() >= MAX_PATH) w_default.resize(MAX_PATH - 1);
+        wcscpy(fileName, w_default.c_str());
+    }
+
+    std::wstring w_title = utf8_to_wide(title);
 
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = NULL;
     ofn.lpstrFile = fileName;
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrTitle = title;
-    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY;
+    ofn.lpstrTitle = w_title.c_str();
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
-    std::string filterStr;
+    std::wstring filterWide;
     Value filters = args[2];
     int filterLen = djazair_array_len(vm, filters);
     for (int i = 0; i < filterLen; i++) {
@@ -1850,30 +2114,36 @@ extern "C" DJAZAIR_FUNC(nativeDialogSaveFile) {
         Value nameVal = NULL_VAL, extVal = NULL_VAL;
         djazair_map_get(vm, filter, nameKey, &nameVal);
         djazair_map_get(vm, filter, extKey, &extVal);
-        const char *fname = IS_STRING(nameVal) ? AS_CSTRING(nameVal) : "Files";
-        filterStr += fname; filterStr += '\0';
+        if (IS_STRING(nameVal)) filterWide += utf8_to_wide(AS_CSTRING(nameVal));
+        else filterWide += L"Files";
+        filterWide += L'\0';
         if (IS_ARRAY(extVal)) {
             int extLen = djazair_array_len(vm, extVal);
             for (int j = 0; j < extLen; j++) {
                 Value ext = djazair_array_get(vm, extVal, j);
                 if (IS_STRING(ext)) {
-                    if (j > 0) filterStr += ";";
+                    if (j > 0) filterWide += L";";
                     std::string extStr = AS_CSTRING(ext);
                     if (extStr.size() >= 2 && extStr.substr(0, 2) == "*.") extStr = extStr.substr(2);
-                    filterStr += "*."; filterStr += extStr;
+                    filterWide += L"*.";
+                    filterWide += utf8_to_wide(extStr.c_str());
                 }
             }
         }
-        filterStr += '\0';
+        filterWide += L'\0';
     }
-    if (filterStr.empty()) {
-        filterStr = "All Files\0*.*\0\0";
+    if (filterWide.empty()) {
+        filterWide = L"All Files\0*.*\0\0";
     } else {
-        filterStr += '\0';
+        filterWide += L'\0';
     }
-    ofn.lpstrFilter = filterStr.data();
+    ofn.lpstrFilter = filterWide.c_str();
 
-    if (GetSaveFileNameA(&ofn)) return djazair_str(vm, fileName);
+    BOOL got = GetSaveFileNameW(&ofn);
+    if (origCwd[0] != L'\0') {
+        SetCurrentDirectoryW(origCwd);
+    }
+    if (got) return djazair_str(vm, wide_to_utf8(fileName).c_str());
 #endif
     return djazair_null();
 }
@@ -1885,7 +2155,7 @@ extern "C" DJAZAIR_FUNC(nativeDialogOpenFolder) {
     const char *title = AS_CSTRING(args[0]);
 #if defined(_WIN32)
     IFileOpenDialog *pFileOpen;
-    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, 
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
             IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
 
     if (SUCCEEDED(hr)) {
@@ -1923,17 +2193,22 @@ extern "C" DJAZAIR_FUNC(nativeDialogOpenFolder) {
         pFileOpen->Release();
         return djazair_null();
     }
+    // Fix #4: Surface CoCreateInstance failure — fallback to legacy SHBrowseForFolder
+    fprintf(stderr, "[WebView WARN] IFileOpenDialog unavailable (HRESULT=0x%08lX), "
+                    "falling back to legacy folder browser.\n", (unsigned long)hr);
+    fflush(stderr);
 
-    BROWSEINFOA bi = {0};
-    bi.lpszTitle = title;
+    std::wstring w_title = utf8_to_wide(title);
+    BROWSEINFOW bi = {0};
+    bi.lpszTitle = w_title.c_str();
     bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
-    LPITEMIDLIST pidl = SHBrowseForFolderA(&bi);
+    LPITEMIDLIST pidl = SHBrowseForFolderW(&bi);
     if (pidl) {
-        char path[MAX_PATH];
-        if (SHGetPathFromIDListA(pidl, path)) {
+        wchar_t path[MAX_PATH];
+        if (SHGetPathFromIDListW(pidl, path)) {
             IMalloc *imalloc = NULL;
             if (SUCCEEDED(SHGetMalloc(&imalloc))) { imalloc->Free(pidl); imalloc->Release(); }
-            return djazair_str(vm, path);
+            return djazair_str(vm, wide_to_utf8(path).c_str());
         }
         IMalloc *imalloc = NULL;
         if (SUCCEEDED(SHGetMalloc(&imalloc))) { imalloc->Free(pidl); imalloc->Release(); }
@@ -1947,13 +2222,13 @@ extern "C" DJAZAIR_FUNC(nativeDialogPickColor) {
     djazair_check_str(0);
 
 #if defined(_WIN32)
-    CHOOSECOLORA cc = {0};
+    CHOOSECOLORW cc = {0};
     COLORREF crCust[16] = {0};
     cc.lStructSize = sizeof(cc);
     cc.hwndOwner = NULL;
     cc.lpCustColors = crCust;
     cc.Flags = CC_RGBINIT | CC_FULLOPEN;
-    if (ChooseColorA(&cc)) {
+    if (ChooseColorW(&cc)) {
         Value result = djazair_new_map(vm);
         djazair_map_set(vm, result, djazair_str(vm, "r"), djazair_int(GetRValue(cc.rgbResult)));
         djazair_map_set(vm, result, djazair_str(vm, "g"), djazair_int(GetGValue(cc.rgbResult)));
@@ -2000,7 +2275,8 @@ extern "C" DJAZAIR_FUNC(nativeMenuCreateSubmenu) {
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
     HMENU parent = (HMENU)(intptr_t)AS_NUMBER(args[0]);
     HMENU sub = CreatePopupMenu();
-    AppendMenuA(parent, MF_STRING | MF_POPUP, (UINT_PTR)sub, AS_CSTRING(args[1]));
+    std::wstring w_label = utf8_to_wide(AS_CSTRING(args[1]));
+    AppendMenuW(parent, MF_STRING | MF_POPUP, (UINT_PTR)sub, w_label.c_str());
     return djazair_float((double)(intptr_t)sub);
 #else
     return djazair_null();
@@ -2011,7 +2287,7 @@ extern "C" DJAZAIR_FUNC(nativeMenuAddSeparator) {
     djazair_check_args(1, argCount);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
     HMENU hmenu = (HMENU)(intptr_t)AS_NUMBER(args[0]);
-    AppendMenuA(hmenu, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(hmenu, MF_SEPARATOR, 0, NULL);
 #endif
     return djazair_null();
 }
@@ -2023,7 +2299,8 @@ extern "C" DJAZAIR_FUNC(nativeMenuAddItem) {
     HMENU hmenu = (HMENU)(intptr_t)AS_NUMBER(args[0]);
     const char* label = AS_CSTRING(args[1]);
     int item_id = g_next_menu_id++;
-    AppendMenuA(hmenu, MF_STRING, item_id, label);
+    std::wstring w_label = utf8_to_wide(label);
+    AppendMenuW(hmenu, MF_STRING, item_id, w_label.c_str());
     Value cb = args[2];
     if (!IS_NULL(cb)) {
         std::string k = gc_key("__wv_mcb", item_id);
@@ -2075,8 +2352,8 @@ extern "C" DJAZAIR_FUNC(nativeNotificationShow) {
     djazair_check_bool(3); djazair_check_str(4); djazair_check_num(5);
 
 #if defined(_WIN32)
-    NOTIFYICONDATAA nid = {0};
-    nid.cbSize = sizeof(NOTIFYICONDATAA);
+    NOTIFYICONDATAW nid = {0};
+    nid.cbSize = sizeof(NOTIFYICONDATAW);
     HWND hwnd = NULL;
     {
         std::lock_guard<std::mutex> lock(g_ctx_mtx);
@@ -2092,11 +2369,13 @@ extern "C" DJAZAIR_FUNC(nativeNotificationShow) {
     nid.uTimeout = (UINT)(AS_NUMBER(args[5]) * 1000);
     nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 
-    strncpy(nid.szInfoTitle, AS_CSTRING(args[0]), sizeof(nid.szInfoTitle) - 1);
-    strncpy(nid.szInfo, AS_CSTRING(args[1]), sizeof(nid.szInfo) - 1);
+    std::wstring w_title = utf8_to_wide(AS_CSTRING(args[0]));
+    std::wstring w_msg = utf8_to_wide(AS_CSTRING(args[1]));
+    wcsncpy(nid.szInfoTitle, w_title.c_str(), 63); nid.szInfoTitle[63] = L'\0';
+    wcsncpy(nid.szInfo, w_msg.c_str(), 255); nid.szInfo[255] = L'\0';
 
-    Shell_NotifyIconA(NIM_ADD, &nid);
-    Shell_NotifyIconA(NIM_MODIFY, &nid);
+    Shell_NotifyIconW(NIM_ADD, &nid);
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
 #endif
     return djazair_null();
 }
@@ -2165,22 +2444,24 @@ extern "C" DJAZAIR_FUNC(nativeTrayCreate) {
 
     const char* iconPath = AS_CSTRING(args[1]);
     if (iconPath && strlen(iconPath) > 0) {
-        tc->hicon = (HICON)LoadImageA(NULL, iconPath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+        std::wstring w_iconPath = utf8_to_wide(iconPath);
+        tc->hicon = (HICON)LoadImageW(NULL, w_iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
     }
     if (!tc->hicon) {
         tc->hicon = LoadIcon(NULL, IDI_APPLICATION);
     }
 
-    NOTIFYICONDATAA nid = {0};
-    nid.cbSize = sizeof(NOTIFYICONDATAA);
+    NOTIFYICONDATAW nid = {0};
+    nid.cbSize = sizeof(NOTIFYICONDATAW);
     nid.hWnd = tc->hwnd;
     nid.uID = tc->id;
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON_MSG;
     nid.hIcon = tc->hicon;
-    strncpy(nid.szTip, tc->tooltip.c_str(), sizeof(nid.szTip) - 1);
+    std::wstring w_tooltip = utf8_to_wide(tc->tooltip.c_str());
+    wcsncpy(nid.szTip, w_tooltip.c_str(), 127); nid.szTip[127] = L'\0';
 
-    if (Shell_NotifyIconA(NIM_ADD, &nid)) {
+    if (Shell_NotifyIconW(NIM_ADD, &nid)) {
         tc->active = true;
     }
 
@@ -2206,16 +2487,17 @@ extern "C" DJAZAIR_FUNC(nativeTraySetIcon) {
         if (it != g_trays.end()) tc = it->second;
     }
     if (tc && tc->active) {
-        HICON newIcon = (HICON)LoadImageA(NULL, AS_CSTRING(args[1]), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+        std::wstring w_iconPath = utf8_to_wide(AS_CSTRING(args[1]));
+        HICON newIcon = (HICON)LoadImageW(NULL, w_iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
         if (newIcon) {
             tc->hicon = newIcon;
-            NOTIFYICONDATAA nid = {0};
-            nid.cbSize = sizeof(NOTIFYICONDATAA);
+            NOTIFYICONDATAW nid = {0};
+            nid.cbSize = sizeof(NOTIFYICONDATAW);
             nid.hWnd = tc->hwnd;
             nid.uID = tc->id;
             nid.uFlags = NIF_ICON;
             nid.hIcon = tc->hicon;
-            Shell_NotifyIconA(NIM_MODIFY, &nid);
+            Shell_NotifyIconW(NIM_MODIFY, &nid);
         }
     }
 #endif
@@ -2250,13 +2532,14 @@ extern "C" DJAZAIR_FUNC(nativeTraySetTooltip) {
     }
     if (tc && tc->active) {
         tc->tooltip = AS_CSTRING(args[1]);
-        NOTIFYICONDATAA nid = {0};
-        nid.cbSize = sizeof(NOTIFYICONDATAA);
+        NOTIFYICONDATAW nid = {0};
+        nid.cbSize = sizeof(NOTIFYICONDATAW);
         nid.hWnd = tc->hwnd;
         nid.uID = tc->id;
         nid.uFlags = NIF_TIP;
-        strncpy(nid.szTip, tc->tooltip.c_str(), sizeof(nid.szTip) - 1);
-        Shell_NotifyIconA(NIM_MODIFY, &nid);
+        std::wstring w_tooltip = utf8_to_wide(tc->tooltip.c_str());
+        wcsncpy(nid.szTip, w_tooltip.c_str(), 127); nid.szTip[127] = L'\0';
+        Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
 #endif
     return djazair_null();
@@ -2278,11 +2561,11 @@ extern "C" DJAZAIR_FUNC(nativeTrayDestroy) {
     }
     if (tc) {
         if (tc->active) {
-            NOTIFYICONDATAA nid = {0};
-            nid.cbSize = sizeof(NOTIFYICONDATAA);
+            NOTIFYICONDATAW nid = {0};
+            nid.cbSize = sizeof(NOTIFYICONDATAW);
             nid.hWnd = tc->hwnd;
             nid.uID = tc->id;
-            Shell_NotifyIconA(NIM_DELETE, &nid);
+            Shell_NotifyIconW(NIM_DELETE, &nid);
         }
         if (tc->hwnd) DestroyWindow(tc->hwnd);
         if (tc->hicon) DestroyIcon(tc->hicon);
@@ -2305,16 +2588,18 @@ extern "C" DJAZAIR_FUNC(nativeTrayShowBalloon) {
         if (it != g_trays.end()) tc = it->second;
     }
     if (tc && tc->active) {
-        NOTIFYICONDATAA nid = {0};
-        nid.cbSize = sizeof(NOTIFYICONDATAA);
+        NOTIFYICONDATAW nid = {0};
+        nid.cbSize = sizeof(NOTIFYICONDATAW);
         nid.hWnd = tc->hwnd;
         nid.uID = tc->id;
         nid.uFlags = NIF_INFO;
         nid.dwInfoFlags = NIIF_INFO;
         nid.uTimeout = (UINT)(AS_NUMBER(args[3]) * 1000);
-        strncpy(nid.szInfoTitle, AS_CSTRING(args[1]), sizeof(nid.szInfoTitle) - 1);
-        strncpy(nid.szInfo, AS_CSTRING(args[2]), sizeof(nid.szInfo) - 1);
-        Shell_NotifyIconA(NIM_MODIFY, &nid);
+        std::wstring w_title = utf8_to_wide(AS_CSTRING(args[1]));
+        std::wstring w_msg = utf8_to_wide(AS_CSTRING(args[2]));
+        wcsncpy(nid.szInfoTitle, w_title.c_str(), 63); nid.szInfoTitle[63] = L'\0';
+        wcsncpy(nid.szInfo, w_msg.c_str(), 255); nid.szInfo[255] = L'\0';
+        Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
 #endif
     return djazair_null();

@@ -1,32 +1,51 @@
-# menu.dz
-# Native desktop popup and context menu support for Djazair Webview
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         menu/menu.dz
+# Description:  Native Desktop Popup and Context Menu Management
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 let _native = __native("_webview")
 
-# Menu class: Represents a native context or popup menu instance.
+# =============================================================================
+# Class: Menu
+# =============================================================================
+# Encapsulates a native Win32/macOS/Linux context or popup menu.
+# Supports hierarchical submenus, click handlers, and cursor popup placement.
 class Menu
-    # Constructs a new popup menu.
+    # Constructs a new popup menu instance.
+    #
+    # @param label {String} Optional root label for submenus (default: "")
     init(label = "")
         self.label = label
         self._handle = _native.menuCreate(label)
         self._items = []
     end
 
-    # Appends an item to the menu with an action callback.
+    # Appends an interactive menu item with an optional action callback.
+    #
+    # @param label    {String}   Text label displayed on the menu item
+    # @param callback {Function} Action callback executed upon user click
+    # @return         {Void}
     addItem(label, callback = Null)
         _native.menuAddItem(self._handle, label, callback)
         self._items.append(label)
     end
 
-    # Appends a visual separator line to the menu.
+    # Appends a visual horizontal divider line to the menu.
+    #
+    # @return {Void}
     addSeparator()
         _native.menuAddSeparator(self._handle)
         self._items.append("---")
     end
 
-    # Appends a nested submenu to this menu.
+    # Creates and attaches a nested submenu to this menu.
+    #
+    # @param  label {String} Submenu display text
+    # @return       {Menu}   The newly created child submenu instance
     addSubmenu(label)
         let subHandle = _native.menuCreateSubmenu(self._handle, label)
         let subMenu = new Menu(label)
@@ -34,7 +53,10 @@ class Menu
         return subMenu
     end
 
-    # Displays the popup menu at the current mouse cursor coordinates.
+    # Displays the popup menu at current mouse cursor coordinates over a window.
+    #
+    # @param  win {Window|Integer} Parent window instance or native handle
+    # @return     {Void}
     popup(win)
         let winId = win
         if type(win) == "Instance" and !isNull(win._handle)
@@ -44,7 +66,10 @@ class Menu
     end
 end
 
-# ── Backward Compatible Procedural API ──────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Backward-Compatible Procedural Menu API
+# -----------------------------------------------------------------------------
+
 
 fn menuCreate(label = "")
     return _native.menuCreate(label)

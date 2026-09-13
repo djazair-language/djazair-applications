@@ -1,5 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/05_window_events.dz
+# Description:  Operating System and Browser Engine Window Event Listeners
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
+# Demonstrates subscribing to native OS window movement, focus, resize, and lifecycle events
 let app = webview.createWindow({"title": "Events Demo", "debug": True})
 
 app.onReady(fn()

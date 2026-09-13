@@ -1333,6 +1333,20 @@ async function getCalculation() {
   } catch (err) {
     console.error('Calculation error:', err);
   }
+}
+
+// Custom timeout — default is 10 000 ms, pass a third argument to override
+async function runSlowQuery() {
+  try {
+    const data = await window.djazair.invoke('heavyDbQuery', { limit: 500 }, 30000);
+    renderTable(data.rows);
+  } catch (err) {
+    if (err.message.startsWith('TimeoutError')) {
+      showNotice('Query timed out after 30 s — try a smaller limit.');
+    } else {
+      console.error('Query failed:', err.message);
+    }
+  }
 }</code></pre>
               </div>
             </div>
@@ -1389,8 +1403,8 @@ async function getCalculation() {
             <tbody>
               <tr>
                 <td><code>invoke</code></td>
-                <td><code>invoke(channel, payload) &rarr; Promise&lt;any&gt;</code></td>
-                <td>Calls a Djazair backend handler and returns a Promise with the auto-deserialized return value.</td>
+                <td><code>invoke(channel, payload [, timeoutMs]) &rarr; Promise&lt;any&gt;</code></td>
+                <td>Calls a Djazair backend handler and returns a Promise with the auto-deserialized return value. Automatically rejects with a <code>TimeoutError</code> if the handler does not respond within <code>timeoutMs</code> milliseconds (default: <strong>10 000</strong>). The internal timer is cleared immediately upon resolution to prevent memory accumulation.</td>
               </tr>
               <tr>
                 <td><code>on</code></td>

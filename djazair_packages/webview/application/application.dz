@@ -1,7 +1,11 @@
-# application.dz
-# Application lifecycle, event loop, and window manager for Djazair Webview
-# Author: Harizi Riyadh (hariziriyadh@gmail.com)
-# Copyright (c) 2026 Djazair Language Project
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         application/application.dz
+# Description:  Application Lifecycle, Event Loop, and Window Management Coordinator
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
 
 import "../bridge/bridge.dz" as *
 import "../window/window.dz" as *
@@ -11,8 +15,14 @@ use json as *
 
 let _native = __native("_webview")
 
-# App class: Manages desktop application lifecycle, event loop, and multi-window hierarchy.
+# =============================================================================
+# Class: App
+# =============================================================================
+# Coordinates the desktop application process, manages single-instance mutexes,
+# handles the primary and secondary window lifecycle, bridges JavaScript IPC,
+# and controls the native platform message loop.
 class App
+
     # Initializes application instance and creates default primary window.
     init(options = {})
         let defaults = {
@@ -27,6 +37,7 @@ class App
             "maxWidth": 0,
             "maxHeight": 0,
             "closable": True,
+            "virtualHostDir": "",
             "debug": False,
             "singleInstance": False,
             "appId": ""
@@ -86,6 +97,7 @@ class App
         if self._debug
             sysLog("App", "Debug mode enabled, configuring DevTools and console logger...")
             win.initJs(readWebviewAsset("debug_console.js"))
+            # In debug mode: capture all JS console levels (log, info, warn, error)
             self.bridge.on("__console", fn(args)
                 let typeStr = args[0]
                 let msg = args[1]
@@ -102,6 +114,22 @@ class App
                 sysLog("Webview", msg, lvl)
             end)
             win.openDevTools()
+        else
+            # Fix #11: In production mode, still inject debug_console.js so that
+            # console.error() and console.warn() calls from bridge_client.js
+            # (unhandled rejections, listener errors, uncaught exceptions) are
+            # forwarded to the Djazair terminal at error/warn level.
+            win.initJs(readWebviewAsset("debug_console.js"))
+            self.bridge.on("__console", fn(args)
+                let typeStr = args[0]
+                let msg = args[1]
+                # In production: only surface error and warn — suppress log/info noise
+                if typeStr == "error"
+                    sysLog("Webview", msg, "error")
+                elif typeStr == "warn"
+                    sysLog("Webview", msg, "warn")
+                end
+            end)
         end
 
         sysLog("App", "Application initialized successfully.")
@@ -142,7 +170,13 @@ class App
         if self._quitting return end
         sysLog("App", "Running application event loop.")
         if !isNull(self._onReady)
-            self._onReady()
+            # Fix #7: guard onReady just like onQuit — an uncaught error here
+            # previously crashed the entire app before the event loop started
+            try
+                self._onReady()
+            catch err
+                sysLog("App", "Error in onReady handler: ${err}", "error")
+            end
         end
         _native.appRun()
     end

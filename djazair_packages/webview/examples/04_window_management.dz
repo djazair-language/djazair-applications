@@ -1,5 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/04_window_management.dz
+# Description:  Window Geometry, State Management, Sizing Constraints, and Visual Options
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
+# Demonstrates comprehensive native window management capabilities
 let app = webview.createWindow({"title": "Window Demo", "debug": True})
 
 app.onReady(fn()

@@ -1,6 +1,15 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         examples/10_tray_notifications.dz
+# Description:  System Tray Icon Creation and Desktop Toast Notifications
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
 use webview
 
-# System Tray
+# 1. System Tray Icon Lifecycle
 let tray = webview.trayCreate("Djazair App", "icon.ico")
 if !isNull(tray)
     webview.traySetTooltip(tray, "Djazair Application v1.0")

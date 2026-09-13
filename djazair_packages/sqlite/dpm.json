@@ -1,11 +1,11 @@
 {
-  "source": "github:djazair-language/djazair-extensions/sqlite",
+  "name": "sqlite",
+  "version": "0.1.0",
   "description": "SQLite local database connectivity extension for Djazair",
   "type": "hybrid",
+  "source": "github:djazair-language/djazair-extensions/sqlite",
   "developer": {
     "name": "Harizi Riyadh",
     "email": "hariziriyadh@gmail.com"
-  },
-  "name": "sqlite",
-  "version": "0.1.0"
+  }
 }
