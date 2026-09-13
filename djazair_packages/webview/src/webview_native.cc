@@ -83,6 +83,7 @@ struct WindowContext {
     WNDPROC           original_wndproc;
     HICON             last_icon_small;
     HICON             last_icon_big;
+    int               last_size_type;
     // Navigation-completed event registration so onLoad fires on real
     // navigations (not only setHtml).
     EventRegistrationToken nav_completed_token;
@@ -102,6 +103,7 @@ struct WindowContext {
         , saved_style(0), saved_exstyle(0)
         , original_wndproc(nullptr)
         , last_icon_small(nullptr), last_icon_big(nullptr)
+        , last_size_type(SIZE_RESTORED)
         , nav_completed_token({0}), nav_event_handler(nullptr)
 #endif
     {}
@@ -372,6 +374,16 @@ static LRESULT CALLBACK WebviewWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             break;
 
         case WM_SIZE:
+            if (wParam == SIZE_MAXIMIZED && c->last_size_type != SIZE_MAXIMIZED) {
+                c->last_size_type = SIZE_MAXIMIZED;
+                c->wv->dispatch([c]() { invoke_callback_0(c, c->maximize_callback); });
+            } else if (wParam == SIZE_MINIMIZED && c->last_size_type != SIZE_MINIMIZED) {
+                c->last_size_type = SIZE_MINIMIZED;
+                c->wv->dispatch([c]() { invoke_callback_0(c, c->minimize_callback); });
+            } else if (wParam == SIZE_RESTORED && c->last_size_type != SIZE_RESTORED) {
+                c->last_size_type = SIZE_RESTORED;
+                c->wv->dispatch([c]() { invoke_callback_0(c, c->restore_callback); });
+            }
             c->wv->dispatch([c, lParam]() {
                 invoke_callback_2(c, c->resize_callback, (double)LOWORD(lParam), (double)HIWORD(lParam));
             });
@@ -1214,7 +1226,9 @@ extern "C" DJAZAIR_FUNC(nativeWindowMinimize) {
     GET_WINDOW(0);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
     pump_windows_messages();
+    wc->last_size_type = SIZE_MINIMIZED;
     ShowWindow(get_hwnd(wc->wv), SW_MINIMIZE);
+    wc->wv->dispatch([wc]() { invoke_callback_0(wc, wc->minimize_callback); });
 #elif defined(WEBVIEW_PLATFORM_DARWIN)
     id win = (id)webview_get_window((webview_t)wc->wv);
     objc_msgSend(win, sel_getUid("miniaturize:"), nil);
@@ -1235,6 +1249,7 @@ extern "C" DJAZAIR_FUNC(nativeWindowMaximize) {
     GET_WINDOW(0);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
     pump_windows_messages();
+    wc->last_size_type = SIZE_MAXIMIZED;
     ShowWindow(get_hwnd(wc->wv), SW_MAXIMIZE);
     wc->wv->dispatch([wc]() { invoke_callback_0(wc, wc->maximize_callback); });
 #elif defined(WEBVIEW_PLATFORM_DARWIN)
@@ -1257,7 +1272,9 @@ extern "C" DJAZAIR_FUNC(nativeWindowRestore) {
     GET_WINDOW(0);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
     pump_windows_messages();
+    wc->last_size_type = SIZE_RESTORED;
     ShowWindow(get_hwnd(wc->wv), SW_RESTORE);
+    wc->wv->dispatch([wc]() { invoke_callback_0(wc, wc->restore_callback); });
 #elif defined(WEBVIEW_PLATFORM_DARWIN)
     id win = (id)webview_get_window((webview_t)wc->wv);
     objc_msgSend(win, sel_getUid("deminiaturize:"), nil);

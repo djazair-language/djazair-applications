@@ -144,6 +144,8 @@ $(document).ready(function() {
     var height = parseInt($("#simHeight").val()) || 400;
     var isFrameless = $("#simFrameless").is(":checked");
     var isDark = $("#simDark").is(":checked");
+    var isCenter = $("#simCenter").is(":checked");
+    var isTopmost = $("#simTopmost").is(":checked");
     var bgColor = $("#simBg").val() || "#0f172a";
 
     // Scale down for preview if needed
@@ -178,6 +180,8 @@ $(document).ready(function() {
       '    "title": "' + title + '",\n' +
       '    "width": ' + width + ',\n' +
       '    "height": ' + height + ',\n' +
+      '    "center": ' + (isCenter ? 'True' : 'False') + ',\n' +
+      '    "alwaysOnTop": ' + (isTopmost ? 'True' : 'False') + ',\n' +
       '    "frameless": ' + (isFrameless ? 'True' : 'False') + ',\n' +
       '    "singleInstance": True,\n' +
       '    "debug": True\n' +
@@ -193,7 +197,7 @@ $(document).ready(function() {
     $("#simHeightVal").text(height + "px");
   }
 
-  $("#simTitle, #simWidth, #simHeight, #simFrameless, #simDark, #simBg").on("input change", updateWindowMockup);
+  $("#simTitle, #simWidth, #simHeight, #simFrameless, #simDark, #simCenter, #simTopmost, #simBg").on("input change", updateWindowMockup);
   updateWindowMockup();
 
   // ── 6. Dark / Light Theme Switcher ─────────────────────────────────────────

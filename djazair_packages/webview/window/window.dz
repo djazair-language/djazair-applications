@@ -230,6 +230,19 @@ class Window
         _native.windowRestore(self._handle)
     end
 
+    # Toggles between maximized and restored states.
+    #
+    # @return {Boolean}  The updated maximized state.
+    toggleMaximize()
+        if isNull(self._handle) return False end
+        if self.isMaximized()
+            self.restore()
+        else
+            self.maximize()
+        end
+        return self.isMaximized()
+    end
+
     # Hides the window from view.
     hide()
         if isNull(self._handle) return end

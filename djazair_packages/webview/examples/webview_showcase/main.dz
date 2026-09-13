@@ -36,7 +36,6 @@ class ShowcaseApp
             "center": True,
             "darkTitleBar": True,
             "debug": False,
-            "frameless": True,
             "singleInstance": True,
             "appId": "com.djazair.webview.showcase"
         })

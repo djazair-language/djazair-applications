@@ -9,7 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="docs.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="jquery.min.js"></script>
+  <script>window.jQuery || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"><\/script>')</script>
 </head>
 <body>
 
@@ -23,7 +24,7 @@
 
     <div class="search-container">
       <i class="fas fa-search search-icon"></i>
-      <input type="text" id="apiSearch" class="search-input" placeholder="Search 60+ APIs: flash, drag, singleInstance, zoom, cache, tray, protocol..." autocomplete="off" />
+      <input type="text" id="apiSearch" class="search-input" placeholder="Search 70+ APIs: fullscreen, flash, drag, singleInstance, zoom, cache, tray, dialogs, bridge..." autocomplete="off" />
     </div>
 
     <div class="header-actions">
@@ -301,6 +302,16 @@ app.run()</code></pre>
             <div class="sim-control-group" style="display:flex;align-items:center;gap:10px;padding-top:16px;">
               <input type="checkbox" id="simDark" checked style="width:16px;height:16px;" />
               <label for="simDark" style="margin:0;cursor:pointer;">Dark Titlebar</label>
+            </div>
+
+            <div class="sim-control-group" style="display:flex;align-items:center;gap:10px;padding-top:16px;">
+              <input type="checkbox" id="simCenter" checked style="width:16px;height:16px;" />
+              <label for="simCenter" style="margin:0;cursor:pointer;">Center On Screen</label>
+            </div>
+
+            <div class="sim-control-group" style="display:flex;align-items:center;gap:10px;padding-top:16px;">
+              <input type="checkbox" id="simTopmost" style="width:16px;height:16px;" />
+              <label for="simTopmost" style="margin:0;cursor:pointer;">Always On Top</label>
             </div>
           </div>
 
@@ -715,10 +726,10 @@ app.run()</code></pre>
 
         <div class="method-card">
           <div class="method-header">
-            <span class="method-sig">window.<span class="method-name">maximize</span>() / window.<span class="method-name">minimize</span>() / window.<span class="method-name">restore</span>()</span>
+            <span class="method-sig">window.<span class="method-name">maximize</span>() / window.<span class="method-name">restore</span>() / window.<span class="method-name">toggleMaximize</span>() / window.<span class="method-name">minimize</span>()</span>
             <span class="method-badge">State</span>
           </div>
-          <div class="method-desc">Transitions window between maximized, minimized, and normal restored bounds.</div>
+          <div class="method-desc">Transitions window between maximized, normal restored, and minimized bounds. <code>toggleMaximize()</code> automatically inverts between maximized and restored states.</div>
         </div>
 
         <div class="method-card">
@@ -739,10 +750,18 @@ app.run()</code></pre>
 
         <div class="method-card">
           <div class="method-header">
-            <span class="method-sig">window.<span class="method-name">setFullscreen</span>(fullscreen) / window.<span class="method-name">isFullscreen</span>() &rarr; Boolean</span>
+            <span class="method-sig">window.<span class="method-name">setFullscreen</span>(fullscreen) / window.<span class="method-name">isFullscreen</span>() &rarr; Boolean / window.<span class="method-name">toggleFullscreen</span>() / window.<span class="method-name">fullscreen</span>([enable])</span>
             <span class="method-badge">State</span>
           </div>
-          <div class="method-desc">Toggles borderless immersive fullscreen covering the entire screen including the Windows taskbar.</div>
+          <div class="method-desc">
+            Controls and queries borderless immersive fullscreen covering the entire display monitor surface including the Windows taskbar.
+            <ul style="margin:8px 0 0 18px;line-height:1.6;font-size:13px;color:var(--text-secondary);">
+              <li><code>setFullscreen(True|False)</code> &mdash; Enters or exits borderless immersive fullscreen mode.</li>
+              <li><code>isFullscreen() &rarr; Boolean</code> &mdash; Returns <code>True</code> if the window is currently in fullscreen, <code>False</code> otherwise.</li>
+              <li><code>toggleFullscreen() &rarr; Boolean</code> &mdash; Inverts the current fullscreen state and returns the new state.</li>
+              <li><code>fullscreen([enable])</code> &mdash; Flexible getter/setter. If <code>enable</code> is provided (<code>True</code> or <code>False</code>), updates fullscreen; if omitted or <code>Null</code>, returns current state.</li>
+            </ul>
+          </div>
         </div>
 
         <div class="method-card">
@@ -921,10 +940,10 @@ app.run()</code></pre>
 
         <div class="method-card">
           <div class="method-header">
-            <span class="method-sig">window.<span class="method-name">setTitle</span>(title) / window.<span class="method-name">title</span>(title)</span>
+            <span class="method-sig">window.<span class="method-name">setTitle</span>(title) / window.<span class="method-name">getTitle</span>() &rarr; String / window.<span class="method-name">title</span>([title]) &rarr; String</span>
             <span class="method-badge">Visuals</span>
           </div>
-          <div class="method-desc">Dynamically updates the OS window caption bar title.</div>
+          <div class="method-desc">Dynamically updates or queries the OS window caption bar title. <code>getTitle()</code> retrieves the current title string, <code>setTitle(title)</code> updates it, and <code>title([title])</code> acts as both getter and setter.</div>
         </div>
 
         <div class="method-card">
@@ -955,10 +974,10 @@ app.run()</code></pre>
 
         <div class="method-card">
           <div class="method-header">
-            <span class="method-sig">window.<span class="method-name">setAlwaysOnTop</span>(alwaysOnTop)</span>
+            <span class="method-sig">window.<span class="method-name">setAlwaysOnTop</span>(alwaysOnTop) / window.<span class="method-name">isAlwaysOnTop</span>() &rarr; Boolean</span>
             <span class="method-badge">Visuals</span>
           </div>
-          <div class="method-desc">Toggles <code>HWND_TOPMOST</code> to pin the window above all other active desktop windows.</div>
+          <div class="method-desc">Toggles <code>HWND_TOPMOST</code> to pin the window above all other active desktop windows. <code>isAlwaysOnTop()</code> returns <code>True</code> if the window is currently pinned topmost.</div>
         </div>
 
         <div class="method-card">
@@ -1227,7 +1246,7 @@ app.run()</code></pre>
                 <td><code>(url)</code></td>
               </tr>
               <tr>
-                <td><code>window.onTitleChange(fn)</code></td>
+                <td><code>window.onTitleChange(fn)</code> / <code>window.onTitle(fn)</code></td>
                 <td>Document title changed in the browser.</td>
                 <td><code>(title)</code></td>
               </tr>
@@ -1480,7 +1499,7 @@ end</code></pre>
 
 let file = webview.showOpenFileDialog({
     "title": "Select Configuration File",
-    "defaultPath": "C:\Projects",
+    "defaultPath": "C:/Projects",
     "filters": [
         {"name": "JSON Files", "extensions": ["json"]},
         {"name": "All Files", "extensions": ["*"]}
@@ -1499,6 +1518,27 @@ let file = webview.showOpenFileDialog({
           <div class="method-desc">
             Prompts user with standard Save File dialog. Returns selected absolute path or empty string if cancelled.
           </div>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use webview
+
+let savePath = webview.showSaveFileDialog({
+    "title": "Save Exported Report",
+    "defaultPath": "report.json",
+    "filters": [
+        {"name": "JSON Data (*.json)", "extensions": ["json"]},
+        {"name": "All Files (*.*)", "extensions": ["*"]}
+    ]
+})
+if savePath != ""
+    print("User chose save location: " + savePath)
+end</code></pre>
+            </div>
+          </div>
         </div>
 
         <div class="method-card">
@@ -1507,7 +1547,24 @@ let file = webview.showOpenFileDialog({
             <span class="method-badge">Dialogs</span>
           </div>
           <div class="method-desc">
-            Prompts user with native folder selection browser dialog.
+            Prompts user with native folder selection browser dialog. Returns selected directory path or empty string.
+          </div>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use webview
+
+let selectedFolder = webview.showOpenFolderDialog({
+    "title": "Select Project Root Folder",
+    "defaultPath": "C:/Projects"
+})
+if selectedFolder != ""
+    print("Workspace selected: " + selectedFolder)
+end</code></pre>
+            </div>
           </div>
         </div>
 
@@ -1517,7 +1574,23 @@ let file = webview.showOpenFileDialog({
             <span class="method-badge">Dialogs</span>
           </div>
           <div class="method-desc">
-            Displays native Windows color palette picker. Returns selected color in Hex format (e.g. <code>"#3b82f6"</code>).
+            Displays native Windows color palette picker. Returns selected color in Hex format (e.g. <code>"#3b82f6"</code>) or empty string.
+          </div>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use webview
+
+let hexColor = webview.showColorPicker({
+    "defaultColor": "#3b82f6"
+})
+if hexColor != ""
+    print("Selected theme color: " + hexColor)
+end</code></pre>
+            </div>
           </div>
         </div>
       </section>
@@ -1597,6 +1670,11 @@ end)</code></pre>
                 <td><code>popup</code></td>
                 <td><code>menu.popup(window)</code></td>
                 <td>Pops up the context menu at the current mouse cursor location.</td>
+              </tr>
+              <tr>
+                <td><code>popupMenu</code></td>
+                <td><code>window.popupMenu(menu) &rarr; Boolean</code></td>
+                <td>Pops up the specified native context menu at the current cursor location for this window.</td>
               </tr>
             </tbody>
           </table>
@@ -1724,6 +1802,18 @@ end)</code></pre>
           </div>
           <div class="method-desc">
             Unregisters a previously attached custom protocol scheme.
+          </div>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="code-lang">Djazair Example</span>
+              <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+            </div>
+            <div class="code-body">
+              <pre><code>use webview
+
+# Unregister previously bound protocol handler
+webview.protocolUnregister("djazair")</code></pre>
+            </div>
           </div>
         </div>
       </section>
