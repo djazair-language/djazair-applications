@@ -508,12 +508,27 @@
         });
 
         // ── 7. Tab: Browser Engine & Navigation ──────────────────────────────
+        $('#btnNavNewWin').on('click', function() {
+            const targetUrl = $('#inputNavUrl').val() || 'https://google.com';
+            appendLog('info', `Spawning dedicated native browser window: ${targetUrl}`);
+            window.djazair.invoke('nav_openInWindow', { url: targetUrl })
+                .then(function(res) {
+                    appendLog('success', `Dedicated browser window opened for: ${targetUrl}`, res);
+                });
+        });
+
         $('#btnNavGo').on('click', function() {
             const targetUrl = $('#inputNavUrl').val();
             if (targetUrl) {
-                appendLog('info', `Navigating to: ${targetUrl}`);
+                appendLog('warn', `Navigating primary window directly to: ${targetUrl}`);
                 window.djazair.invoke('nav_navigate', { url: targetUrl });
             }
+        });
+
+        $('.btn-quick-url').on('click', function() {
+            const url = $(this).data('url');
+            $('#inputNavUrl').val(url);
+            appendLog('info', `Selected bookmark: ${url}`);
         });
 
         $('#btnNavReload').on('click', () => window.djazair.invoke('nav_reload'));

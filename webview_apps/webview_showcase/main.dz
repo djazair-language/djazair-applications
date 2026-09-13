@@ -34,7 +34,7 @@ class ShowcaseApp
             "minHeight": 600,
             "center": True,
             "darkTitleBar": True,
-            "debug": True,
+            "debug": False,
             "singleInstance": True,
             "appId": "com.djazair.webview.showcase"
         })
@@ -386,6 +386,24 @@ class ShowcaseApp
         end)
 
         # -- Navigation & Engine Controls -------------------------------------
+
+        bridge.on("nav_openInWindow", fn(payload)
+            let targetUrl = payload["url"]
+            if isNull(targetUrl) or targetUrl == ""
+                targetUrl = "https://google.com"
+            end
+
+            let bWin = selfRef.app.createWindow({
+                "title": "Browser View - " + targetUrl,
+                "width": 1100,
+                "height": 720,
+                "resizable": True,
+                "darkTitleBar": True,
+                "debug": True
+            })
+            bWin.navigate(targetUrl)
+            return {"opened": True, "url": targetUrl}
+        end)
 
         bridge.on("nav_navigate", fn(payload)
             let targetUrl = payload["url"]

@@ -572,9 +572,15 @@
                     </div>
 
                     <div class="glass-card space-y-4">
-                        <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fas fa-globe text-sky-400"></i> Navigation Bar
-                        </h3>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-globe text-sky-400"></i> Navigation Bar
+                            </h3>
+                            <span class="status-tag tag-blue text-xs">WebView2 Chromium Engine</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Web pages are loaded <strong>inside the same application process</strong> via the embedded Microsoft Edge WebView2 runtime. You can either open the URL in a dedicated native browser window (keeping this dashboard active) or navigate this primary window directly.
+                        </p>
                         <div class="flex gap-2 items-center">
                             <button id="btnNavBack" class="btn-action btn-secondary" title="Go Back">
                                 <i class="fas fa-chevron-left"></i>
@@ -585,10 +591,23 @@
                             <button id="btnNavReload" class="btn-action btn-secondary" title="Reload Page">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
-                            <input type="text" id="inputNavUrl" class="input-field flex-1" value="https://example.com" placeholder="Enter URL or file path...">
-                            <button id="btnNavGo" class="btn-action btn-primary">
-                                <i class="fas fa-arrow-right"></i> Navigate
+                            <input type="text" id="inputNavUrl" class="input-field flex-1" value="https://google.com" placeholder="Enter URL (e.g. https://google.com)...">
+                            <button id="btnNavNewWin" class="btn-action btn-primary" title="Open in Dedicated Native Browser Window">
+                                <i class="fas fa-external-link-alt"></i> Open in Window
                             </button>
+                            <button id="btnNavGo" class="btn-action btn-secondary" title="Navigate this primary window directly">
+                                <i class="fas fa-arrow-right"></i> Navigate Here
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2 pt-1 text-xs text-slate-400">
+                            <span class="text-slate-500">Quick Bookmarks:</span>
+                            <button class="btn-quick-url text-sky-400 hover:underline cursor-pointer" data-url="https://google.com">Google</button>
+                            <span class="text-slate-600">•</span>
+                            <button class="btn-quick-url text-sky-400 hover:underline cursor-pointer" data-url="https://wikipedia.org">Wikipedia</button>
+                            <span class="text-slate-600">•</span>
+                            <button class="btn-quick-url text-sky-400 hover:underline cursor-pointer" data-url="https://github.com">GitHub</button>
+                            <span class="text-slate-600">•</span>
+                            <button class="btn-quick-url text-sky-400 hover:underline cursor-pointer" data-url="http://djazair.localhost/ui.html">Showcase Home</button>
                         </div>
                     </div>
 
