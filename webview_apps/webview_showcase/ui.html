@@ -157,9 +157,14 @@
                     <!-- Sizing & Positioning Controls -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card space-y-4">
-                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-arrows-alt text-sky-400"></i> Dimensions & Coordinates
-                            </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-arrows-alt text-sky-400"></i> Dimensions & Coordinates
+                                </h3>
+                                <button class="btn-view-code" data-snippet="win_geometry" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <div>
                                 <label class="text-xs text-slate-400 block mb-2">Quick Presets:</label>
                                 <div class="flex flex-wrap gap-2">
@@ -203,9 +208,14 @@
                         </div>
 
                         <div class="glass-card space-y-4">
-                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-sliders-h text-purple-400"></i> States, Focus & Styling
-                            </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-sliders-h text-purple-400"></i> States, Focus & Styling
+                                </h3>
+                                <button class="btn-view-code" data-snippet="win_states" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <div>
                                 <label class="text-xs text-slate-400 block mb-2">Native Actions:</label>
                                 <div class="grid grid-cols-2 gap-2">
@@ -275,7 +285,12 @@
                             <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
                                 <i class="fas fa-comment-dots text-sky-400"></i> Standard Message Prompts
                             </h3>
-                            <span id="badgeDlgResult" class="status-tag tag-blue text-xs">Result: Awaiting Trigger</span>
+                            <div class="flex items-center gap-2">
+                                <span id="badgeDlgResult" class="status-tag tag-blue text-xs">Result: Awaiting Trigger</span>
+                                <button class="btn-view-code" data-snippet="dialog_message" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div class="bg-slate-900/60 p-3 rounded-lg border border-white/5 flex flex-col justify-between">
@@ -319,9 +334,14 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card space-y-4">
-                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-folder-open text-emerald-400"></i> File & Folder Pickers
-                            </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-folder-open text-emerald-400"></i> File & Folder Pickers
+                                </h3>
+                                <button class="btn-view-code" data-snippet="dialog_pickers" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <div class="space-y-3">
                                 <button id="btnDlgOpenFile" class="btn-action btn-emerald w-full">
                                     <i class="fas fa-file-code"></i> Open Single File Dialog
@@ -343,9 +363,14 @@
                         </div>
 
                         <div class="glass-card space-y-4">
-                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-palette text-purple-400"></i> Windows Native Color Palette
-                            </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-palette text-purple-400"></i> Windows Native Color Palette
+                                </h3>
+                                <button class="btn-view-code" data-snippet="dialog_color" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400">
                                 Launches the standard operating system color picker palette and returns the chosen hex color.
                             </p>
@@ -376,9 +401,14 @@
                     </div>
 
                     <div class="glass-card space-y-4">
-                        <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fas fa-calculator text-purple-400"></i> Native RPC Calculation Engine
-                        </h3>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-calculator text-purple-400"></i> Native RPC Calculation Engine
+                            </h3>
+                            <button class="btn-view-code" data-snippet="ipc_rpc" title="View Code Snippet">
+                                <i class="fas fa-code"></i> <span>View Code</span>
+                            </button>
+                        </div>
                         <p class="text-xs text-slate-400">
                             Calls <code class="text-purple-300">window.djazair.invoke('rpc_calculate', payload)</code> which computes arithmetics natively in Djazair VM.
                         </p>
@@ -404,9 +434,14 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="glass-card space-y-3">
-                            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-stopwatch text-sky-400"></i> Ping & Latency
-                            </h4>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-stopwatch text-sky-400"></i> Ping & Latency
+                                </h4>
+                                <button class="btn-view-code" data-snippet="ipc_ping_error" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400">Measures roundtrip serialization and dispatch latency.</p>
                             <button id="btnRpcPing" class="btn-action btn-primary w-full">
                                 <i class="fas fa-satellite-dish"></i> Execute Ping
@@ -414,9 +449,14 @@
                         </div>
 
                         <div class="glass-card space-y-3">
-                            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-hourglass-half text-amber-400"></i> Timeout Protection
-                            </h4>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-hourglass-half text-amber-400"></i> Timeout Protection
+                                </h4>
+                                <button class="btn-view-code" data-snippet="ipc_ping_error" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400">Verifies that slow or unresponsive handlers auto-reject.</p>
                             <button id="btnTestTimeout" class="btn-action btn-amber w-full">
                                 <i class="fas fa-clock"></i> Test 1.5s Timeout
@@ -424,9 +464,14 @@
                         </div>
 
                         <div class="glass-card space-y-3">
-                            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-bug text-rose-400"></i> Error Handling
-                            </h4>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-bug text-rose-400"></i> Error Handling
+                                </h4>
+                                <button class="btn-view-code" data-snippet="ipc_ping_error" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400">Verifies backend exceptions are surfaced cleanly to JS Promises.</p>
                             <button id="btnTestBackendError" class="btn-action btn-rose w-full">
                                 <i class="fas fa-exclamation-triangle"></i> Trigger Fault
@@ -436,9 +481,14 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card space-y-3">
-                            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-code text-emerald-400"></i> Direct Global Bindings (expose)
-                            </h4>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-code text-emerald-400"></i> Direct Global Bindings (expose)
+                                </h4>
+                                <button class="btn-view-code" data-snippet="ipc_expose" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400">
                                 Tests calling <code class="text-emerald-300">window.nativeMultiply(9, 9)</code> bound natively via <code class="text-emerald-300">app.bridge.expose()</code>.
                             </p>
@@ -451,9 +501,14 @@
                         </div>
 
                         <div class="glass-card space-y-3">
-                            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-broadcast-tower text-sky-400"></i> Real-Time Push Event Stream
-                            </h4>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-broadcast-tower text-sky-400"></i> Real-Time Push Event Stream
+                                </h4>
+                                <button class="btn-view-code" data-snippet="ipc_events" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400">
                                 Streams live event pulses from Djazair to JavaScript using <code class="text-sky-300">bridge.send()</code>.
                             </p>
@@ -486,9 +541,14 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card space-y-4">
-                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-bars text-amber-400"></i> Native Popup Context Menu
-                            </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-bars text-amber-400"></i> Native Popup Context Menu
+                                </h3>
+                                <button class="btn-view-code" data-snippet="menus_context" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <p class="text-xs text-slate-400">
                                 Native Win32 context menu with submenus, separators, and callbacks. Right-click anywhere in the app to inspect!
                             </p>
@@ -507,7 +567,12 @@
                                 <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
                                     <i class="fas fa-tray text-emerald-400"></i> System Tray (Taskbar)
                                 </h3>
-                                <span id="badgeTrayStatus" class="status-tag tag-amber text-xs">Inactive</span>
+                                <div class="flex items-center gap-2">
+                                    <span id="badgeTrayStatus" class="status-tag tag-amber text-xs">Inactive</span>
+                                    <button class="btn-view-code" data-snippet="tray_notifications" title="View Code Snippet">
+                                        <i class="fas fa-code"></i> <span>View Code</span>
+                                    </button>
+                                </div>
                             </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <button id="btnCreateTray" class="btn-action btn-emerald">
@@ -531,9 +596,14 @@
                     </div>
 
                     <div class="glass-card space-y-4">
-                        <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fas fa-envelope-open-text text-sky-400"></i> Desktop Action Center Toast Notifications
-                        </h3>
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-envelope-open-text text-sky-400"></i> Desktop Action Center Toast Notifications
+                            </h3>
+                            <button class="btn-view-code" data-snippet="toast_notifications" title="View Code Snippet">
+                                <i class="fas fa-code"></i> <span>View Code</span>
+                            </button>
+                        </div>
                         <p class="text-xs text-slate-400">
                             Dispatches high-priority desktop toast notifications with custom titles, audio chimes, and durations.
                         </p>
@@ -576,7 +646,12 @@
                             <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
                                 <i class="fas fa-globe text-sky-400"></i> Navigation Bar
                             </h3>
-                            <span class="status-tag tag-blue text-xs">WebView2 Chromium Engine</span>
+                            <div class="flex items-center gap-2">
+                                <span class="status-tag tag-blue text-xs">WebView2 Chromium Engine</span>
+                                <button class="btn-view-code" data-snippet="browser_nav" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                         </div>
                         <p class="text-xs text-slate-400 leading-relaxed">
                             Web pages are loaded <strong>inside the same application process</strong> via the embedded Microsoft Edge WebView2 runtime. You can either open the URL in a dedicated native browser window (keeping this dashboard active) or navigate this primary window directly.
@@ -624,6 +699,9 @@
                                 <button id="btnPopoutBrowser" class="btn-action btn-secondary py-0.5 px-2 text-[11px]" title="Popout to dedicated native browser window">
                                     <i class="fas fa-external-link-alt"></i> Popout Window
                                 </button>
+                                <button class="btn-view-code" data-snippet="browser_viewport" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
                             </div>
                         </div>
                         <div class="relative w-full h-[450px] bg-slate-950">
@@ -639,9 +717,14 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card space-y-4">
-                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-tools text-amber-400"></i> Chromium Diagnostics & Cache
-                            </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-tools text-amber-400"></i> Chromium Diagnostics & Cache
+                                </h3>
+                                <button class="btn-view-code" data-snippet="browser_diagnostics" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <div class="space-y-3">
                                 <button id="btnNavDevTools" class="btn-action btn-amber w-full">
                                     <i class="fas fa-terminal"></i> Launch Edge DevTools Inspector
@@ -653,9 +736,14 @@
                         </div>
 
                         <div class="glass-card space-y-4">
-                            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                                <i class="fas fa-user-secret text-purple-400"></i> Custom User-Agent String
-                            </h3>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fas fa-user-secret text-purple-400"></i> Custom User-Agent String
+                                </h3>
+                                <button class="btn-view-code" data-snippet="browser_useragent" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                             <input type="text" id="inputUserAgent" class="input-field w-full" value="DjazairBrowser/1.0 (Windows NT 10.0; Win64; x64) WebView2">
                             <button id="btnSetUserAgent" class="btn-action btn-purple w-full">
                                 <i class="fas fa-id-badge"></i> Apply User-Agent
@@ -681,7 +769,12 @@
                             <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
                                 <i class="fas fa-window-restore text-indigo-400"></i> Secondary Window Controller
                             </h3>
-                            <span id="badgeSecondaryStatus" class="status-tag tag-amber text-xs">Closed</span>
+                            <div class="flex items-center gap-2">
+                                <span id="badgeSecondaryStatus" class="status-tag tag-amber text-xs">Closed</span>
+                                <button class="btn-view-code" data-snippet="multi_window" title="View Code Snippet">
+                                    <i class="fas fa-code"></i> <span>View Code</span>
+                                </button>
+                            </div>
                         </div>
                         <p class="text-xs text-slate-400 leading-relaxed">
                             The Djazair application framework natively supports multi-window architectures via <code class="text-indigo-300">app.createWindow(options)</code>. Each window maintains its own independent WebView2 container, document DOM, and geometry constraints while running cooperatively in the native Win32 loop.
@@ -715,6 +808,63 @@
             </footer>
 
         </main>
+    </div>
+
+    <!-- ── 4. Code Snippet Viewer Modal ──────────────────────────────────────── -->
+    <div id="codeModal" class="code-modal-overlay">
+        <div class="code-modal-container">
+            <!-- Modal Header -->
+            <div class="code-modal-header">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400">
+                        <i class="fas fa-code text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 id="codeModalTitle" class="text-sm font-bold text-white flex items-center gap-2">
+                            Feature Code Snippet
+                        </h3>
+                        <p id="codeModalSubtitle" class="text-xs text-slate-400">
+                            Copy and integrate into your Djazair backend or web frontend
+                        </p>
+                    </div>
+                </div>
+                <button id="btnCloseCodeModal" class="titlebar-btn text-slate-400 hover:text-white" title="Close (Esc)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Modal Language Tabs & Copy Action -->
+            <div class="code-modal-tabs">
+                <div class="flex items-center gap-2">
+                    <button class="code-tab-btn active" data-lang="dz">
+                        <i class="fas fa-file-code text-emerald-400"></i>
+                        <span>Djazair Backend (.dz)</span>
+                    </button>
+                    <button class="code-tab-btn" data-lang="js">
+                        <i class="fab fa-js text-amber-400"></i>
+                        <span>JavaScript Frontend (.js)</span>
+                    </button>
+                </div>
+                <button id="btnCopySnippet" class="btn-action btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                    <i class="fas fa-copy"></i>
+                    <span id="lblCopySnippet">Copy Code</span>
+                </button>
+            </div>
+
+            <!-- Code Content Area -->
+            <pre id="codeSnippetContent" class="code-pre-box"></pre>
+
+            <!-- Modal Footer -->
+            <div class="px-5 py-2.5 bg-slate-900/90 border-t border-white/5 flex items-center justify-between text-xs">
+                <span class="text-slate-400 text-[11px] flex items-center gap-1.5">
+                    <i class="fas fa-lightbulb text-amber-400"></i>
+                    <span>Ready for copy & paste directly into your project.</span>
+                </span>
+                <button id="btnFooterCloseModal" class="btn-action btn-secondary py-1 px-3 text-xs">
+                    Close
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Main Logic Script -->
