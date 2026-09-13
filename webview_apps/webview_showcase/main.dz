@@ -197,6 +197,19 @@ class ShowcaseApp
             return True
         end)
 
+        bridge.on("win_isFullscreen", fn(_)
+            return win.isFullscreen()
+        end)
+
+        bridge.on("win_setFullscreen", fn(payload)
+            let enable = True
+            if payload.has("enable")
+                enable = payload["enable"]
+            end
+            win.setFullscreen(enable)
+            return win.isFullscreen()
+        end)
+
         bridge.on("win_toggleFullscreen", fn(_)
             let isFs = win.isFullscreen()
             win.setFullscreen(!isFs)

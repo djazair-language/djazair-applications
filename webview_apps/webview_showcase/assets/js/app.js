@@ -142,11 +142,27 @@
         $('#btnActionMin').on('click', () => window.djazair.invoke('win_minimize'));
         $('#btnActionMax').on('click', () => window.djazair.invoke('win_maximize'));
         $('#btnActionRestore').on('click', () => window.djazair.invoke('win_restore'));
+
+        function updateFullscreenUI(isFs) {
+            $('#valFullscreen').text(isFs ? 'Yes' : 'No');
+            if (isFs) {
+                $('#btnActionFullscreen')
+                    .html('<i class="fas fa-compress"></i> Exit Fullscreen')
+                    .removeClass('btn-purple')
+                    .addClass('btn-emerald');
+            } else {
+                $('#btnActionFullscreen')
+                    .html('<i class="fas fa-expand"></i> Fullscreen')
+                    .removeClass('btn-emerald')
+                    .addClass('btn-purple');
+            }
+        }
+
         $('#btnActionFullscreen').on('click', function() {
             window.djazair.invoke('win_toggleFullscreen')
                 .then(function(isFs) {
-                    appendLog('info', `Fullscreen toggled: ${isFs}`);
-                    $('#valFullscreen').text(isFs ? 'Yes' : 'No');
+                    appendLog('info', `Fullscreen toggled (isFullscreen = ${isFs})`);
+                    updateFullscreenUI(isFs);
                 });
         });
 
@@ -740,7 +756,9 @@
                         $('#valZoomLevel').text(`${Math.round(state.zoomLevel * 100)}%`);
                     }
                     $('#valMaximized').text(state.isMaximized ? 'Yes' : 'No');
-                    $('#valFullscreen').text(state.isFullscreen ? 'Yes' : 'No');
+                    if (state.isFullscreen !== undefined) {
+                        updateFullscreenUI(state.isFullscreen);
+                    }
                 }
             });
         }
@@ -755,8 +773,8 @@
             win_states: {
                 title: "Window States, Opacity & Title",
                 subtitle: "Minimize, Maximize, Fullscreen, Flash, Opacity, Zoom & Titlebar",
-                dz: `use webview\n\n# Window state controls\nwin.minimize()\nwin.maximize()\nwin.restore()\n\n# Fullscreen toggle (True to enable, False to disable)\nwin.setFullscreen(True)\n\n# Keep window always above other applications\nwin.setAlwaysOnTop(True)\n\n# Flash taskbar button to notify user\nwin.flash(True)\n\n# Window opacity (0.0 = fully transparent, 1.0 = fully opaque)\nwin.setOpacity(0.95)\n\n# Zoom web contents scale (1.0 = 100%, 1.25 = 125%)\nwin.setZoomLevel(1.25)\n\n# Update native titlebar caption\nwin.setTitle("Showcase Application v0.3.0")`,
-                js: `// Minimize, maximize, or restore window\nawait window.djazair.invoke('win_minimize');\nawait window.djazair.invoke('win_maximize');\nawait window.djazair.invoke('win_restore');\n\n// Toggle fullscreen\nawait window.djazair.invoke('win_toggleFullscreen');\n\n// Toggle always on top\nawait window.djazair.invoke('win_setAlwaysOnTop', { enabled: true });\n\n// Flash taskbar icon\nawait window.djazair.invoke('win_flash');\n\n// Set window opacity (0.2 to 1.0)\nawait window.djazair.invoke('win_setOpacity', { opacity: 0.95 });\n\n// Set WebView content zoom level\nawait window.djazair.invoke('win_setZoom', { level: 1.25 });\n\n// Update window title\nawait window.djazair.invoke('win_setTitle', { title: 'Showcase Application v0.3.0' });`
+                dz: `use webview\n\n# 1. Determine current window states\nlet isFs = win.isFullscreen()      # Returns True if fullscreen, False otherwise\nlet isMax = win.isMaximized()      # Returns True if maximized\nlet isMin = win.isMinimized()      # Returns True if minimized\nlet isTop = win.isAlwaysOnTop()    # Returns True if always on top\nlet isVisible = win.isVisible()    # Returns True if window is visible\nlet isFocused = win.isFocused()    # Returns True if window has focus\n\n# 2. Toggle or set fullscreen mode based on state\nif win.isFullscreen()\n    win.setFullscreen(False)       # Exit fullscreen (normal window)\nelse\n    win.setFullscreen(True)        # Enter fullscreen mode\nend\n\n# Or toggle directly with helper alias:\nwin.toggleFullscreen()\n\n# 3. Window state controls\nwin.minimize()\nwin.maximize()\nwin.restore()\n\n# 4. Attention & Always On Top\nwin.setAlwaysOnTop(True)\nwin.flash(True)\n\n# 5. Opacity, Zoom & Title\nwin.setOpacity(0.95)\nwin.setZoomLevel(1.25)\nwin.setTitle("Showcase Application v0.3.0")`,
+                js: `// 1. Determine current window states\nconst isFs = await window.djazair.invoke('win_isFullscreen');\nconsole.log('Is Fullscreen:', isFs);\n\n// Or query full state snapshot\nconst state = await window.djazair.invoke('win_getState');\nconsole.log('Fullscreen:', state.isFullscreen, 'Maximized:', state.isMaximized);\n\n// 2. Toggle fullscreen mode\nconst updatedFs = await window.djazair.invoke('win_toggleFullscreen');\nconsole.log('Updated Fullscreen:', updatedFs);\n\n// 3. Window actions\nawait window.djazair.invoke('win_minimize');\nawait window.djazair.invoke('win_maximize');\nawait window.djazair.invoke('win_restore');\nawait window.djazair.invoke('win_setAlwaysOnTop', { enable: true });\nawait window.djazair.invoke('win_flash');\nawait window.djazair.invoke('win_setOpacity', { opacity: 0.95 });\nawait window.djazair.invoke('win_setZoom', { level: 1.25 });\nawait window.djazair.invoke('win_setTitle', { title: 'Showcase Application v0.3.0' });`
             },
             dialog_message: {
                 title: "Native Message Boxes & Alerts",
