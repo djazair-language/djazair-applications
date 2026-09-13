@@ -1,0 +1,617 @@
+# =============================================================================
+# Project:      Djazair WebView Desktop Application Framework
+# File:         webview_apps/webview_showcase/main.dz
+# Description:  Ultimate Interactive Showcase Application (Full Library Test Suite)
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Harizi Riyadh / Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
+use webview
+use json as *
+use file
+use path
+use process
+use lang
+use datetime
+
+class ShowcaseApp
+    init()
+        self.secondaryWin = Null
+        self.trayInstance = Null
+        self.tickerActive = False
+        self.tickerCounter = 0
+        self.appIconPath = path.join(process.scriptDir(), "assets", "app.ico")
+
+        # ---------------------------------------------------------------------
+        # 1. Primary Window Creation with Full Configuration
+        # ---------------------------------------------------------------------
+        self.app = webview.createWindow({
+            "title": "Djazair WebView  Ultimate Showcase & Test Suite",
+            "width": 1240,
+            "height": 820,
+            "minWidth": 850,
+            "minHeight": 600,
+            "center": True,
+            "darkTitleBar": True,
+            "debug": True,
+            "singleInstance": True,
+            "appId": "com.djazair.webview.showcase"
+        })
+
+        self.setupBridge()
+        self.setupWindowEvents()
+        self.setupContextMenu()
+    end
+
+    # -------------------------------------------------------------------------
+    # 2. Window Lifecycle Events Wire-Up
+    # -------------------------------------------------------------------------
+    setupWindowEvents()
+        let win = self.app.window
+        let bridge = self.app.bridge
+
+        win.onMove(fn(x, y)
+            bridge.send("evt_windowMoved", {"x": x, "y": y})
+        end)
+
+        win.onResize(fn(w, h)
+            bridge.send("evt_windowResized", {"width": w, "height": h})
+        end)
+
+        win.onFocus(fn()
+            bridge.send("evt_windowFocus", {"focused": True})
+        end)
+
+        win.onBlur(fn()
+            bridge.send("evt_windowBlur", {"focused": False})
+        end)
+
+        win.onMaximize(fn()
+            bridge.send("evt_windowMaximize", {"maximized": True})
+        end)
+
+        win.onMinimize(fn()
+            bridge.send("evt_windowMinimize", {"minimized": True})
+        end)
+
+        win.onRestore(fn()
+            bridge.send("evt_windowRestore", {"restored": True})
+        end)
+
+        win.onLoad(fn(loadedUrl)
+            bridge.send("evt_windowLoaded", {"url": win.getUrl()})
+        end)
+
+        win.onNavigate(fn(targetUrl)
+            bridge.send("evt_windowNavigating", {"url": targetUrl})
+        end)
+
+        win.onTitleChange(fn(newTitle)
+            bridge.send("evt_windowTitleChanged", {"title": newTitle})
+        end)
+    end
+
+    # -------------------------------------------------------------------------
+    # 3. Native Context Menu Setup
+    # -------------------------------------------------------------------------
+    setupContextMenu()
+        let win = self.app.window
+        let bridge = self.app.bridge
+
+        self.contextMenu = new webview.Menu("Showcase Context Menu")
+        self.contextMenu.addItem("Show Notification Toast", fn()
+            webview.notificationShow("Menu Action", "Triggered from native context menu!", "", True, "", 5)
+            bridge.send("evt_log", {"level": "info", "msg": "Context Menu: Notification triggered"})
+        end)
+
+        self.contextMenu.addItem("Center Window", fn()
+            win.center()
+            bridge.send("evt_log", {"level": "info", "msg": "Context Menu: Window centered"})
+        end)
+
+        self.contextMenu.addSeparator()
+
+        let zoomSub = self.contextMenu.addSubmenu("Zoom Presets")
+        zoomSub.addItem("Zoom 100% (Default)", fn()
+            win.setZoomLevel(1.0)
+            bridge.send("evt_zoomChanged", {"zoom": 1.0})
+        end)
+        zoomSub.addItem("Zoom 125%", fn()
+            win.setZoomLevel(1.25)
+            bridge.send("evt_zoomChanged", {"zoom": 1.25})
+        end)
+        zoomSub.addItem("Zoom 150%", fn()
+            win.setZoomLevel(1.5)
+            bridge.send("evt_zoomChanged", {"zoom": 1.5})
+        end)
+
+        self.contextMenu.addSeparator()
+
+        self.contextMenu.addItem("Toggle DevTools", fn()
+            win.openDevTools()
+            bridge.send("evt_log", {"level": "info", "msg": "Context Menu: DevTools toggled"})
+        end)
+    end
+
+    # -------------------------------------------------------------------------
+    # 4. Bidirectional IPC Bridge API Handlers
+    # -------------------------------------------------------------------------
+    setupBridge()
+        let win = self.app.window
+        let bridge = self.app.bridge
+        let selfRef = self
+
+        # -- Window Controls --------------------------------------------------
+
+        bridge.on("win_setTitle", fn(payload)
+            let title = payload["title"]
+            win.setTitle(title)
+            return win.title()
+        end)
+
+        bridge.on("win_getTitle", fn(_)
+            return win.title()
+        end)
+
+        bridge.on("win_setSize", fn(payload)
+            let w = int(payload["width"])
+            let h = int(payload["height"])
+            win.setSize(w, h)
+            return win.getSize()
+        end)
+
+        bridge.on("win_getSize", fn(_)
+            return win.getSize()
+        end)
+
+        bridge.on("win_setPosition", fn(payload)
+            let x = int(payload["x"])
+            let y = int(payload["y"])
+            win.setPosition(x, y)
+            return win.getPosition()
+        end)
+
+        bridge.on("win_getPosition", fn(_)
+            return win.getPosition()
+        end)
+
+        bridge.on("win_center", fn(_)
+            win.center()
+            return win.getPosition()
+        end)
+
+        bridge.on("win_minimize", fn(_)
+            win.minimize()
+            return True
+        end)
+
+        bridge.on("win_maximize", fn(_)
+            win.maximize()
+            return True
+        end)
+
+        bridge.on("win_restore", fn(_)
+            win.restore()
+            return True
+        end)
+
+        bridge.on("win_toggleFullscreen", fn(_)
+            let isFs = win.isFullscreen()
+            win.fullscreen(not isFs)
+            return win.isFullscreen()
+        end)
+
+        bridge.on("win_flash", fn(payload)
+            let enable = True
+            if payload.has("enable")
+                enable = payload["enable"]
+            end
+            win.flash(enable)
+            return True
+        end)
+
+        bridge.on("win_requestAttention", fn(_)
+            win.requestAttention()
+            return True
+        end)
+
+        bridge.on("win_setAlwaysOnTop", fn(payload)
+            let enable = payload["enable"]
+            win.setAlwaysOnTop(enable)
+            return win.isAlwaysOnTop()
+        end)
+
+        bridge.on("win_setResizable", fn(payload)
+            let enable = payload["enable"]
+            win.setResizable(enable)
+            return enable
+        end)
+
+        bridge.on("win_setOpacity", fn(payload)
+            let alpha = num(payload["opacity"])
+            win.setOpacity(alpha)
+            return alpha
+        end)
+
+        bridge.on("win_setDarkMode", fn(payload)
+            let enable = payload["enable"]
+            win.setDarkMode(enable)
+            return enable
+        end)
+
+        bridge.on("win_setBackgroundColor", fn(payload)
+            let r = int(payload["r"])
+            let g = int(payload["g"])
+            let b = int(payload["b"])
+            win.setBackgroundColor(r, g, b)
+            return {"r": r, "g": g, "b": b}
+        end)
+
+        bridge.on("win_setZoomLevel", fn(payload)
+            let zoom = num(payload["zoom"])
+            win.setZoomLevel(zoom)
+            return win.zoomLevel()
+        end)
+
+        bridge.on("win_getZoomLevel", fn(_)
+            return win.zoomLevel()
+        end)
+
+        bridge.on("win_setMinimumSize", fn(payload)
+            let w = int(payload["width"])
+            let h = int(payload["height"])
+            win.setMinimumSize(w, h)
+            return {"minWidth": w, "minHeight": h}
+        end)
+
+        bridge.on("win_setMaximumSize", fn(payload)
+            let w = int(payload["width"])
+            let h = int(payload["height"])
+            win.setMaximumSize(w, h)
+            return {"maxWidth": w, "maxHeight": h}
+        end)
+
+        bridge.on("win_getState", fn(_)
+            return {
+                "title": win.title(),
+                "size": win.getSize(),
+                "position": win.getPosition(),
+                "isMaximized": win.isMaximized(),
+                "isMinimized": win.isMinimized(),
+                "isFullscreen": win.isFullscreen(),
+                "isVisible": win.isVisible(),
+                "isFocused": win.isFocused(),
+                "isAlwaysOnTop": win.isAlwaysOnTop(),
+                "zoomLevel": win.zoomLevel(),
+                "url": win.getUrl()
+            }
+        end)
+
+        bridge.on("win_close", fn(_)
+            win.close()
+            return True
+        end)
+
+        bridge.on("win_quit", fn(_)
+            selfRef.app.quit()
+            return True
+        end)
+
+        # -- Native Dialogs ---------------------------------------------------
+
+        bridge.on("dialog_message", fn(payload)
+            return webview.showMessageBox(payload)
+        end)
+
+        bridge.on("dialog_openFile", fn(payload)
+            return webview.showOpenFileDialog(payload)
+        end)
+
+        bridge.on("dialog_saveFile", fn(payload)
+            return webview.showSaveFileDialog(payload)
+        end)
+
+        bridge.on("dialog_openFolder", fn(payload)
+            return webview.showOpenFolderDialog(payload)
+        end)
+
+        bridge.on("dialog_pickColor", fn(payload)
+            return webview.showColorPicker(payload)
+        end)
+
+        # -- Menus & Tray -----------------------------------------------------
+
+        bridge.on("menu_showContext", fn(_)
+            selfRef.contextMenu.popup(win)
+            return True
+        end)
+
+        bridge.on("tray_create", fn(payload)
+            let tooltip = "Djazair Showcase Tray"
+            if payload.has("tooltip")
+                tooltip = payload["tooltip"]
+            end
+            if isNull(selfRef.trayInstance)
+                selfRef.trayInstance = new webview.Tray(tooltip, selfRef.appIconPath)
+                selfRef.trayInstance.setMenu(selfRef.contextMenu)
+                return {"created": True, "tooltip": tooltip}
+            end
+            return {"created": False, "reason": "Tray already exists"}
+        end)
+
+        bridge.on("tray_setTooltip", fn(payload)
+            if !isNull(selfRef.trayInstance)
+                let text = payload["tooltip"]
+                selfRef.trayInstance.setTooltip(text)
+                return {"tooltip": text}
+            end
+            return {"error": "Tray not initialized"}
+        end)
+
+        bridge.on("tray_showBalloon", fn(payload)
+            if !isNull(selfRef.trayInstance)
+                let title = payload["title"]
+                let msg = payload["message"]
+                let timeout = 5
+                if payload.has("timeout")
+                    timeout = int(payload["timeout"])
+                end
+                selfRef.trayInstance.showBalloon(title, msg, timeout)
+                return True
+            end
+            return {"error": "Tray not initialized"}
+        end)
+
+        bridge.on("tray_destroy", fn(_)
+            if !isNull(selfRef.trayInstance)
+                selfRef.trayInstance.destroy()
+                selfRef.trayInstance = Null
+                return True
+            end
+            return False
+        end)
+
+        bridge.on("notification_show", fn(payload)
+            let title = payload["title"]
+            let msg = payload["message"]
+            let subtitle = ""
+            let sound = True
+            let timeout = 5
+            if payload.has("subtitle") subtitle = payload["subtitle"] end
+            if payload.has("sound") sound = payload["sound"] end
+            if payload.has("timeout") timeout = int(payload["timeout"]) end
+            webview.notificationShow(title, msg, subtitle, sound, selfRef.appIconPath, timeout)
+            return True
+        end)
+
+        # -- Navigation & Engine Controls -------------------------------------
+
+        bridge.on("nav_navigate", fn(payload)
+            let targetUrl = payload["url"]
+            win.navigate(targetUrl)
+            return True
+        end)
+
+        bridge.on("nav_reload", fn(_)
+            win.reload()
+            return True
+        end)
+
+        bridge.on("nav_goBack", fn(_)
+            win.goBack()
+            return True
+        end)
+
+        bridge.on("nav_goForward", fn(_)
+            win.goForward()
+            return True
+        end)
+
+        bridge.on("nav_getStatus", fn(_)
+            return {
+                "canGoBack": win.canGoBack(),
+                "canGoForward": win.canGoForward(),
+                "url": win.getUrl()
+            }
+        end)
+
+        bridge.on("nav_openDevTools", fn(_)
+            win.openDevTools()
+            return True
+        end)
+
+        bridge.on("nav_clearCache", fn(_)
+            win.clearCache()
+            return True
+        end)
+
+        bridge.on("nav_setUserAgent", fn(payload)
+            let ua = payload["userAgent"]
+            win.setUserAgent(ua)
+            return ua
+        end)
+
+        bridge.on("nav_setContextMenuEnabled", fn(payload)
+            let enable = payload["enable"]
+            win.setContextMenuEnabled(enable)
+            return enable
+        end)
+
+        # -- Multi-Window Spawner ---------------------------------------------
+
+        bridge.on("multiwin_spawn", fn(payload)
+            let title = "Secondary Inspector Window"
+            if payload.has("title") title = payload["title"] end
+
+            if !isNull(selfRef.secondaryWin) and selfRef.secondaryWin.isValid()
+                selfRef.secondaryWin.focus()
+                return {"spawned": False, "status": "Already open, brought to focus"}
+            end
+
+            let sec = selfRef.app.createWindow({
+                "title": title,
+                "width": 640,
+                "height": 480,
+                "minWidth": 400,
+                "minHeight": 300,
+                "resizable": True,
+                "darkTitleBar": True,
+                "debug": True
+            })
+
+            sec.onClose(fn()
+                selfRef.secondaryWin = Null
+                if !isNull(selfRef.app.bridge)
+                    selfRef.app.bridge.send("evt_secondaryClosed", {})
+                end
+            end)
+
+            sec.bridge.on("win_closeSecondary", fn(_)
+                if !isNull(selfRef.secondaryWin) and selfRef.secondaryWin.isValid()
+                    selfRef.secondaryWin.close()
+                    selfRef.secondaryWin = Null
+                    if !isNull(selfRef.app.bridge)
+                        selfRef.app.bridge.send("evt_secondaryClosed", {})
+                    end
+                    return True
+                end
+                return False
+            end)
+
+            sec.setHtml("<!DOCTYPE html><html><head><meta charset='utf-8'><title>Secondary Window</title><style>body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;margin:0;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 48px);text-align:center}.badge{background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);padding:6px 14px;border-radius:9999px;font-weight:600;font-size:13px;margin-bottom:16px}h2{margin:0 0 8px 0;font-size:22px;color:#38bdf8}p{color:#94a3b8;font-size:14px;max-width:400px;line-height:1.6}button{background:#2563eb;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;margin-top:16px;transition:all 0.2s}button:hover{background:#1d4ed8}</style></head><body><div class='badge'>Independent Native Window</div><h2>Djazair Multi-Window Engine</h2><p>This secondary window runs concurrently alongside the main window in the same Win32 message loop.</p><button onclick='if(window.djazair && window.djazair.invoke){window.djazair.invoke(\"win_closeSecondary\");}'>Close This Window</button></body></html>")
+
+            selfRef.secondaryWin = sec
+            return {"spawned": True, "title": title}
+        end)
+
+        bridge.on("win_closeSecondary", fn(_)
+            if !isNull(selfRef.secondaryWin) and selfRef.secondaryWin.isValid()
+                selfRef.secondaryWin.close()
+                selfRef.secondaryWin = Null
+                if !isNull(selfRef.app.bridge)
+                    selfRef.app.bridge.send("evt_secondaryClosed", {})
+                end
+                return True
+            end
+            return False
+        end)
+
+        # -- IPC RPC & Calculations -------------------------------------------
+
+        bridge.on("rpc_ping", fn(payload)
+            return {
+                "pong": True,
+                "receivedAt": datetime.timestamp(),
+                "echo": payload
+            }
+        end)
+
+        bridge.on("rpc_calculate", fn(payload)
+            let a = num(payload["a"])
+            let b = num(payload["b"])
+            let op = payload["op"]
+            let result = 0
+
+            if op == "+"
+                result = a + b
+            elif op == "-"
+                result = a - b
+            elif op == "*"
+                result = a * b
+            elif op == "/"
+                if b == 0
+                    throw "Division by zero error!"
+                end
+                result = a / b
+            elif op == "^"
+                result = a ^ b
+            else
+                throw "Unsupported arithmetic operation: " + str(op)
+            end
+
+            return {
+                "operation": str(a) + " " + str(op) + " " + str(b),
+                "result": result
+            }
+        end)
+
+        bridge.on("rpc_systemInfo", fn(_)
+            return {
+                "scriptDir": process.scriptDir(),
+                "libsDir": lang.libsDir(),
+                "time": datetime.now(),
+                "os": "Windows (Microsoft Edge WebView2)",
+                "frameworkVersion": "0.3.0",
+                "djazairEngine": "Djazair Native VM"
+            }
+        end)
+
+        bridge.on("rpc_testError", fn(payload)
+            let reason = "Deliberate test exception thrown by Djazair backend"
+            if payload.has("reason") reason = payload["reason"] end
+            throw reason
+        end)
+
+        bridge.on("rpc_startTicker", fn(_)
+            selfRef.tickerActive = True
+            bridge.send("evt_tickerStatus", {"active": True})
+            return True
+        end)
+
+        bridge.on("rpc_stopTicker", fn(_)
+            selfRef.tickerActive = False
+            bridge.send("evt_tickerStatus", {"active": False})
+            return False
+        end)
+
+        bridge.on("rpc_triggerTickerPulse", fn(_)
+            selfRef.tickerCounter = selfRef.tickerCounter + 1
+            bridge.send("evt_tickerTick", {
+                "counter": selfRef.tickerCounter,
+                "timestamp": datetime.timestamp()
+            })
+            return selfRef.tickerCounter
+        end)
+
+        # -- Expose Direct Global Native Functions to JavaScript --------------
+        bridge.expose("nativeMultiply", fn(args)
+            let a = num(args[0])
+            let b = num(args[1])
+            return a * b
+        end)
+
+        bridge.expose("nativeGetTimestamp", fn(args)
+            return datetime.timestamp()
+        end)
+    end
+
+    # -------------------------------------------------------------------------
+    # 5. Application Startup
+    # -------------------------------------------------------------------------
+    run()
+        let uiPath = path.join(process.scriptDir(), "ui.html")
+
+        self.app.onReady(fn()
+            webview.log( "Navigating to UI: ${uiPath}")
+            self.app.window.navigate("ui.html")
+        end)
+
+        self.app.onQuit(fn()
+            webview.log( "Cleaning up application resources...")
+            if !isNull(self.trayInstance)
+                self.trayInstance.destroy()
+                self.trayInstance = Null
+            end
+        end)
+
+        self.app.run()
+    end
+end
+
+fn main()
+    let showcase = new ShowcaseApp()
+    showcase.run()
+end
+
+main()

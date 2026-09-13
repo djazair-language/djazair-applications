@@ -22,6 +22,9 @@ let _native = __native("_webview")
 class Bridge
 
     # Constructs a new IPC bridge instance attached to a window.
+    #
+    # @param  app {App} The owning application instance
+    # @param  win {Window} The window instance this bridge communicates with
     init(app, win)
         self.app = app
         self.win = win
@@ -56,6 +59,10 @@ class Bridge
 
     # Handles incoming dispatch calls from the native webview.
     # Wraps execution in { __dz_ok, __dz_data } envelopes for JS Promises.
+    #
+    # @param  name {String} The message or channel name being dispatched
+    # @param  req {String} Encoded JSON request payload to decode and forward
+    # @return {String} Encoded JSON envelope with __dz_ok plus __dz_data or __dz_error
     _onDispatch(name, req)
         sysLog("Bridge", "Received dispatch: ${name}", "debug")
         let args = decode(req)
@@ -104,6 +111,8 @@ class Bridge
     end
 
     # Routes framework-level errors to the application's onError callback.
+    #
+    # @param  msg {String} Error message text forwarded to the callback
     _notifyError(msg)
         if !isNull(self.app) and !isNull(self.app._errorCallback)
             self.app._errorCallback(msg)
@@ -111,30 +120,49 @@ class Bridge
     end
 
     # Registers an event handler callback for a specific channel name.
+    #
+    # @param  channel {String} The channel name to listen on
+    # @param  handler {Function} Callback invoked with the decoded payload
     on(channel, handler)
         sysLog("Bridge", "Registered handler for channel: ${channel}", "debug")
         self._handlers[channel] = handler
     end
 
-    # Sends an event with data payload to the JavaScript environment.
+    # Sends an event with a data payload to the JavaScript environment.
+    # Delivers the event on a push channel consumed by JS listeners subscribed
+    # through window.djazair on the frontend.
+    #
+    # @param  channel {String} The channel name JS listeners subscribe to
+    # @param  data {Any} Payload serialized as JSON and delivered to listeners
     send(channel, data)
         sysLog("Bridge", "Sending to JS channel: ${channel}", "debug")
         let jsCmd = "if (window.djazair) window.djazair.send(${encode(channel)}, ${encode(data)});"
         self.win.eval(jsCmd)
     end
 
-    # Evaluates an expression in JavaScript and emits to eval channel.
+    # Evaluates a JavaScript expression inside the webview and emits the result
+    # through the "__dz_eval" channel to the JS runtime.
+    #
+    # @param  jsCode {String} JavaScript source string to evaluate
     invoke(jsCode)
         sysLog("Bridge", "Invoking JS code via eval", "debug")
         let jsCmd = "__dz_invoke('__dz_eval', (${jsCode}))"
         self.win.eval(jsCmd)
     end
 
-    # Exposes a function directly to window[name] in the webview.
+    # Exposes a native function to the webview by binding a global on window[name].
+    # Automatically unwraps the { __dz_ok, __dz_data } envelope so the JavaScript
+    # caller receives the direct return value and errors reject the Promise.
+    #
+    # @param  name {String} The global property name bound on window
+    # @param  handler {Function} Native callback invoked when the JS global is called
     expose(name, handler)
         sysLog("Bridge", "Exposed native binding: ${name}", "debug")
         self._handlers[name] = handler
         _native.windowBind(self.win._handle, name, Null)
+        let wrapperJs = "(function(){var n='" + str(name) + "';if(window[n]&&!window[n].__dzWrapped){var o=window[n];window[n]=function(){var a=Array.prototype.slice.call(arguments);return o.apply(window,a).then(function(r){if(r&&typeof r==='object'&&'__dz_ok' in r){return r.__dz_ok?r.__dz_data:Promise.reject(new Error(r.__dz_error));}return r;});};window[n].__dzWrapped=true;}})();"
+        self.win.initJs(wrapperJs)
+        self.win.eval(wrapperJs)
     end
 end
 

@@ -23,7 +23,25 @@ let _native = __native("_webview")
 # and controls the native platform message loop.
 class App
 
-    # Initializes application instance and creates default primary window.
+    # Initializes the application instance and creates the default primary window.
+    #
+    # @param  options {Map} Configuration dictionary:
+    #                       - "title":          {String}  Window title (default: "Djazair App")
+    #                       - "width":          {Number}  Initial width in pixels (default: 1024)
+    #                       - "height":         {Number}  Initial height in pixels (default: 768)
+    #                       - "x":              {Number}  Horizontal coordinate or -1 for OS default (default: -1)
+    #                       - "y":              {Number}  Vertical coordinate or -1 for OS default (default: -1)
+    #                       - "resizable":      {Bool}    Allow user resizing (default: True)
+    #                       - "frameless":      {Bool}    Borderless/custom chrome (default: False)
+    #                       - "minWidth":       {Number}  Minimum width limit (default: 400)
+    #                       - "minHeight":      {Number}  Minimum height limit (default: 300)
+    #                       - "maxWidth":       {Number}  Maximum width limit; 0 for unconstrained (default: 0)
+    #                       - "maxHeight":      {Number}  Maximum height limit; 0 for unconstrained (default: 0)
+    #                       - "closable":       {Bool}    Enable standard close button (default: True)
+    #                       - "virtualHostDir": {String}  Virtual host directory for web assets (default: "")
+    #                       - "debug":          {Bool}    Enable DevTools & console logs (default: False)
+    #                       - "singleInstance": {Bool}    Enforce single app instance (default: False)
+    #                       - "appId":          {String}  Unique identifier mutex key; falls back to title (default: "")
     init(options = {})
         let defaults = {
             "title": "Djazair App",
@@ -87,10 +105,17 @@ class App
 
         sysLog("App", "Attaching IPC bridge to primary window...")
         self.bridge = new Bridge(self, win)
+        win.bridge = self.bridge
 
         # Built-in handler for frameless window dragging from frontend
         self.bridge.on("__djazair_start_drag", fn(_)
             win.startDragging()
+            return True
+        end)
+
+        # Built-in handler for closing the window from frontend
+        self.bridge.on("win_close", fn(_)
+            win.close()
             return True
         end)
 
@@ -136,14 +161,68 @@ class App
     end
 
     # Creates and registers a new additional window managed by this application.
+    # Automatically attaches an IPC Bridge and forwards console diagnostics.
+    #
+    # @param  options {Map} Window configuration options using the same recognized keys as init (default: {})
+    # @return {Window} The newly created additional window instance with .bridge attached
     createWindow(options = {})
         sysLog("App", "Spawning new window...")
         let win = new Window(self, options)
         self._windows.append(win)
+
+        sysLog("App", "Attaching IPC bridge to window...")
+        let bridge = new Bridge(self, win)
+        win.bridge = bridge
+
+        # Built-in handler for frameless window dragging from frontend
+        bridge.on("__djazair_start_drag", fn(_)
+            win.startDragging()
+            return True
+        end)
+
+        # Built-in handler for closing the window from its own frontend
+        bridge.on("win_close", fn(_)
+            win.close()
+            return True
+        end)
+
+        if win._debug
+            win.initJs(readWebviewAsset("debug_console.js"))
+            bridge.on("__console", fn(args)
+                let typeStr = args[0]
+                let msg = args[1]
+                let lvl = "info"
+                if typeStr == "error"
+                    lvl = "error"
+                elif typeStr == "warn"
+                    lvl = "warn"
+                elif typeStr == "log"
+                    lvl = "debug"
+                elif typeStr == "info"
+                    lvl = "info"
+                end
+                sysLog("Webview", msg, lvl)
+            end)
+            win.openDevTools()
+        else
+            win.initJs(readWebviewAsset("debug_console.js"))
+            bridge.on("__console", fn(args)
+                let typeStr = args[0]
+                let msg = args[1]
+                if typeStr == "error"
+                    sysLog("Webview", msg, "error")
+                elif typeStr == "warn"
+                    sysLog("Webview", msg, "warn")
+                end
+            end)
+        end
+
         return win
     end
 
     # Internal hook invoked when an individual window is closed.
+    #
+    # @param  win {Window} The window instance that was closed
     _onWindowClosed(win)
         let idx = -1
         for i in 0..self._windows.length()
@@ -207,26 +286,36 @@ class App
     end
 
     # Checks if the primary window is valid and open.
+    #
+    # @return {Bool} True if the primary window is valid and open
     isValid()
         return !isNull(self.window) and self.window.isValid()
     end
 
     # Registers a callback to execute right before the event loop starts.
+    #
+    # @param  cb {Function} Callback invoked right before the event loop starts
     onReady(cb)
         self._onReady = cb
     end
 
     # Registers a callback to execute before application termination.
+    #
+    # @param  cb {Function} Callback invoked before application termination
     onQuit(cb)
         self._onQuit = cb
     end
 
     # Registers a global error callback.
+    #
+    # @param  cb {Function} Callback invoked with framework error messages
     onError(cb)
         self._errorCallback = cb
     end
 
     # Enables or disables runtime debug mode.
+    #
+    # @param  enable {Bool} True to enable debug mode and DevTools, False to disable
     setDebug(enable)
         self._debug = enable
         if enable
@@ -242,12 +331,17 @@ class App
     end
 
     # Requests a single-instance application lock via named mutex.
-    # Returns True if this process successfully acquired the lock.
+    #
+    # @param  appId {String} Unique application identifier used as the mutex key
+    # @return {Bool} True if this process successfully acquired the lock
     requestSingleInstanceLock(appId)
         return _native.appRequestSingleInstanceLock(appId)
     end
 
     # Finds and brings to foreground an existing instance of the application window.
+    #
+    # @param  title {String} Window title or identifier of the existing instance
+    # @return {Bool} True if an existing instance was found and focused
     focusExistingInstance(title)
         return _native.appFocusExistingInstance(title)
     end

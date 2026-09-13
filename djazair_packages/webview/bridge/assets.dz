@@ -12,14 +12,18 @@ use path
 use process
 use lang
 
-# Reads a webview embedded asset (e.g. bridge_client.js) reliably by probing
-# every standard install layout, from global packages to deeply nested scripts.
+# Reads a webview embedded asset (e.g. bridge_client.js) by probing standard install layouts.
 #
 # Search order:
-#  1. Global packages (lang.libsDir)
-#  2. Local djazair_packages next to the script  (flat project layout)
-#  3. djazair_packages 1-3 levels above the script (monorepo / sub-app layout)
-#  4. Development / source layout (bridge/js relative to script)
+#  1. Global packages (lang.libsDir)                                    (global install)
+#  2. Local djazair_packages next to the script                        (flat layout)
+#  3. djazair_packages 1-3 levels above the script                     (monorepo layout)
+#  4. Development / source layout, bridge/js relative to the script    (source layout)
+#
+# @param  name {String} Asset file name, e.g. "bridge_client.js"
+# @return String  Contents of the first matching asset file
+#
+# Throws WebviewAssetError when no candidate file exists.
 fn readWebviewAsset(name)
     let sDir = process.scriptDir()
     let lDir = lang.libsDir()

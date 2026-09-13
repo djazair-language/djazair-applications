@@ -28,6 +28,29 @@ Build modern desktop GUI applications for Windows using **HTML, CSS, and JavaScr
 
 ---
 
+## Getting Started — Learning Path
+
+This README is a **user guide**; `docs/index.html` is the expanded **reference manual** (install → beginner → professional with copy-paste examples and a step-by-step project). A full technical deep-dive lives in the [source code comments](#documentation--code-standards). Suggested route:
+
+| Level | Topics | Sections |
+|-------|--------|----------|
+| **Beginner** (0–30 min) | Install & build, first window, load content, `app.run()` | [1–4](#1-installation), `examples/01_first_app.dz` |
+| **Intermediate** | Window events, content & navigation, JS eval, IPC bridge, dialogs | [5–8](#5-window-events), `examples/05_window_events.dz`, `examples/07_ipc_bridge.dz` |
+| **Advanced** | Menus, tray, notifications, custom protocols, multi-window, security & logging | [9–15](#9-context-menus), `examples/03_multi_window.dz`, `examples/10_tray_notifications.dz` |
+| **Professional** | Frameless & native dragging, display/screen APIs, cache/cookies/UA/printing, single-instance & deployment | `docs/index.html` step-by-step guide, [13–15](#13-security--trust-boundaries), `examples/12_counter_app.dz`, `examples/14_full_suite.dz` |
+
+Examples are under `webview/examples/` and runnable via:
+
+```bash
+dpm run webview/examples/01_hello_world.dz
+```
+
+## Documentation & Code Standards
+
+Every public API in the `.dz` modules is documented with a structured docblock (`# @param` / `# @return`), and every native binding in `src/webview_native.cc` carries a comment block identifying its bridge name. This keeps the library **self-documenting**: types and defaults are readable straight from the source. New contributions must follow the same conventions — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full code, naming, docblock, build, and verification standards.
+
+---
+
 ## 1. Installation
 
 ### Prerequisites

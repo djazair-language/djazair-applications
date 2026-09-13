@@ -235,6 +235,13 @@ static void gc_unprotect(djazairVM* vm, const char* key, int key_len) {
 // Safe Callback Invocations (VM Stack Discipline)
 // ---------------------------------------------------------------------------
 
+//
+// Internal helper: invoke_callback_0
+// Invokes a zero-argument VM callback on the interpreter stack, guarding
+// against exceptions and unbalanced pops.
+// Args: c (WindowContext), cb (Value)
+// Returns: Void
+//
 static void invoke_callback_0(WindowContext* c, Value cb) {
     if (c && c->vm && !IS_NULL(cb)) {
         djazairVM* vm = c->vm;
@@ -255,6 +262,12 @@ static void invoke_callback_0(WindowContext* c, Value cb) {
     }
 }
 
+//
+// Internal helper: invoke_callback_2
+// Invokes a VM callback with two numeric arguments (e.g. move/resize events).
+// Args: c (WindowContext), cb (Value), a, b
+// Returns: Void
+//
 static void invoke_callback_2(WindowContext* c, Value cb, double a, double b) {
     if (c && c->vm && !IS_NULL(cb)) {
         djazairVM* vm = c->vm;
@@ -277,6 +290,12 @@ static void invoke_callback_2(WindowContext* c, Value cb, double a, double b) {
     }
 }
 
+//
+// Internal helper: invoke_callback_str
+// Invokes a VM callback with a single string argument (e.g. navigation URLs).
+// Args: c (WindowContext), cb (Value), text
+// Returns: Void
+//
 static void invoke_callback_str(WindowContext* c, Value cb, const char* text) {
     if (c && c->vm && !IS_NULL(cb)) {
         djazairVM* vm = c->vm;
@@ -386,15 +405,31 @@ static LRESULT CALLBACK WebviewWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
             }
             break;
 
+        case WM_GETMINMAXINFO: {
+            LRESULT res = c->original_wndproc
+                ? CallWindowProcW(c->original_wndproc, hwnd, msg, wParam, lParam)
+                : DefWindowProcW(hwnd, msg, wParam, lParam);
+            if (c->is_frameless && !c->is_fullscreen) {
+                MINMAXINFO* mmi = (MINMAXINFO*)lParam;
+                HMONITOR hMon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                MONITORINFO mi;
+                mi.cbSize = sizeof(MONITORINFO);
+                if (GetMonitorInfoW(hMon, &mi)) {
+                    RECT rcWork = mi.rcWork;
+                    RECT rcMonitor = mi.rcMonitor;
+                    mmi->ptMaxPosition.x = rcWork.left - rcMonitor.left;
+                    mmi->ptMaxPosition.y = rcWork.top - rcMonitor.top;
+                    mmi->ptMaxSize.x = rcWork.right - rcWork.left;
+                    mmi->ptMaxSize.y = rcWork.bottom - rcWork.top;
+                    mmi->ptMaxTrackSize.x = mmi->ptMaxSize.x;
+                    mmi->ptMaxTrackSize.y = mmi->ptMaxSize.y;
+                }
+            }
+            return res;
+        }
+
         case WM_NCCALCSIZE:
             if (c->is_frameless && wParam == TRUE) {
-                if (IsZoomed(hwnd)) {
-                    // Maximized: let Windows calculate the work area first
-                    // (this properly clips to the taskbar/monitor work area)
-                    // then accept it by returning 0
-                    DefWindowProcW(hwnd, WM_NCCALCSIZE, wParam, lParam);
-                }
-                // Normal state: client = full window rect (no NC borders, no caption gap)
                 return 0;
             }
             break;
@@ -458,6 +493,13 @@ static std::string value_to_json_result(djazairVM *vm, Value value) {
     return result;
 }
 
+//
+// Internal helper: GET_WINDOW (macro)
+// Resolves args[idx] as a registered window id and binds `wc`. Returns
+// djazair_null() early if the id is unknown or its context is gone.
+// Args: idx (argument index)
+// Returns: early djazair_null() on lookup failure
+//
 #define GET_WINDOW(idx) \
     int g_win_id = (int)AS_NUMBER(args[idx]); \
     WindowContext* wc = nullptr; \
@@ -475,6 +517,13 @@ static std::string value_to_json_result(djazairVM *vm, Value value) {
 
 static void destroy_context(WindowContext* c);
 
+//
+// Native binding: "appRun"
+// Enters the native message loop for the first created window and keeps the
+// app alive until the window is closed. Called once at startup.
+// Args: none
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeAppRun) {
     djazair_check_args(0, argCount);
     WindowContext* active_ctx = nullptr;
@@ -497,6 +546,13 @@ extern "C" DJAZAIR_FUNC(nativeAppRun) {
     return djazair_null();
 }
 
+//
+// Native binding: "appQuit"
+// Terminates all window message loops, releases the single-instance mutex
+// and posts WM_QUIT. Called to shut the application down.
+// Args: none
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeAppQuit) {
     djazair_check_args(0, argCount);
     std::vector<webview::webview*> all_wv;
@@ -605,6 +661,13 @@ extern "C" DJAZAIR_FUNC(nativeAppFocusExistingInstance) {
 // WINDOW CREATION & LIFECYCLE
 // ===========================================================================
 
+//
+// Native binding: "windowCreate"
+// Creates a native webview window and registers its context. Returns the
+// new window id used by every other window* binding.
+// Args: title, width, height, posX, posY, frameless, resizable, minW, minH, maxW, maxH, debug
+// Returns: int (window id) or null on failure
+//
 extern "C" DJAZAIR_FUNC(nativeWindowCreate) {
     djazair_check_args(12, argCount);
     djazair_check_str(0); djazair_check_num(1); djazair_check_num(2);
@@ -770,6 +833,13 @@ public:
     }
 };
 
+//
+// Internal helper: attach_navigation_completed
+// Registers a NavigationCompleted handler on the WebView2 controller so the
+// load callback fires on real navigations.
+// Args: wc
+// Returns: Void
+//
 static void attach_navigation_completed(WindowContext* wc) {
     if (wc->nav_event_handler) return;
     auto* controller = (ICoreWebView2Controller*)webview_get_native_handle(
@@ -789,6 +859,12 @@ static void attach_navigation_completed(WindowContext* wc) {
     webview->Release();
 }
 
+//
+// Internal helper: detach_navigation_completed
+// Removes and releases the NavigationCompleted handler before teardown.
+// Args: wc
+// Returns: Void
+//
 static void detach_navigation_completed(WindowContext* wc) {
     if (!wc->nav_event_handler) return;
     auto* controller = (ICoreWebView2Controller*)webview_get_native_handle(
@@ -822,7 +898,6 @@ static void destroy_context(WindowContext* c) {
 #endif
 
     if (c->wv) {
-        c->wv->terminate();
         delete c->wv;
         c->wv = nullptr;
     }
@@ -884,6 +959,13 @@ static void destroy_context(WindowContext* c) {
 #endif
 }
 
+//
+// Native binding: "windowDestroy"
+// Destroys a window context. Defers teardown when called from inside the
+// window's own message loop to avoid use-after-free.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
     djazair_check_args(1, argCount);
     int id = (int)AS_NUMBER(args[0]);
@@ -894,6 +976,13 @@ extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
         if (it == g_contexts.end()) return djazair_null();
         c = it->second;
     }
+
+#if defined(WEBVIEW_PLATFORM_WINDOWS)
+    if (c->wv) {
+        HWND hwnd = get_hwnd(c->wv);
+        if (hwnd) ShowWindow(hwnd, SW_HIDE);
+    }
+#endif
 
     // Fix: if this window's message loop is currently running, the destroy is
     // being requested from inside one of its own callbacks (e.g. an IPC
@@ -915,6 +1004,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowDestroy) {
 // WINDOW GEOMETRY & STATE
 // ===========================================================================
 
+//
+// Native binding: "windowSetVirtualHostMapping"
+// Maps a virtual host name to a local folder served by the WebView2 engine.
+// Args: id, host, folder
+// Returns: Bool (success)
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetVirtualHostMapping) {
     djazair_check_args(3, argCount);
     djazair_check_num(0);
@@ -979,6 +1074,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetVirtualHostMapping) {
     return djazair_bool(false);
 }
 
+//
+// Native binding: "windowSetTitle"
+// Sets the native window title bar text.
+// Args: id, title
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetTitle) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -989,6 +1090,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetTitle) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowGetTitle"
+// Returns the current native window title bar text.
+// Args: id
+// Returns: String
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGetTitle) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1010,6 +1117,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowGetTitle) {
 #endif
 }
 
+//
+// Native binding: "windowSetSize"
+// Resizes the window client area to the given width and height.
+// Args: id, width, height
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetSize) {
     djazair_check_args(3, argCount);
     GET_WINDOW(0);
@@ -1021,6 +1134,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetSize) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowGetSize"
+// Returns the current window client size as a [width, height] array.
+// Args: id
+// Returns: Array (width, height)
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGetSize) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1039,6 +1158,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowGetSize) {
     return arr;
 }
 
+//
+// Native binding: "windowSetPosition"
+// Moves the window so its top-left corner is at the given screen position.
+// Args: id, x, y
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetPosition) {
     djazair_check_args(3, argCount);
     GET_WINDOW(0);
@@ -1054,6 +1179,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetPosition) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowGetPosition"
+// Returns the window's top-left screen position as an [x, y] array.
+// Args: id
+// Returns: Array (x, y)
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGetPosition) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1072,6 +1203,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowGetPosition) {
     return arr;
 }
 
+//
+// Native binding: "windowMinimize"
+// Minimizes the window to the taskbar.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowMinimize) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1087,6 +1224,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowMinimize) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowMaximize"
+// Maximizes the window to fill the monitor and fires the maximize callback.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowMaximize) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1103,6 +1246,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowMaximize) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowRestore"
+// Restores a minimized or maximized window to its normal state.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowRestore) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1120,6 +1269,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowRestore) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowHide"
+// Hides the window without destroying it.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowHide) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1135,6 +1290,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowHide) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowShow"
+// Shows and foregrounds a previously hidden window.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowShow) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1151,6 +1312,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowShow) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowFocus"
+// Gives the window input focus.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowFocus) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1163,6 +1330,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowFocus) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowIsMaximized"
+// Reports whether the window is currently maximized.
+// Args: id
+// Returns: Bool
+//
 extern "C" DJAZAIR_FUNC(nativeWindowIsMaximized) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1180,6 +1353,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowIsMaximized) {
 #endif
 }
 
+//
+// Native binding: "windowIsMinimized"
+// Reports whether the window is currently minimized.
+// Args: id
+// Returns: Bool
+//
 extern "C" DJAZAIR_FUNC(nativeWindowIsMinimized) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1197,6 +1376,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowIsMinimized) {
 #endif
 }
 
+//
+// Native binding: "windowIsVisible"
+// Reports whether the window is currently visible.
+// Args: id
+// Returns: Bool
+//
 extern "C" DJAZAIR_FUNC(nativeWindowIsVisible) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1209,6 +1394,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowIsVisible) {
 #endif
 }
 
+//
+// Native binding: "windowSetResizable"
+// Enables or disables user-driven window resizing.
+// Args: id, resizable
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetResizable) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1228,6 +1419,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetResizable) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetMinSize"
+// Sets the minimum window size (width, height).
+// Args: id, width, height
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetMinSize) {
     djazair_check_args(3, argCount);
     GET_WINDOW(0);
@@ -1239,6 +1436,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetMinSize) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetMaxSize"
+// Sets the maximum window size (width, height).
+// Args: id, width, height
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetMaxSize) {
     djazair_check_args(3, argCount);
     GET_WINDOW(0);
@@ -1250,6 +1453,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetMaxSize) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetBackgroundColor"
+// Sets the native background color behind the web content (RGBA 0-255).
+// Args: id, r, g, b, a
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetBackgroundColor) {
     djazair_check_args(5, argCount);
     djazair_check_num(0);
@@ -1278,6 +1487,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetBackgroundColor) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetDarkMode"
+// Toggles dark-mode window chrome via DWM attributes.
+// Args: id, dark
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetDarkMode) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1294,6 +1509,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetDarkMode) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetFullscreen"
+// Enters or exits true fullscreen, saving and restoring the window state.
+// Args: id, fullscreen
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetFullscreen) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1333,12 +1554,24 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetFullscreen) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowIsFullscreen"
+// Reports whether the window is currently in fullscreen mode.
+// Args: id
+// Returns: Bool
+//
 extern "C" DJAZAIR_FUNC(nativeWindowIsFullscreen) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
     return djazair_bool(wc->is_fullscreen);
 }
 
+//
+// Native binding: "windowSetAlwaysOnTop"
+// Pins or unpins the window above all other top-level windows.
+// Args: id, onTop
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetAlwaysOnTop) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1352,6 +1585,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetAlwaysOnTop) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowCenter"
+// Centers the window on the primary monitor.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowCenter) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1370,6 +1609,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowCenter) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetIcon"
+// Loads an .ico file and applies it to the window (small and big icons).
+// Args: id, iconPath
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetIcon) {
     djazair_check_args(2, argCount);
     djazair_check_str(1);
@@ -1481,6 +1726,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowIsFocused) {
     return djazair_bool(false);
 }
 
+//
+// Native binding: "windowGetScreenSize"
+// Returns the primary screen resolution as a [width, height] array.
+// Args: none
+// Returns: Array (width, height)
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGetScreenSize) {
     djazair_check_args(0, argCount);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
@@ -1495,6 +1746,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowGetScreenSize) {
     return arr;
 }
 
+//
+// Native binding: "windowGetAvailableSize"
+// Returns the primary screen work area (excluding taskbar) as [width, height].
+// Args: none
+// Returns: Array (width, height)
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGetAvailableSize) {
     djazair_check_args(0, argCount);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
@@ -1511,6 +1768,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowGetAvailableSize) {
     return arr;
 }
 
+//
+// Native binding: "windowSetOpacity"
+// Sets the window opacity (0.0 fully transparent to 1.0 opaque).
+// Args: id, opacity
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetOpacity) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1525,6 +1788,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetOpacity) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetUserAgent"
+// Overrides the WebView2 user agent string.
+// Args: id, userAgent
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetUserAgent) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1566,6 +1835,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetUserAgent) {
 
 }
 
+//
+// Native binding: "windowClearCache"
+// Clears the WebView2 HTTP cache via the DevTools protocol.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowClearCache) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1583,6 +1858,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowClearCache) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowClearCookies"
+// Clears all WebView2 browser cookies via the DevTools protocol.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowClearCookies) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1600,6 +1881,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowClearCookies) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowPrint"
+// Opens the browser print dialog by evaluating window.print().
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowPrint) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1611,6 +1898,13 @@ extern "C" DJAZAIR_FUNC(nativeWindowPrint) {
 // WEBVIEW ENGINE OPERATIONS
 // ===========================================================================
 
+//
+// Native binding: "windowNavigate"
+// Navigates the webview to the given URL or file path and fires the
+// navigate callback.
+// Args: id, url
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowNavigate) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1627,6 +1921,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowNavigate) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetHtml"
+// Loads raw HTML into the webview and fires the load callback.
+// Args: id, html
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetHtml) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1641,6 +1941,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetHtml) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowEval"
+// Evaluates a JavaScript expression in the page context.
+// Args: id, js
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowEval) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1648,6 +1954,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowEval) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowInit"
+// Injects a JavaScript init script that runs before page content loads.
+// Args: id, js
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowInit) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1655,6 +1967,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowInit) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowReload"
+// Reloads the current page.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowReload) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1662,6 +1980,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowReload) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowGoBack"
+// Navigates to the previous page in history.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGoBack) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1670,6 +1994,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowGoBack) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowGoForward"
+// Navigates to the next page in history.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGoForward) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1678,18 +2008,36 @@ extern "C" DJAZAIR_FUNC(nativeWindowGoForward) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowCanGoBack"
+// Reports whether the window has performed a navigation.
+// Args: id
+// Returns: Bool
+//
 extern "C" DJAZAIR_FUNC(nativeWindowCanGoBack) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
     return djazair_bool(wc->has_navigated);
 }
 
+//
+// Native binding: "windowCanGoForward"
+// Reports whether a forward navigation is currently possible.
+// Args: id
+// Returns: Bool
+//
 extern "C" DJAZAIR_FUNC(nativeWindowCanGoForward) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
     return djazair_bool(wc->can_go_forward);
 }
 
+//
+// Native binding: "windowSetZoomLevel"
+// Sets the page zoom factor via CSS body zoom.
+// Args: id, zoom
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetZoomLevel) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1702,12 +2050,24 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetZoomLevel) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowGetZoomLevel"
+// Returns the current page zoom factor.
+// Args: id
+// Returns: Float
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGetZoomLevel) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
     return djazair_float(wc->zoom_level);
 }
 
+//
+// Native binding: "windowOpenDevTools"
+// Opens the developer tools window for the webview.
+// Args: id
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowOpenDevTools) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
@@ -1739,12 +2099,24 @@ extern "C" DJAZAIR_FUNC(nativeWindowOpenDevTools) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowGetUrl"
+// Returns the last loaded URL recorded by this window.
+// Args: id
+// Returns: String
+//
 extern "C" DJAZAIR_FUNC(nativeWindowGetUrl) {
     djazair_check_args(1, argCount);
     GET_WINDOW(0);
     return djazair_str(vm, wc->current_url.c_str());
 }
 
+//
+// Native binding: "windowSetContextMenu"
+// Enables or disables the default right-click context menu.
+// Args: id, enabled
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetContextMenu) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1784,6 +2156,13 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetContextMenu) {
 // CALLBACK REGISTRATION
 // ===========================================================================
 
+//
+// Internal helper: set_callback
+// Stores a VM callback on the window context and re-pins it under a stable
+// GC key, unpinning the previously stored value first.
+// Args: wc, vm, prefix, field, cb
+// Returns: Void
+//
 static void set_callback(WindowContext* wc, djazairVM* vm, const char* prefix, Value& field, Value cb) {
     std::string k = gc_key(prefix, wc->id);
     if (!IS_NULL(field)) gc_unprotect(wc->vm, k.c_str(), (int)k.length());
@@ -1791,6 +2170,12 @@ static void set_callback(WindowContext* wc, djazairVM* vm, const char* prefix, V
     if (!IS_NULL(cb)) gc_protect(vm, k.c_str(), (int)k.length(), cb);
 }
 
+//
+// Native binding: "windowSetCloseCallback"
+// Registers the callback invoked when the window close is requested.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetCloseCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1798,6 +2183,13 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetCloseCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetDispatcher"
+// Registers the IPC dispatcher callback for window.bind(): receives
+// (name, jsonRequest) and returns the JSON result.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetDispatcher) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1805,6 +2197,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetDispatcher) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetErrorCallback"
+// Registers the callback invoked when the webview reports an error.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetErrorCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1812,6 +2210,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetErrorCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetMoveCallback"
+// Registers the callback invoked when the window moves (x, y).
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetMoveCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1819,6 +2223,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetMoveCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetResizeCallback"
+// Registers the callback invoked when the window is resized (width, height).
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetResizeCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1826,6 +2236,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetResizeCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetFocusCallback"
+// Registers the callback invoked when the window gains focus.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetFocusCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1833,6 +2249,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetFocusCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetBlurCallback"
+// Registers the callback invoked when the window loses focus.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetBlurCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1840,6 +2262,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetBlurCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetMaximizeCallback"
+// Registers the callback invoked when the window is maximized.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetMaximizeCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1847,6 +2275,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetMaximizeCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetMinimizeCallback"
+// Registers the callback invoked when the window is minimized.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetMinimizeCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1854,6 +2288,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetMinimizeCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetRestoreCallback"
+// Registers the callback invoked when the window is restored.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetRestoreCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1861,6 +2301,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetRestoreCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetNavigateCallback"
+// Registers the callback invoked after a navigation completes (url).
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetNavigateCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1868,6 +2314,12 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetNavigateCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetTitleCallback"
+// Registers the callback invoked when the page changes the title.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetTitleCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1875,6 +2327,13 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetTitleCallback) {
     return djazair_null();
 }
 
+//
+// Native binding: "windowSetLoadCallback"
+// Registers the callback invoked when a page finishes loading (url).
+// Also attaches the NavigationCompleted event on Windows.
+// Args: id, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowSetLoadCallback) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1889,6 +2348,13 @@ extern "C" DJAZAIR_FUNC(nativeWindowSetLoadCallback) {
 // IPC BIDIRECTIONAL BIND
 // ===========================================================================
 
+//
+// Native binding: "windowBind"
+// Binds a JS function name on the page so it can call into Djazair via
+// window.<name>(request, callback); calls are routed to the dispatcher.
+// Args: id, name, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowBind) {
     djazair_check_args(3, argCount);
     GET_WINDOW(0);
@@ -1930,12 +2396,27 @@ extern "C" DJAZAIR_FUNC(nativeWindowBind) {
             if (!vm->exceptionCaught) { pop(vm); pop(vm); pop(vm); }
         }
 
+        {
+            std::lock_guard<std::mutex> lock(g_ctx_mtx);
+            auto it = g_contexts.find(captured_id);
+            if (it == g_contexts.end() || !it->second || !it->second->wv) {
+                return; // Window context destroyed during dispatch — do not access freed webview
+            }
+            wc2 = it->second;
+        }
+
         wc2->wv->resolve(seq, 0, result_str);
     }, nullptr);
 
     return djazair_null();
 }
 
+//
+// Native binding: "windowUnbind"
+// Removes a previously bound JS function name from the webview.
+// Args: id, name
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeWindowUnbind) {
     djazair_check_args(2, argCount);
     GET_WINDOW(0);
@@ -1947,6 +2428,13 @@ extern "C" DJAZAIR_FUNC(nativeWindowUnbind) {
 // NATIVE DIALOGS
 // ===========================================================================
 
+//
+// Native binding: "dialogMessage"
+// Shows a native message box (info/warning/error/question) and returns the
+// clicked button ("ok", "cancel", "yes", "no", "retry").
+// Args: type, title, message, detail, buttons, timeoutSec, silent
+// Returns: String
+//
 extern "C" DJAZAIR_FUNC(nativeDialogMessage) {
     djazair_check_args(7, argCount);
     djazair_check_str(0); djazair_check_str(1); djazair_check_str(2);
@@ -1992,6 +2480,13 @@ extern "C" DJAZAIR_FUNC(nativeDialogMessage) {
 #endif
 }
 
+//
+// Native binding: "dialogOpenFile"
+// Shows an OS open-file dialog. Returns a path or an array of paths when
+// multi-select is enabled.
+// Args: title, defaultPath, filters, multi, defaultName
+// Returns: String, Array, or null
+//
 extern "C" DJAZAIR_FUNC(nativeDialogOpenFile) {
     djazair_check_args(5, argCount);
     djazair_check_str(0); djazair_check_str(1);
@@ -2076,6 +2571,12 @@ extern "C" DJAZAIR_FUNC(nativeDialogOpenFile) {
     return djazair_null();
 }
 
+//
+// Native binding: "dialogSaveFile"
+// Shows an OS save-file dialog and returns the chosen path.
+// Args: title, defaultPath, filters
+// Returns: String or null
+//
 extern "C" DJAZAIR_FUNC(nativeDialogSaveFile) {
     djazair_check_args(3, argCount);
     djazair_check_str(0); djazair_check_str(1); djazair_check_arr(2);
@@ -2148,6 +2649,12 @@ extern "C" DJAZAIR_FUNC(nativeDialogSaveFile) {
     return djazair_null();
 }
 
+//
+// Native binding: "dialogOpenFolder"
+// Shows an OS folder picker and returns the chosen directory path.
+// Args: title, defaultPath
+// Returns: String or null
+//
 extern "C" DJAZAIR_FUNC(nativeDialogOpenFolder) {
     djazair_check_args(2, argCount);
     djazair_check_str(0); djazair_check_str(1);
@@ -2217,6 +2724,12 @@ extern "C" DJAZAIR_FUNC(nativeDialogOpenFolder) {
     return djazair_null();
 }
 
+//
+// Native binding: "dialogPickColor"
+// Shows the OS color picker and returns an {r, g, b, a} map.
+// Args: title
+// Returns: Map or null
+//
 extern "C" DJAZAIR_FUNC(nativeDialogPickColor) {
     djazair_check_args(1, argCount);
     djazair_check_str(0);
@@ -2258,6 +2771,12 @@ static void menu_handle_command(WindowContext* c, int item_id) {
     }
 }
 
+//
+// Native binding: "menuCreate"
+// Creates a native popup menu handle and returns it as a number.
+// Args: title
+// Returns: Number (menu handle) or null
+//
 extern "C" DJAZAIR_FUNC(nativeMenuCreate) {
     djazair_check_args(1, argCount);
     djazair_check_str(0);
@@ -2269,6 +2788,12 @@ extern "C" DJAZAIR_FUNC(nativeMenuCreate) {
 #endif
 }
 
+//
+// Native binding: "menuCreateSubmenu"
+// Creates a submenu and appends it to a parent menu with a label.
+// Args: parentMenu, label
+// Returns: Number (submenu handle) or null
+//
 extern "C" DJAZAIR_FUNC(nativeMenuCreateSubmenu) {
     djazair_check_args(2, argCount);
     djazair_check_str(1);
@@ -2283,6 +2808,12 @@ extern "C" DJAZAIR_FUNC(nativeMenuCreateSubmenu) {
 #endif
 }
 
+//
+// Native binding: "menuAddSeparator"
+// Appends a separator line to a native menu.
+// Args: menu
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeMenuAddSeparator) {
     djazair_check_args(1, argCount);
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
@@ -2292,6 +2823,12 @@ extern "C" DJAZAIR_FUNC(nativeMenuAddSeparator) {
     return djazair_null();
 }
 
+//
+// Native binding: "menuAddItem"
+// Appends a clickable item to a native menu and pins its callback.
+// Args: menu, label, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeMenuAddItem) {
     djazair_check_args(3, argCount);
     djazair_check_str(1);
@@ -2312,11 +2849,23 @@ extern "C" DJAZAIR_FUNC(nativeMenuAddItem) {
     return djazair_null();
 }
 
+//
+// Native binding: "menuSetCallback"
+// Reserved: sets the callback for an existing menu item.
+// Args: menu, itemId, cb
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeMenuSetCallback) {
     djazair_check_args(3, argCount);
     return djazair_null();
 }
 
+//
+// Native binding: "menuPopup"
+// Shows a native context menu at the current cursor position.
+// Args: windowId, menu
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeMenuPopup) {
     djazair_check_args(2, argCount);
     djazair_check_num(1);
@@ -2346,6 +2895,12 @@ extern "C" DJAZAIR_FUNC(nativeMenuPopup) {
 // NOTIFICATIONS
 // ===========================================================================
 
+//
+// Native binding: "notificationShow"
+// Displays a system notification balloon via the Windows tray area.
+// Args: title, message, iconPath, silent, action, timeoutSec
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeNotificationShow) {
     djazair_check_args(6, argCount);
     djazair_check_str(0); djazair_check_str(1); djazair_check_str(2);
@@ -2420,6 +2975,13 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 }
 #endif
 
+//
+// Native binding: "trayCreate"
+// Creates a system tray icon (with tooltip and icon file) and returns its
+// tray id for later updates.
+// Args: tooltip, iconPath
+// Returns: int (tray id)
+//
 extern "C" DJAZAIR_FUNC(nativeTrayCreate) {
     djazair_check_args(2, argCount);
     djazair_check_str(0); djazair_check_str(1);
@@ -2475,6 +3037,12 @@ extern "C" DJAZAIR_FUNC(nativeTrayCreate) {
 #endif
 }
 
+//
+// Native binding: "traySetIcon"
+// Replaces the tray icon with a new .ico file.
+// Args: trayId, iconPath
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeTraySetIcon) {
     djazair_check_args(2, argCount);
     djazair_check_num(0); djazair_check_str(1);
@@ -2504,6 +3072,12 @@ extern "C" DJAZAIR_FUNC(nativeTraySetIcon) {
     return djazair_null();
 }
 
+//
+// Native binding: "traySetMenu"
+// Attaches a native popup menu to the tray icon (shown on right-click).
+// Args: trayId, menu
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeTraySetMenu) {
     djazair_check_args(2, argCount);
     djazair_check_num(0); djazair_check_num(1);
@@ -2519,6 +3093,12 @@ extern "C" DJAZAIR_FUNC(nativeTraySetMenu) {
     return djazair_null();
 }
 
+//
+// Native binding: "traySetTooltip"
+// Updates the tooltip text shown when hovering the tray icon.
+// Args: trayId, tooltip
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeTraySetTooltip) {
     djazair_check_args(2, argCount);
     djazair_check_num(0); djazair_check_str(1);
@@ -2545,6 +3125,12 @@ extern "C" DJAZAIR_FUNC(nativeTraySetTooltip) {
     return djazair_null();
 }
 
+//
+// Native binding: "trayDestroy"
+// Removes the tray icon and frees the tray context.
+// Args: trayId
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeTrayDestroy) {
     djazair_check_args(1, argCount);
     djazair_check_num(0);
@@ -2575,6 +3161,12 @@ extern "C" DJAZAIR_FUNC(nativeTrayDestroy) {
     return djazair_null();
 }
 
+//
+// Native binding: "trayShowBalloon"
+// Shows a balloon notification from the tray icon.
+// Args: trayId, title, message, timeoutSec
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeTrayShowBalloon) {
     djazair_check_args(4, argCount);
     djazair_check_num(0); djazair_check_str(1);
@@ -2609,12 +3201,24 @@ extern "C" DJAZAIR_FUNC(nativeTrayShowBalloon) {
 // PROTOCOL SCHEMES
 // ===========================================================================
 
+//
+// Native binding: "protocolRegister"
+// Reserved: registers a custom URL scheme handler.
+// Args: scheme, handler
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeProtocolRegister) {
     djazair_check_args(2, argCount);
     djazair_check_str(0);
     return djazair_null();
 }
 
+//
+// Native binding: "protocolUnregister"
+// Reserved: unregisters a custom URL scheme handler.
+// Args: scheme
+// Returns: Void
+//
 extern "C" DJAZAIR_FUNC(nativeProtocolUnregister) {
     djazair_check_args(1, argCount);
     djazair_check_str(0);

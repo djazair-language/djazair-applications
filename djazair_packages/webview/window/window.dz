@@ -66,6 +66,7 @@ class Window
         self._onTitleChange = Null
         self._onLoad = Null
         self._loaded = False
+        self._alwaysOnTop = False
 
         # Virtual host mapping for local assets.
         # Maps a folder to http://djazair.localhost/ (same-origin only on the
@@ -127,51 +128,83 @@ class Window
 
     # ── Geometry & Layout ───────────────────────────────────────────────
 
+    # Sets the window title text shown in the title bar.
+    #
+    # @param t {String}  The new title text.
     setTitle(t)
         if isNull(self._handle) return end
         _native.windowSetTitle(self._handle, t)
     end
 
+    # Gets the current window title text.
+    #
+    # @return {String}  The current title text.
     title()
         if isNull(self._handle) return "" end
         return _native.windowGetTitle(self._handle)
     end
 
+    # Resizes the window to the given dimensions.
+    #
+    # @param width  {Number}  The new width in pixels.
+    # @param height {Number}  The new height in pixels.
     setSize(width, height)
         if isNull(self._handle) return end
         _native.windowSetSize(self._handle, width, height)
     end
 
+    # Gets the current window size.
+    #
+    # @return {Array}  The window size as [width, height].
     getSize()
         if isNull(self._handle) return [0, 0] end
         return _native.windowGetSize(self._handle)
     end
 
+    # Moves the window to the given screen position.
+    #
+    # @param x {Number}  The new x coordinate in pixels.
+    # @param y {Number}  The new y coordinate in pixels.
     setPosition(x, y)
         if isNull(self._handle) return end
         _native.windowSetPosition(self._handle, x, y)
     end
 
+    # Gets the current window position on screen.
+    #
+    # @return {Array}  The window position as [x, y].
     getPosition()
         if isNull(self._handle) return [0, 0] end
         return _native.windowGetPosition(self._handle)
     end
 
+    # Enables or disables window resizing.
+    #
+    # @param resizable {Boolean}  Whether the window can be resized.
     setResizable(resizable)
         if isNull(self._handle) return end
         _native.windowSetResizable(self._handle, resizable)
     end
 
+    # Sets the minimum window size allowed when resizing.
+    #
+    # @param minWidth  {Number}  The minimum width in pixels.
+    # @param minHeight {Number}  The minimum height in pixels.
     setMinimumSize(minWidth, minHeight)
         if isNull(self._handle) return end
         _native.windowSetMinSize(self._handle, minWidth, minHeight)
     end
 
+    # Sets the maximum window size allowed when resizing.
+    #
+    # @param maxWidth  {Number}  The maximum width in pixels.
+    # @param maxHeight {Number}  The maximum height in pixels.
     setMaximumSize(maxWidth, maxHeight)
         if isNull(self._handle) return end
         _native.windowSetMaxSize(self._handle, maxWidth, maxHeight)
     end
 
+    # Centers the window on the current display.
     center()
         if isNull(self._handle) return end
         _native.windowCenter(self._handle)
@@ -179,46 +212,61 @@ class Window
 
     # ── Window State & Visibility ────────────────────────────────────────
 
+    # Minimizes the window to the taskbar.
     minimize()
         if isNull(self._handle) return end
         _native.windowMinimize(self._handle)
     end
 
+    # Maximizes the window to fill the available screen area.
     maximize()
         if isNull(self._handle) return end
         _native.windowMaximize(self._handle)
     end
 
+    # Restores the window from minimized or maximized state.
     restore()
         if isNull(self._handle) return end
         _native.windowRestore(self._handle)
     end
 
+    # Hides the window from view.
     hide()
         if isNull(self._handle) return end
         _native.windowHide(self._handle)
     end
 
+    # Shows the window.
     show()
         if isNull(self._handle) return end
         _native.windowShow(self._handle)
     end
 
+    # Brings the window into focus.
     focus()
         if isNull(self._handle) return end
         _native.windowFocus(self._handle)
     end
 
+    # Checks whether the window is currently maximized.
+    #
+    # @return {Boolean}  True if maximized, False otherwise.
     isMaximized()
         if isNull(self._handle) return False end
         return _native.windowIsMaximized(self._handle)
     end
 
+    # Checks whether the window is currently minimized.
+    #
+    # @return {Boolean}  True if minimized, False otherwise.
     isMinimized()
         if isNull(self._handle) return False end
         return _native.windowIsMinimized(self._handle)
     end
 
+    # Checks whether the window is currently visible.
+    #
+    # @return {Boolean}  True if visible, False otherwise.
     isVisible()
         if isNull(self._handle) return False end
         return _native.windowIsVisible(self._handle)
@@ -248,36 +296,68 @@ class Window
         self.flash(enable)
     end
 
+    # Toggles fullscreen mode for the window.
+    #
+    # @param fullscreen {Boolean}  Whether to enter fullscreen mode.
     setFullscreen(fullscreen)
         if isNull(self._handle) return end
         _native.windowSetFullscreen(self._handle, fullscreen)
     end
 
+    # Checks whether the window is in fullscreen mode.
+    #
+    # @return {Boolean}  True if fullscreen, False otherwise.
     isFullscreen()
         if isNull(self._handle) return False end
         return _native.windowIsFullscreen(self._handle)
     end
 
+    # Pins or unpins the window above all other windows.
+    #
+    # @param alwaysOnTop {Boolean}  Whether to keep the window on top.
     setAlwaysOnTop(alwaysOnTop)
         if isNull(self._handle) return end
+        self._alwaysOnTop = alwaysOnTop
         _native.windowSetAlwaysOnTop(self._handle, alwaysOnTop)
     end
 
+    # Checks whether the window is currently pinned above all other windows.
+    #
+    # @return {Boolean} True if always on top, False otherwise.
+    isAlwaysOnTop()
+        return self._alwaysOnTop
+    end
+
+    # Sets the window opacity level.
+    #
+    # @param opacity {Number}  The opacity from 0.0 (transparent) to 1.0 (opaque).
     setOpacity(opacity)
         if isNull(self._handle) return end
         _native.windowSetOpacity(self._handle, opacity)
     end
 
+    # Sets the window background color.
+    #
+    # @param r {Number}  The red channel value (0-255).
+    # @param g {Number}  The green channel value (0-255).
+    # @param b {Number}  The blue channel value (0-255).
+    # @param a {Number}  The alpha channel value (0-255), defaults to 255.
     setBackgroundColor(r, g, b, a = 255)
         if isNull(self._handle) return end
         _native.windowSetBackgroundColor(self._handle, r, g, b, a)
     end
 
+    # Enables or disables the dark title bar theme.
+    #
+    # @param isDark {Boolean}  Whether to use a dark title bar.
     setDarkTitleBar(isDark)
         if isNull(self._handle) return end
         _native.windowSetDarkMode(self._handle, isDark)
     end
 
+    # Sets the window icon from a file path.
+    #
+    # @param iconPath {String}  Path to the icon file.
     setIcon(iconPath)
         if isNull(self._handle) return end
         _native.windowSetIcon(self._handle, iconPath)
@@ -285,6 +365,9 @@ class Window
 
     # ── Webview Navigation & Content ────────────────────────────────────
 
+    # Navigates the webview to the given URL or local path.
+    #
+    # @param url {String}  The URL, or a local path relative to the virtual host.
     navigate(url)
         if isNull(self._handle) return end
         let isLocal = !url.contains("://") and !url.startsWith("about:") and !url.startsWith("data:")
@@ -318,6 +401,9 @@ class Window
         end
     end
 
+    # Loads raw HTML content directly into the webview.
+    #
+    # @param html {String}  The HTML content to render.
     setHtml(html)
         if isNull(self._handle) return end
         sysLog("Window", "Setting HTML content...", "debug")
@@ -325,51 +411,73 @@ class Window
         self._loaded = True
     end
 
+    # Executes JavaScript code in the current webview page.
+    #
+    # @param jsCode {String}  The JavaScript code to run.
     eval(jsCode)
         if isNull(self._handle) return end
         _native.windowEval(self._handle, jsCode)
     end
 
+    # Injects JavaScript that runs before page scripts on every load.
+    #
+    # @param jsCode {String}  The JavaScript code to inject.
     initJs(jsCode)
         if isNull(self._handle) return end
         _native.windowInit(self._handle, jsCode)
     end
 
+    # Reloads the current page in the webview.
     reload()
         if isNull(self._handle) return end
         _native.windowReload(self._handle)
     end
 
+    # Navigates one page back in the webview history, if possible.
     goBack()
         if isNull(self._handle) return end
         _native.windowGoBack(self._handle)
     end
 
+    # Navigates one page forward in the webview history, if possible.
     goForward()
         if isNull(self._handle) return end
         _native.windowGoForward(self._handle)
     end
 
+    # Checks whether backward navigation is available.
+    #
+    # @return {Boolean}  True if a previous page exists, False otherwise.
     canGoBack()
         if isNull(self._handle) return False end
         return _native.windowCanGoBack(self._handle)
     end
 
+    # Checks whether forward navigation is available.
+    #
+    # @return {Boolean}  True if a next page exists, False otherwise.
     canGoForward()
         if isNull(self._handle) return False end
         return _native.windowCanGoForward(self._handle)
     end
 
+    # Sets the webview zoom level.
+    #
+    # @param level {Number}  The zoom factor, 1.0 being normal size.
     setZoomLevel(level)
         if isNull(self._handle) return end
         _native.windowSetZoomLevel(self._handle, level)
     end
 
+    # Gets the current webview zoom level.
+    #
+    # @return {Number}  The current zoom factor.
     zoomLevel()
         if isNull(self._handle) return 1.0 end
         return _native.windowGetZoomLevel(self._handle)
     end
 
+    # Opens the developer tools console in debug mode.
     openDevTools()
         if isNull(self._handle) return end
         if self._debug
@@ -377,16 +485,25 @@ class Window
         end
     end
 
+    # Gets the URL of the currently loaded page.
+    #
+    # @return {String}  The current page URL.
     getUrl()
         if isNull(self._handle) return "" end
         return _native.windowGetUrl(self._handle)
     end
 
+    # Enables or disables the default right-click context menu.
+    #
+    # @param enabled {Boolean}  Whether the context menu is allowed.
     setContextMenuEnabled(enabled)
         if isNull(self._handle) return end
         _native.windowSetContextMenu(self._handle, enabled)
     end
 
+    # Shows a context menu at the current cursor position.
+    #
+    # @param menu {Object}  A Menu instance or native menu handle.
     popupMenu(menu)
         if isNull(self._handle) return end
         let menuId = menu
@@ -396,33 +513,48 @@ class Window
         _native.menuPopup(self._handle, menuId)
     end
 
+    # Checks whether the webview content has finished loading.
+    #
+    # @return {Boolean}  True if loaded, False otherwise.
     isLoaded()
         return self._loaded
     end
 
+    # Gets the primary screen resolution.
+    #
+    # @return {Array}  The screen size as [width, height].
     getScreenSize()
         return _native.windowGetScreenSize()
     end
 
+    # Gets the available screen area excluding taskbars and docks.
+    #
+    # @return {Array}  The available size as [width, height].
     getAvailableSize()
         return _native.windowGetAvailableSize()
     end
 
+    # Overrides the user agent string reported to web pages.
+    #
+    # @param ua {String}  The user agent string to use.
     setUserAgent(ua)
         if isNull(self._handle) return end
         _native.windowSetUserAgent(self._handle, ua)
     end
 
+    # Clears the webview browser cache.
     clearCache()
         if isNull(self._handle) return end
         _native.windowClearCache(self._handle)
     end
 
+    # Clears all cookies stored by the webview.
     clearCookies()
         if isNull(self._handle) return end
         _native.windowClearCookies(self._handle)
     end
 
+    # Opens the print dialog for the current page.
     print()
         if isNull(self._handle) return end
         _native.windowPrint(self._handle)
@@ -430,10 +562,16 @@ class Window
 
     # ── Event Callbacks ─────────────────────────────────────────────────
 
+    # Registers a callback invoked when the window is about to close.
+    #
+    # @param callback {Function}  Receives no arguments.
     onClose(callback)
         self._onClose = callback
     end
 
+    # Registers a callback invoked when the window moves.
+    #
+    # @param callback {Function}  Receives (x, y) position in pixels.
     onMove(callback)
         self._onMove = callback
         let selfRef = self
@@ -444,6 +582,9 @@ class Window
         end)
     end
 
+    # Registers a callback invoked when the window is resized.
+    #
+    # @param callback {Function}  Receives (width, height) in pixels.
     onResize(callback)
         self._onResize = callback
         let selfRef = self
@@ -454,6 +595,9 @@ class Window
         end)
     end
 
+    # Registers a callback invoked when the window gains focus.
+    #
+    # @param callback {Function}  Receives no arguments.
     onFocus(callback)
         self._onFocus = callback
         let selfRef = self
@@ -464,6 +608,9 @@ class Window
         end)
     end
 
+    # Registers a callback invoked when the window loses focus.
+    #
+    # @param callback {Function}  Receives no arguments.
     onBlur(callback)
         self._onBlur = callback
         let selfRef = self
@@ -474,6 +621,9 @@ class Window
         end)
     end
 
+    # Registers a callback invoked when the window is maximized.
+    #
+    # @param callback {Function}  Receives no arguments.
     onMaximize(callback)
         self._onMaximize = callback
         let selfRef = self
@@ -484,6 +634,9 @@ class Window
         end)
     end
 
+    # Registers a callback invoked when the window is minimized.
+    #
+    # @param callback {Function}  Receives no arguments.
     onMinimize(callback)
         self._onMinimize = callback
         let selfRef = self
@@ -494,6 +647,9 @@ class Window
         end)
     end
 
+    # Registers a callback invoked when the window is restored.
+    #
+    # @param callback {Function}  Receives no arguments.
     onRestore(callback)
         self._onRestore = callback
         let selfRef = self
@@ -504,26 +660,48 @@ class Window
         end)
     end
 
+    # Registers a callback invoked when the webview navigates to a URL.
+    #
+    # @param callback {Function}  Receives (url) or no arguments.
     onNavigate(callback)
         self._onNavigate = callback
         let selfRef = self
         _native.windowSetNavigateCallback(self._handle, fn(url)
             if !isNull(selfRef._onNavigate)
-                selfRef._onNavigate(url)
+                try
+                    selfRef._onNavigate(url)
+                catch err
+                    selfRef._onNavigate()
+                end
             end
         end)
     end
 
+    # Registers a callback invoked when the window title changes.
+    #
+    # @param callback {Function}  Receives (title) or no arguments.
     onTitleChange(callback)
         self._onTitleChange = callback
         let selfRef = self
         _native.windowSetTitleCallback(self._handle, fn(title)
             if !isNull(selfRef._onTitleChange)
-                selfRef._onTitleChange(title)
+                try
+                    selfRef._onTitleChange(title)
+                catch err
+                    selfRef._onTitleChange()
+                end
             end
         end)
     end
 
+    # Alias for onTitleChange (backward compatibility).
+    onTitle(callback)
+        self.onTitleChange(callback)
+    end
+
+    # Registers a callback invoked when page content finishes loading.
+    #
+    # @param callback {Function}  Receives (url) or no arguments.
     onLoad(callback)
         self._onLoad = callback
         let selfRef = self
@@ -531,17 +709,29 @@ class Window
             sysLog("Window", "Window content fully loaded")
             selfRef._loaded = True
             if !isNull(selfRef._onLoad)
-                selfRef._onLoad(url)
+                try
+                    selfRef._onLoad(url)
+                catch err
+                    selfRef._onLoad()
+                end
             end
         end)
     end
 end
 
+# Creates a Window instance bound to the given application.
+#
+# @param  app     {Object}  The application instance.
+# @param  options {Dict}    Window constructor options.
+# @return {Window} A new configured Window instance.
 # Factory function for creating a Window instance (backward compatibility)
 fn createWindow(app, options)
     return new Window(app, options)
 end
 
+# Closes the given window, safely ignoring invalid instances.
+#
+# @param win {Window}  The Window instance to close.
 # Helper function to close a window (backward compatibility)
 fn closeWindow(win)
     if !isNull(win) and isFunction(win.close)

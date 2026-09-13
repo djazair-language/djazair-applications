@@ -31,8 +31,9 @@ let COLOR_YELLOW  = ESC + "[33m"
 let COLOR_RED     = ESC + "[31m"
 let COLOR_MAGENTA = ESC + "[35m"
 
-# Configures global webview logging threshold.
-# Accepts "none", "error", "warn", "info", "debug" or numeric 0-4.
+# Configures the global webview logging threshold.
+#
+# @param  level {String|Number} Minimum level to log: "none"/"error"/"warn"/"info"/"debug" or 0-4 (default: "warn")
 fn setLogLevel(level)
     let l = str(level).lower()
     if l == "none" or l == "0"
@@ -48,12 +49,16 @@ fn setLogLevel(level)
     end
 end
 
-# Toggles colored output in console.
+# Toggles colored (ANSI) output in the console.
+#
+# @param  enable {Boolean} Whether to colorize console log output (default: True)
 fn setLogColors(enable)
     _logColors = bool(enable)
 end
 
-# Sets output file path where log records are persisted.
+# Sets the output file where log records are persisted.
+#
+# @param  filePath {String|Null} Path to the log file; Null disables file logging (default: Null)
 fn setLogFile(filePath)
     _logFile = filePath
     if !isNull(filePath)
@@ -65,12 +70,16 @@ fn setLogFile(filePath)
     end
 end
 
-# Sets custom strftime pattern for log timestamps (e.g. "%Y-%m-%d %H:%M:%S").
+# Sets the strftime pattern used to format log timestamps.
+#
+# @param  pattern {String} strftime pattern, e.g. "%Y-%m-%d %H:%M:%S" (default: "%H:%M:%S")
 fn setLogTimeFormat(pattern)
     _logTimeFormat = pattern
 end
 
-# Formats high-resolution sub-second timestamp string using Djazair string methods.
+# Formats a monotonic timestamp string with sub-second (millisecond) precision.
+#
+# @return String  Timestamp formatted using the configured log time format plus milliseconds
 fn _getTimestamp()
     let elapsed = (datetime.ticks() - _initialTicks) / 1000.0
     let currentTs = _initialTs + elapsed
@@ -80,7 +89,10 @@ fn _getTimestamp()
     return "${dt.format(_logTimeFormat)}.${msStr}"
 end
 
-# Formats message payload into a readable string or JSON representation.
+# Formats a message payload into a readable string or JSON representation.
+#
+# @param  msg {Any} Message payload to format
+# @return String  The payload string, or its JSON encoding for non-string values
 fn _formatMessage(msg)
     if isString(msg)
         return msg
@@ -89,7 +101,11 @@ fn _formatMessage(msg)
     end
 end
 
-# Internal system logger with severity levels, component tagging, and ANSI coloring.
+# Logs a message with a severity level, component tag, and optional ANSI coloring.
+#
+# @param  component {String} Component name used as a log tag
+# @param  message   {Any}    Message payload to log
+# @param  level     {String|Number} Severity: "fatal"/"error"/"warn"/"info"/"debug" or 0-4 (default: "info")
 fn sysLog(component, message, level = "info")
     let lvlNum = 3
     let lvlStr = "INFO"
@@ -143,7 +159,12 @@ fn sysLog(component, message, level = "info")
     end
 end
 
-# Safely extracts an option key with a default fallback value.
+# Safely extracts an option key from a map with a default fallback value.
+#
+# @param  opts     {Map}    Options map to read from
+# @param  key      {String} Option key to look up
+# @param  fallback {Any}    Value returned when the key is missing
+# @return Any  Option value, or fallback when the key is absent
 fn getOpt(opts, key, fallback)
     if isMap(opts) and opts.has(key)
         return opts[key]
