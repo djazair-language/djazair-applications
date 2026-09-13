@@ -199,7 +199,7 @@ class ShowcaseApp
 
         bridge.on("win_toggleFullscreen", fn(_)
             let isFs = win.isFullscreen()
-            win.fullscreen(not isFs)
+            win.setFullscreen(!isFs)
             return win.isFullscreen()
         end)
 

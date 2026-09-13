@@ -304,12 +304,40 @@ class Window
         _native.windowSetFullscreen(self._handle, fullscreen)
     end
 
+    # Gets the current window title text (convenience alias for title()).
+    #
+    # @return {String}  The current title text.
+    getTitle()
+        return self.title()
+    end
+
     # Checks whether the window is in fullscreen mode.
     #
     # @return {Boolean}  True if fullscreen, False otherwise.
     isFullscreen()
         if isNull(self._handle) return False end
         return _native.windowIsFullscreen(self._handle)
+    end
+
+    # Toggles fullscreen mode for the window.
+    #
+    # @return {Boolean}  The updated fullscreen state.
+    toggleFullscreen()
+        let fs = !self.isFullscreen()
+        self.setFullscreen(fs)
+        return fs
+    end
+
+    # Sets or gets fullscreen mode (convenience alias for setFullscreen/isFullscreen).
+    #
+    # @param enable {Boolean}  Whether to enter fullscreen mode, or Null to query state.
+    # @return {Boolean}        The fullscreen state.
+    fullscreen(enable = Null)
+        if isNull(enable)
+            return self.isFullscreen()
+        end
+        self.setFullscreen(enable)
+        return enable
     end
 
     # Pins or unpins the window above all other windows.
