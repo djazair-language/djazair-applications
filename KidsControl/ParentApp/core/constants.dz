@@ -1,7 +1,0 @@
-# =============================================================================
-# constants.dz — ParentApp Master Server Configuration & Security
-# =============================================================================
-
-let SECRET_KEY = "KIDS_CTRL_2026"
-let MASTER_PORT = 9999
-let OFFLINE_TIMEOUT_SECONDS = 5.0
