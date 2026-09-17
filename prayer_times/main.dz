@@ -49,6 +49,7 @@ let app = webview.createWindow({
     "height": 780,
     "minWidth": 820,
     "minHeight": 600,
+    "frameless": True,
     "virtualHostDir": UI_DIR,
     "debug": False
 })
@@ -113,6 +114,31 @@ app.onReady(fn()
         end
         return True
     end)
+
+    # ── IPC Bridge: Frameless Window Controls ────────────────────────────────
+    app.bridge.on("win_minimize", fn(payload)
+        app.window.minimize()
+        return True
+    end)
+
+    app.bridge.on("win_toggleMaximize", fn(payload)
+        let isMax = app.window.toggleMaximize()
+        return isMax
+    end)
+
+    app.bridge.on("win_isMaximized", fn(payload)
+        return app.window.isMaximized()
+    end)
+
+    app.window.onResize(fn(w, h)
+        try
+            app.bridge.send("window_state_changed", {
+                "isMaximized": app.window.isMaximized()
+            })
+        catch err
+        end
+    end)
+
     # ── IPC Bridge: Initial Data Channel ─────────────────────────────────────
     app.bridge.on("getInitialData", fn(payload)
         let settings = storage.loadSettings()

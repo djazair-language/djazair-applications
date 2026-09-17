@@ -7,6 +7,42 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- ── Frameless Custom Window Titlebar ───────────────────────────────── -->
+    <header class="custom-titlebar">
+        <div class="titlebar-drag-zone" onmousedown="if(event.button === 0 && window.djazair) window.djazair.startDragging();" ondblclick="if(window.djazair) window.djazair.invoke('win_toggleMaximize');">
+            <div class="titlebar-brand">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.06-1.09.17-1.61 1.95 2.15 4.79 3.53 7.95 3.61.08.32.12.65.12 1 0 2.21-1.79 4-4 4-.69 0-1.33-.18-1.89-.48.88 1.48 2.47 2.48 4.31 2.48 2.76 0 5-2.24 5-5 0-.46-.07-.9-.19-1.32 1.44-.94 2.44-2.52 2.52-4.34.01-.11.01-.23.01-.34 1.25 1.54 2 3.5 2 5.66 0 4.41-3.59 8-8 8z"/>
+                </svg>
+                <span class="titlebar-title">مواقيت الصلاة</span>
+                <span class="titlebar-badge">لغة جزائر</span>
+            </div>
+            <div class="titlebar-drag-hint">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle>
+                    <circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle>
+                </svg>
+            </div>
+        </div>
+        <div class="titlebar-controls">
+            <button id="btnWinMin" class="titlebar-btn" title="تصغير (Minimize)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+            <button id="btnWinMax" class="titlebar-btn" title="تكبير / استعادة (Maximize)">
+                <svg id="iconWinMax" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                </svg>
+            </button>
+            <button id="btnWinClose" class="titlebar-btn btn-close" title="إغلاق (Close)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">

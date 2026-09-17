@@ -51,6 +51,94 @@ body {
 ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
+/* ── Frameless Custom Window Titlebar ───────────────────────────────────────── */
+.custom-titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    height: 34px;
+    background: rgba(5, 10, 18, 0.95);
+    border-bottom: 1px solid rgba(230, 195, 100, 0.18);
+    user-select: none;
+    -webkit-user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+}
+
+.titlebar-drag-zone {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 12px;
+    cursor: default;
+}
+
+.titlebar-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--gold-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.titlebar-brand svg {
+    color: var(--gold-primary);
+}
+
+.titlebar-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.titlebar-badge {
+    font-size: 0.65rem;
+    padding: 1px 7px;
+    border-radius: var(--radius-full);
+    background: rgba(230, 195, 100, 0.12);
+    border: 1px solid rgba(230, 195, 100, 0.28);
+    color: var(--gold-primary);
+    font-weight: 500;
+}
+
+.titlebar-drag-hint {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    opacity: 0.4;
+    margin-right: 6px;
+}
+
+.titlebar-controls {
+    display: flex;
+    align-items: stretch;
+}
+
+.titlebar-btn {
+    width: 44px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.titlebar-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.titlebar-btn.btn-close:hover {
+    background: #e81123;
+    color: #ffffff;
+}
+
 .app-container {
     max-width: 980px;
     margin: 0 auto;
@@ -58,7 +146,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 14px;
-    min-height: 100vh;
+    min-height: calc(100vh - 34px);
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */

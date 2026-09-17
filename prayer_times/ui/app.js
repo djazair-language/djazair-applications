@@ -850,6 +850,61 @@
                 }
             }
         });
+
+        // ── Frameless Custom Titlebar Controls ─────────────────────────
+        const btnWinMin = document.getElementById('btnWinMin');
+        const btnWinMax = document.getElementById('btnWinMax');
+        const iconWinMax = document.getElementById('iconWinMax');
+        const btnWinClose = document.getElementById('btnWinClose');
+
+        function updateMaxIcon(isMax) {
+            if (!iconWinMax) return;
+            if (isMax) {
+                iconWinMax.innerHTML = `
+                    <rect x="5" y="5" width="14" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M9 5V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-2" fill="none" stroke="currentColor" stroke-width="2"/>
+                `;
+            } else {
+                iconWinMax.innerHTML = `<rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>`;
+            }
+        }
+
+        if (btnWinMin) {
+            btnWinMin.addEventListener('click', () => {
+                if (window.djazair && window.djazair.invoke) {
+                    window.djazair.invoke('win_minimize');
+                }
+            });
+        }
+
+        if (btnWinMax) {
+            btnWinMax.addEventListener('click', async () => {
+                if (window.djazair && window.djazair.invoke) {
+                    try {
+                        const isMax = await window.djazair.invoke('win_toggleMaximize');
+                        updateMaxIcon(isMax);
+                    } catch (e) {
+                        console.error('win_toggleMaximize error:', e);
+                    }
+                }
+            });
+        }
+
+        if (btnWinClose) {
+            btnWinClose.addEventListener('click', () => {
+                if (window.djazair && window.djazair.invoke) {
+                    window.djazair.invoke('win_close');
+                }
+            });
+        }
+
+        if (window.djazair && window.djazair.on) {
+            window.djazair.on('window_state_changed', (payload) => {
+                if (payload && typeof payload.isMaximized !== 'undefined') {
+                    updateMaxIcon(payload.isMaximized);
+                }
+            });
+        }
     }
 
     async function changeLocation(country, city) {
