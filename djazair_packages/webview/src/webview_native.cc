@@ -729,16 +729,27 @@ extern "C" DJAZAIR_FUNC(nativeWindowCreate) {
         int final_w = width  > 0 ? width  : 800;
         int final_h = height > 0 ? height : 600;
 
+        LONG_PTR exStyle = GetWindowLongPtrW(hwnd_cr, GWL_EXSTYLE);
+        SetWindowLongPtrW(hwnd_cr, GWL_EXSTYLE, exStyle | WS_EX_APPWINDOW);
+
         if (pos_x >= 0 && pos_y >= 0) {
             // Explicit position requested — move and resize in one call
             SetWindowPos(hwnd_cr, NULL, pos_x, pos_y, final_w, final_h,
                          SWP_NOZORDER | SWP_SHOWWINDOW);
         } else {
-            // Keep OS default position, only set size
-            SetWindowPos(hwnd_cr, NULL, 0, 0, final_w, final_h,
-                         SWP_NOMOVE | SWP_NOZORDER | SWP_SHOWWINDOW);
+            // Center window on screen by default
+            int sw = GetSystemMetrics(SM_CXSCREEN);
+            int sh = GetSystemMetrics(SM_CYSCREEN);
+            int cx = (sw - final_w) / 2;
+            int cy = (sh - final_h) / 2;
+            if (cx < 0) cx = 0;
+            if (cy < 0) cy = 0;
+            SetWindowPos(hwnd_cr, NULL, cx, cy, final_w, final_h,
+                         SWP_NOZORDER | SWP_SHOWWINDOW);
         }
         UpdateWindow(hwnd_cr);
+        SetForegroundWindow(hwnd_cr);
+        SetFocus(hwnd_cr);
         pump_windows_messages();
     }
 #endif
@@ -2959,7 +2970,22 @@ extern "C" DJAZAIR_FUNC(nativeNotificationShow) {
 #if defined(WEBVIEW_PLATFORM_WINDOWS)
 static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_TRAYICON_MSG) {
-        if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
+        if (lParam == WM_LBUTTONUP || lParam == WM_LBUTTONDBLCLK) {
+            WindowContext* active_ctx = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(g_ctx_mtx);
+                if (!g_contexts.empty()) active_ctx = g_contexts.begin()->second;
+            }
+            if (active_ctx && active_ctx->wv) {
+                HWND main_hwnd = get_hwnd(active_ctx->wv);
+                if (main_hwnd) {
+                    ShowWindow(main_hwnd, SW_SHOW);
+                    ShowWindow(main_hwnd, SW_RESTORE);
+                    SetForegroundWindow(main_hwnd);
+                    SetFocus(main_hwnd);
+                }
+            }
+        } else if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
             int tray_id = (int)wParam;
             TrayContext* tc = nullptr;
             {

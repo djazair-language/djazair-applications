@@ -1,0 +1,124 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         services/storage.dz
+# Description:  Persistent storage management for user preferences & prayer cache.
+# =============================================================================
+
+use file
+use path
+use json
+use dir
+
+let DEFAULT_SETTINGS = {
+    "country": "DZ",
+    "city": "Algiers",
+    "cityAr": "الجزائر العاصمة",
+    "method": 13,
+    "adhanEnabled": True,
+    "adhanVolume": 80,
+    "notificationEnabled": True,
+    "startWithWindows": False,
+    "minimizeToTray": True,
+    "ramadanMode": False,
+    "selectedVoice": "chime",
+    "customAudioPath": "",
+    "tasbeehCount": 0
+}
+
+use process
+
+fn getDataDir()
+    let base = process.scriptDir()
+    let d = path.join(base, "data")
+    if !file.exists(d)
+        dir.createAll(d)
+    end
+    return d
+end
+
+fn getSettingsPath()
+    return getDataDir() + path.sep + "settings.json"
+end
+
+fn getCachePath()
+    return getDataDir() + path.sep + "cache.json"
+end
+
+# Loads user settings or initializes with defaults
+fn loadSettings()
+    let p = getSettingsPath()
+    if file.exists(p)
+        try
+            let content = file.read(p)
+            if content.length() > 0
+                let s = json.decode(content)
+                if isMap(s)
+                    # Merge with default keys in case new settings were added
+                    for k, v in DEFAULT_SETTINGS
+                        if !s.has(k)
+                            s[k] = v
+                        end
+                    end
+                    return s
+                end
+            end
+        catch err
+            # If corrupted, fallback to defaults
+        end
+    end
+    saveSettings(DEFAULT_SETTINGS)
+    return DEFAULT_SETTINGS
+end
+
+# Saves settings to JSON
+fn saveSettings(settings)
+    let p = getSettingsPath()
+    try
+        let jsonStr = json.encode(settings, 2)
+        file.write(p, jsonStr)
+        return True
+    catch err
+        return False
+    end
+end
+
+# Loads entire prayer cache
+fn loadCache()
+    let p = getCachePath()
+    if file.exists(p)
+        try
+            let content = file.read(p)
+            if content.length() > 0
+                let c = json.decode(content)
+                if isMap(c)
+                    return c
+                end
+            end
+        catch err
+        end
+    end
+    return {}
+end
+
+# Retrieves a cached day's prayer timings
+fn getCachedTimings(key)
+    let cache = loadCache()
+    if cache.has(key)
+        return cache[key]
+    end
+    return Null
+end
+
+# Saves prayer timings to cache
+fn setCachedTimings(key, data)
+    let cache = loadCache()
+    cache[key] = data
+    let p = getCachePath()
+    try
+        let jsonStr = json.encode(cache, 2)
+        file.write(p, jsonStr)
+        return True
+    catch err
+        return False
+    end
+end

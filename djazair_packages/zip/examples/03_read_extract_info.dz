@@ -1,0 +1,32 @@
+use zip
+use file
+use dir
+use os
+use assert
+
+let tmp = os.tmpDir() + "/zip_example3"
+dir.createAll(tmp)
+let zipPath = tmp + "/data.zip"
+
+let zw = new zip.ZipFile(zipPath, "w")
+zw.writestr("file_a.txt", "Content A")
+zw.writestr("file_b.txt", "Content B")
+zw.close()
+
+let zr = new zip.ZipFile(zipPath, "r")
+
+let names = zr.namelist()
+let info = zr.infolist()
+for entry in info
+    print("${entry.filename} — ${entry.file_size} bytes")
+end
+
+let fileA = zr.getinfo("file_a.txt")
+assert.isTrue(fileA.filename == "file_a.txt", "filename should match")
+print("file_a.txt CRC: ${fileA.CRC}")
+
+zr.extract("file_b.txt", tmp + "/extracted_b.txt")
+assert.isTrue(file.exists(tmp + "/extracted_b.txt"), "extracted file should exist")
+
+zr.close()
+dir.deleteAll(tmp)

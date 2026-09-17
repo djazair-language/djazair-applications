@@ -1,0 +1,48 @@
+use zip
+use file
+use dir
+use os
+use bytes
+
+let tmp = os.tmpDir() + "/ziptest"
+if !file.exists(tmp)
+    dir.createAll(tmp)
+end
+
+let path = tmp + "/t2.zip"
+if file.exists(path)
+    file.delete(path)
+end
+
+let z = new zip.ZipFile(path, "w")
+z.writestr("a.txt", "A")
+z.writestr("c.txt", "CC")
+z.close()
+
+print("After write mode:")
+print("  file size: ", file.size(path))
+
+let data = file.readBytes(path)
+print("  hex: ", bytes.bytesToHex(data))
+
+let z2 = new zip.ZipFile(path, "a")
+print("In append mode:")
+print("  namelist: ", z2.namelist())
+print("  file size before writestr: ", file.size(path))
+z2.writestr("b.txt", "B")
+z2.close()
+
+print("After append:")
+print("  file size: ", file.size(path))
+let data2 = file.readBytes(path)
+print("  hex: ", bytes.bytesToHex(data2))
+
+let z3 = new zip.ZipFile(path, "r")
+print("Read mode:")
+print("  namelist: ", z3.namelist())
+print("  a.txt: ", z3.read("a.txt"))
+print("  c.txt: ", z3.read("c.txt"))
+print("  b.txt: ", z3.read("b.txt"))
+z3.close()
+
+dir.deleteAll(tmp)

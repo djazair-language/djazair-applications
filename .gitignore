@@ -1,2 +1,5 @@
 *.db
 djazair-applications\webview_apps\trading-journal\data
+**/.dpack_cache_*
+**/*.dpack_stage_tmp
+**/data/cache.json

@@ -1,0 +1,180 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         services/calculator.dz
+# Description:  Astronomical solar calculation engine for prayer times (Offline Fallback)
+# =============================================================================
+
+use math
+
+# Helper trigonometry functions working with degrees
+fn d2r(d)
+    return d * math.PI / 180.0
+end
+
+fn r2d(r)
+    return r * 180.0 / math.PI
+end
+
+fn sinD(d)
+    return math.sin(d2r(d))
+end
+
+fn cosD(d)
+    return math.cos(d2r(d))
+end
+
+fn tanD(d)
+    return math.tan(d2r(d))
+end
+
+fn asinD(x)
+    if x < -1.0 x = -1.0 end
+    if x > 1.0  x = 1.0 end
+    return r2d(math.asin(x))
+end
+
+fn acosD(x)
+    if x < -1.0 x = -1.0 end
+    if x > 1.0  x = 1.0 end
+    return r2d(math.acos(x))
+end
+
+fn atan2D(y, x)
+    return r2d(math.atan2(y, x))
+end
+
+fn fixAngle(a)
+    a = a - 360.0 * math.floor(a / 360.0)
+    if a < 0.0 a = a + 360.0 end
+    return a
+end
+
+fn fixHour(h)
+    h = h - 24.0 * math.floor(h / 24.0)
+    if h < 0.0 h = h + 24.0 end
+    return h
+end
+
+# Calculates Julian Day from Gregorian date
+fn julianDay(year, month, day)
+    if month <= 2
+        year = year - 1
+        month = month + 12
+    end
+    let a = math.floor(year / 100.0)
+    let b = 2.0 - a + math.floor(a / 4.0)
+    return math.floor(365.25 * (year + 4716.0)) + math.floor(30.6001 * (month + 1.0)) + day + b - 1524.5
+end
+
+# Calculates Sun coordinates (declination and equation of time)
+fn sunCoordinates(jd)
+    let d = jd - 2451545.0
+    let g = fixAngle(357.529 + 0.98560028 * d)
+    let q = fixAngle(280.459 + 0.98564736 * d)
+    let l = fixAngle(q + 1.915 * sinD(g) + 0.020 * sinD(2.0 * g))
+
+    let e = 23.439 - 0.00000036 * d
+    let ra = fixHour(atan2D(cosD(e) * sinD(l), cosD(l)) / 15.0)
+    let declination = asinD(sinD(e) * sinD(l))
+    let eqTime = (q / 15.0) - ra
+    if eqTime > 12.0  eqTime = eqTime - 24.0 end
+    if eqTime < -12.0 eqTime = eqTime + 24.0 end
+
+    return {"declination": declination, "eqTime": eqTime}
+end
+
+# Calculates the hour difference T for a given sun angle
+fn sunAngleDiff(angle, lat, decl)
+    let top = -sinD(angle) - (sinD(lat) * sinD(decl))
+    let bottom = cosD(lat) * cosD(decl)
+    let cosT = top / bottom
+    if cosT < -1.0 or cosT > 1.0
+        return Null
+    end
+    return acosD(cosT) / 15.0
+end
+
+# Formats decimal hours into "HH:MM"
+fn formatTime(hours)
+    hours = fixHour(hours + 0.5 / 60.0) # round to nearest minute
+    let h = math.floor(hours)
+    let m = math.floor((hours - h) * 60.0)
+    let hStr = if h < 10 ? "0" + str(h) else str(h)
+    let mStr = if m < 10 ? "0" + str(m) else str(m)
+    return "${hStr}:${mStr}"
+end
+
+# Calculates offline prayer times for a specific location and date
+# method: 13 (Algeria), 4 (Umm Al-Qura), 3 (Muslim World League), 5 (Egypt), etc.
+fn calculatePrayerTimes(year, month, day, lat, lng, timezone = 1, method = 13)
+    let jd = julianDay(year, month, day)
+    let sun = sunCoordinates(jd)
+    let decl = sun["declination"]
+    let eqTime = sun["eqTime"]
+
+    # Midday (Dhuhr)
+    let dhuhr = fixHour(12.0 + timezone - (lng / 15.0) - eqTime)
+
+    # Method parameters
+    let fajrAngle = 18.0
+    let ishaAngle = 17.0
+    let ishaInterval = Null
+
+    if method == 13 # Algeria
+        fajrAngle = 18.0
+        ishaAngle = 17.0
+    elif method == 4 # Umm Al-Qura
+        fajrAngle = 18.5
+        ishaInterval = 90 # 90 minutes after Maghrib
+    elif method == 5 # Egypt
+        fajrAngle = 19.5
+        ishaAngle = 17.5
+    elif method == 3 # MWL
+        fajrAngle = 18.0
+        ishaAngle = 17.0
+    elif method == 1 # Karachi
+        fajrAngle = 18.0
+        ishaAngle = 18.0
+    elif method == 2 # ISNA
+        fajrAngle = 15.0
+        ishaAngle = 15.0
+    end
+
+    # Fajr
+    let diffFajr = sunAngleDiff(fajrAngle, lat, decl)
+    let fajr = if !isNull(diffFajr) ? dhuhr - diffFajr else dhuhr - 1.5
+
+    # Sunrise (sun center at 0.833 degrees below horizon for refraction & diameter)
+    let diffSunrise = sunAngleDiff(0.833, lat, decl)
+    let sunrise = if !isNull(diffSunrise) ? dhuhr - diffSunrise else dhuhr - 1.0
+
+    # Sunset / Maghrib
+    let sunset = if !isNull(diffSunrise) ? dhuhr + diffSunrise else dhuhr + 1.0
+    let maghrib = sunset + (2.0 / 60.0) # 2-3 minutes safety margin
+
+    # Asr (Shafi'i/Maliki/Hanbali: shadow = 1)
+    let asrAlt = r2d(math.atan(1.0 / (1.0 + math.tan(d2r(math.abs(lat - decl))))))
+    let diffAsr = sunAngleDiff(-asrAlt, lat, decl)
+    let asr = if !isNull(diffAsr) ? dhuhr + diffAsr else dhuhr + 3.5
+
+    # Isha
+    let isha = 0.0
+    if !isNull(ishaInterval)
+        isha = maghrib + (ishaInterval / 60.0)
+    else
+        let diffIsha = sunAngleDiff(ishaAngle, lat, decl)
+        isha = if !isNull(diffIsha) ? dhuhr + diffIsha else dhuhr + 1.5
+    end
+
+    return {
+        "Fajr": formatTime(fajr),
+        "Sunrise": formatTime(sunrise),
+        "Dhuhr": formatTime(dhuhr),
+        "Asr": formatTime(asr),
+        "Sunset": formatTime(sunset),
+        "Maghrib": formatTime(maghrib),
+        "Isha": formatTime(isha),
+        "Imsak": formatTime(fajr - (10.0 / 60.0)),
+        "Midnight": formatTime(sunset + ((sunrise + 24.0 - sunset) / 2.0))
+    }
+end

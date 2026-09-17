@@ -1,0 +1,37 @@
+use zip
+use file
+use dir
+use os
+use assert
+
+let tmp = os.tmpDir() + "/zip_example5"
+dir.createAll(tmp)
+
+let data = "Djazair programming language - zip extension demo\n"
+let bigData = ""
+for i in 0..100
+    bigData = bigData + data
+end
+
+let compressedData = zip.compress(bigData)
+print("Compression ratio: ${(compressedData.length() * 100) / bigData.length()}%")
+
+let zipPath = tmp + "/demo.zip"
+let zf = new zip.ZipFile(zipPath, "w")
+zf.writestr("README.txt", "Zip extension demo")
+zf.writestr("compressed.dat", compressedData)
+zf.close()
+
+let zr = new zip.ZipFile(zipPath, "r")
+let readme = zr.read("README.txt")
+let compressedBack = zr.read("compressed.dat")
+let decompressedBack = zip.decompress(compressedBack)
+
+assert.equal(readme, "Zip extension demo", "readme should match")
+assert.equal(decompressedBack, bigData, "round-trip should preserve data")
+assert.isTrue(compressedBack.length() < bigData.length(), "stored compressed data should be smaller")
+
+print("Round-trip verification: PASSED")
+zr.close()
+
+dir.deleteAll(tmp)

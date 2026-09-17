@@ -1,0 +1,36 @@
+use zip
+use file
+use dir
+use os
+
+let tmp = "${os.tmpDir()}/ziptest"
+dir.createAll(tmp)
+
+let z = new zip.ZipFile("${tmp}/t.zip", "w")
+z.writestr("a.txt", "A")
+z.close()
+
+let z2 = new zip.ZipFile("${tmp}/t.zip", "a")
+z2.writestr("b.txt", "B")
+z2.close()
+
+let data = file.readBytes("${tmp}/t.zip")
+print("file size: ${data.length()}")
+
+let i = 0
+while i < data.length()
+    let line = ""
+    let j = 0
+    while j < 16 and i + j < data.length()
+        let b = data[i + j]
+        if b < 16
+            line = "${line}0"
+        end
+        line = "${line}${b} "
+        j = j + 1
+    end
+    print("${i}: ${line}")
+    i = i + 16
+end
+
+dir.deleteAll(tmp)

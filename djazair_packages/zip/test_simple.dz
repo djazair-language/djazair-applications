@@ -1,0 +1,26 @@
+use zip
+use file
+use dir
+use os
+use bytes
+
+let tmp = os.tmpDir() + "/ziptest2"
+dir.createAll(tmp)
+let path = tmp + "/s.zip"
+
+let z = new zip.ZipFile(path, "w")
+z.writestr("x.txt", "X")
+z.writestr("y.txt", "YY")
+z.close()
+
+print("size: ", file.size(path))
+let data = file.readBytes(path)
+print("hex: ", bytes.bytesToHex(data))
+
+let z2 = new zip.ZipFile(path, "r")
+print("files: ", z2.namelist())
+print("x.txt: ", z2.read("x.txt"))
+print("y.txt: ", z2.read("y.txt"))
+z2.close()
+
+dir.deleteAll(tmp)

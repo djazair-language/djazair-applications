@@ -96,14 +96,20 @@ class Window
         let selfRef = self
         _native.windowSetCloseCallback(h, fn()
             sysLog("Window", "Window close triggered by user")
+            let shouldClose = True
             try
                 if !isNull(selfRef._onClose)
-                    selfRef._onClose()
+                    let res = selfRef._onClose()
+                    if res == False
+                        shouldClose = False
+                    end
                 end
             catch err
                 sysLog("Window", "Error in onClose callback: ${err}", "error")
             end
-            selfRef.close()
+            if shouldClose
+                selfRef.close()
+            end
         end)
     end
 

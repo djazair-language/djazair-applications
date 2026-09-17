@@ -1,0 +1,29 @@
+use zip
+use file
+use dir
+use os
+use assert
+
+let tmp = os.tmpDir() + "/zip_example2"
+dir.createAll(tmp)
+let zipPath = tmp + "/test.zip"
+
+let zf = new zip.ZipFile(zipPath, "w")
+zf.writestr("hello.txt", "Hello, World!")
+zf.writestr("subdir/data.txt", "Data in subdirectory")
+zf.close()
+
+assert.isTrue(file.exists(zipPath), "ZIP file should exist")
+
+let zr = new zip.ZipFile(zipPath, "r")
+let names = zr.namelist()
+print("Files in archive:")
+for name in names
+    print("  - ${name}")
+end
+
+assert.isTrue(names.length() == 2, "should have 2 entries")
+print("Content of hello.txt: ${zr.read("hello.txt")}")
+zr.close()
+
+dir.deleteAll(tmp)

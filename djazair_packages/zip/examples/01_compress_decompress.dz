@@ -1,0 +1,14 @@
+use zip
+use assert
+
+let original = "Hello, Djazair! This is a test of gzip compress/decompress."
+let compressed = zip.compress(original)
+let decompressed = zip.decompress(compressed)
+
+assert.isTrue(compressed.length() < original.length(), "compressed should be smaller for repetitive data")
+assert.equal(decompressed, original, "decompressed should match original")
+
+print("Original: ${original.length()} bytes")
+print("Compressed: ${compressed.length()} bytes")
+print("Ratio: ${(compressed.length() * 100) / original.length()}%")
+print("Decompressed matches original: ${decompressed == original}")

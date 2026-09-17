@@ -1,0 +1,20 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         build_app.dz
+# Description:  Standalone Executable Builder using dpack
+# =============================================================================
+
+use dpack
+
+print("====================================================")
+print("  Bundling Djazair Prayer Times into Standalone EXE")
+print("====================================================")
+
+dpack.pack("prayer_times/main.dz", "prayer_times/prayer_times.exe", {
+    "extensions": ["webview"],
+    "console": False,
+    "assets": True,
+    "portable": True
+})
+
+print("\n[SUCCESS] Standalone Executable created: prayer_times/prayer_times.exe")

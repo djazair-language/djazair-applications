@@ -1,0 +1,243 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         services/api.dz
+# Description:  Aladhan HTTP API Client with Redirect Resolution, Caching, and
+#               Offline Fallback Calculation.
+# =============================================================================
+
+use http
+use json
+use datetime
+use math
+import "geo.dz" as geo
+import "storage.dz" as storage
+import "calculator.dz" as calc
+
+# Performs HTTP request with smart redirect following (for 301/302)
+fn smartGet(url, maxRedirects = 3)
+    let currentUrl = url
+    let count = 0
+
+    while count < maxRedirects
+        let res = Null
+        try
+            res = http.get(currentUrl)
+        catch err
+            return Null
+        end
+
+        if isNull(res)
+            return Null
+        end
+
+        if res.statusCode == 301 or res.statusCode == 302
+            let loc = ""
+            if isMap(res.headers) and res.headers.has("location")
+                loc = res.headers["location"]
+            end
+            if loc == ""
+                return res
+            end
+
+            if !loc.startsWith("http")
+                currentUrl = "https://api.aladhan.com" + loc
+            else
+                currentUrl = loc
+            end
+            count = count + 1
+        else
+            return res
+        end
+    end
+    return Null
+end
+
+# Formats today's date in DD-MM-YYYY
+fn getTodayDateStr()
+    let now = datetime.now()
+    let d = now.day()
+    let m = now.month()
+    let y = now.year()
+    let dStr = if d < 10 ? "0" + str(d) else str(d)
+    let mStr = if m < 10 ? "0" + str(m) else str(m)
+    return "${dStr}-${mStr}-${y}"
+end
+
+# Generates cache key
+fn getCacheKey(country, city, dateStr, method)
+    return "${country}_${city}_${dateStr}_${method}"
+end
+
+# Main function to get prayer times for a city and country
+fn getPrayerTimes(country, city, method = 13)
+    let now = datetime.now()
+    let dateStr = getTodayDateStr()
+    let cacheKey = getCacheKey(country, city, dateStr, method)
+
+    # 1. Check local cache first
+    let cached = storage.getCachedTimings(cacheKey)
+    if !isNull(cached)
+        return cached
+    end
+
+    # 2. Try online API
+    let apiUrl = "https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=${city}&country=${country}&method=${method}"
+    let res = smartGet(apiUrl)
+
+    if !isNull(res) and res.statusCode == 200
+        try
+            let bodyData = json.decode(res.body)
+            if bodyData.has("code") and bodyData["code"] == 200 and bodyData.has("data")
+                let d = bodyData["data"]
+                let hijri = d["date"]["hijri"]
+                let greg = d["date"]["gregorian"]
+                let rawTimings = d["timings"]
+
+                # Clean timings (remove timezone notation like "(CET)")
+                let timings = {}
+                for k, v in rawTimings
+                    let cleanTime = v.split(" ")[0]
+                    timings[k] = cleanTime
+                end
+
+                let result = {
+                    "success": True,
+                    "source": "online",
+                    "country": country,
+                    "city": city,
+                    "method": method,
+                    "dateStr": dateStr,
+                    "timings": timings,
+                    "hijri": {
+                        "date": hijri["date"],
+                        "day": hijri["day"],
+                        "weekday": hijri["weekday"]["ar"],
+                        "month": hijri["month"]["ar"],
+                        "year": hijri["year"],
+                        "formatted": "${hijri['day']} ${hijri['month']['ar']} ${hijri['year']} هـ"
+                    },
+                    "gregorian": {
+                        "date": greg["date"],
+                        "day": greg["day"],
+                        "weekday": greg["weekday"]["en"],
+                        "month": greg["month"]["en"],
+                        "year": greg["year"],
+                        "formatted": "${greg['day']} ${greg['month']['en']} ${greg['year']}"
+                    }
+                }
+
+                let cityData = geo.findCity(country, city)
+                let lat = 36.753
+                let lng = 3.058
+                if !isNull(cityData)
+                    lat = cityData["lat"]
+                    lng = cityData["lng"]
+                end
+                result["qibla"] = calculateQibla(lat, lng)
+
+                # Save to cache
+                storage.setCachedTimings(cacheKey, result)
+                return result
+            end
+        catch err
+            # JSON parse error or malformed body
+        end
+    end
+
+    # 3. Fallback: Offline Astronomical Calculation
+    let cityData = geo.findCity(country, city)
+    let lat = 36.753
+    let lng = 3.058
+    let cityNameAr = city
+    if !isNull(cityData)
+        lat = cityData["lat"]
+        lng = cityData["lng"]
+        cityNameAr = cityData["ar"]
+    end
+
+    let offTimings = calc.calculatePrayerTimes(now.year(), now.month(), now.day(), lat, lng, 1, method)
+
+    let fallbackResult = {
+        "success": True,
+        "source": "offline",
+        "country": country,
+        "city": city,
+        "cityNameAr": cityNameAr,
+        "method": method,
+        "dateStr": dateStr,
+        "timings": offTimings,
+        "qibla": calculateQibla(lat, lng),
+        "hijri": {
+            "date": "",
+            "day": "",
+            "weekday": "اليوم",
+            "month": "",
+            "year": "",
+            "formatted": "حساب محلي فلكي (دون إنترنت)"
+        },
+        "gregorian": {
+            "date": dateStr,
+            "day": str(now.day()),
+            "weekday": "",
+            "month": str(now.month()),
+            "year": str(now.year()),
+            "formatted": "${now.day()}-${now.month()}-${now.year()}"
+        }
+    }
+
+    storage.setCachedTimings(cacheKey, fallbackResult)
+    return fallbackResult
+end
+
+# Calculates accurate Qibla direction bearing in degrees from True North (Clockwise)
+fn calculateQibla(lat, lng)
+    let makkahLat = 21.4225
+    let makkahLng = 39.8262
+
+    let phiK = makkahLat * math.PI / 180.0
+    let lambdaK = makkahLng * math.PI / 180.0
+    let phi = lat * math.PI / 180.0
+    let lambda = lng * math.PI / 180.0
+
+    let deltaLambda = lambdaK - lambda
+    let y = math.sin(deltaLambda)
+    let x = (math.cos(phi) * math.tan(phiK)) - (math.sin(phi) * math.cos(deltaLambda))
+
+    let qiblaRad = math.atan2(y, x)
+    let qiblaDeg = qiblaRad * 180.0 / math.PI
+    if qiblaDeg < 0.0
+        qiblaDeg = qiblaDeg + 360.0
+    end
+    return math.round(qiblaDeg * 10.0) / 10.0
+end
+
+# Automatically detects user location via IP lookup
+fn detectLocation()
+    try
+        let res = http.get("http://ip-api.com/json/")
+        if !isNull(res) and res.statusCode == 200
+            let data = json.decode(res.body)
+            if isMap(data) and data.get("status", "") == "success"
+                let countryCode = data.get("countryCode", "DZ")
+                let cityName = data.get("city", "Algiers")
+                let lat = data.get("lat", 36.75)
+                let lon = data.get("lon", 3.05)
+
+                let matched = geo.matchLocation(countryCode, cityName, lat, lon)
+                if !isNull(matched)
+                    return {
+                        "success": True,
+                        "country": countryCode,
+                        "city": matched["name"],
+                        "cityAr": matched["ar"],
+                        "lat": matched["lat"],
+                        "lng": matched["lng"]
+                    }
+                end
+            end
+        end
+    catch err
+    end
+    return Null
+end
+

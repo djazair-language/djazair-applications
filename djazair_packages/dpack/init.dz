@@ -1,0 +1,215 @@
+# dpack — Djazair Standalone Executable Packer Library
+#
+# Usage in Djazair code:
+#   use dpack
+#
+#   dpack.pack("main.dz")
+#   dpack.cleanCache()
+#   dpack.verify("app.exe")
+#   dpack.inspect("app.exe")
+#
+# Developer: Harizi Riyadh (hariziriyadh@gmail.com)
+
+use process
+use file
+use path
+use dir
+use os
+use math
+use env
+use json
+
+import "core/Packer.dz"   as PackerMod
+import "core/Inspector.dz" as Inspector
+
+let Packer = PackerMod.Packer
+
+fn defaultOutputName(scriptPath)
+    let base = path.basename(scriptPath)
+    if base.endsWith(".dz")
+        base = base.slice(0, base.length() - 3)
+    end
+    if os.isWindows()
+        if !base.endsWith(".exe")
+            base = base + ".exe"
+        end
+    end
+    return path.join(path.dirname(scriptPath), base)
+end
+
+# Main function for packing a script programmatically.
+# Loads dpack.json if present in the project directory.
+fn pack(scriptPath = Null, outputPath = Null, options = {})
+    # ── Load dpack.json if present ───────────────────────────────────────
+    let configPath = path.join(process.cwd(), "dpack.json")
+    if !file.exists(configPath) and !isNull(scriptPath)
+        let scriptDirConfig = path.join(path.dirname(path.resolve(scriptPath)), "dpack.json")
+        if file.exists(scriptDirConfig)
+            configPath = scriptDirConfig
+        end
+    end
+
+    if file.exists(configPath)
+        try
+            let cfgStr = file.read(configPath)
+            let cfg = json.decode(cfgStr)
+            if type(cfg) == "Map" or type(cfg) == "Object" or type(cfg) == "Dictionary"
+                if isNull(scriptPath) and cfg.has("main")
+                    scriptPath = cfg["main"]
+                end
+                if isNull(outputPath) and cfg.has("output")
+                    outputPath = cfg["output"]
+                end
+                # Merge config keys into options (explicit options takes precedence)
+                let keys = cfg.keys()
+                for k in keys
+                    if !options.has(k)
+                        options[k] = cfg[k]
+                    end
+                end
+            end
+        catch err
+            print("  Warning: Failed to parse dpack.json: ${err}")
+        end
+    end
+
+    if isNull(scriptPath)
+        throw "dpack: No entry script provided, and no 'main' found in dpack.json."
+    end
+
+    let absScript = path.resolve(scriptPath)
+    if !file.exists(absScript)
+        let altScript = path.join(process.scriptDir(), scriptPath)
+        if file.exists(altScript)
+            absScript = path.resolve(altScript)
+        end
+    end
+
+    if isNull(outputPath)
+        outputPath = defaultOutputName(absScript)
+    else
+        if !path.isAbsolute(outputPath)
+            outputPath = path.resolve(outputPath)
+        end
+    end
+    
+    let p = new Packer(options)
+    p.pack(absScript, outputPath, options)
+end
+
+fn calcDirSize(d)
+    let list = dir.list(d)
+    let total = 0
+    for it in list
+        let child = path.join(d, it)
+        if file.isDir(child)
+            total += calcDirSize(child)
+        else
+            total += file.size(child)
+        end
+    end
+    return total
+end
+
+# Cleans up cached dpack build folders from system TEMP directory.
+fn cleanCache()
+    let tmpDir = ""
+    if os.isWindows()
+        tmpDir = env.getOr("TEMP", "C:\\Windows\\Temp")
+    else
+        tmpDir = env.getOr("TMPDIR", "/tmp")
+    end
+
+    if !file.exists(tmpDir)
+        print("Temp directory not found.")
+        return
+    end
+
+    let items = dir.list(tmpDir)
+    let cleanedCount = 0
+    let cleanedBytes = 0
+
+    for item in items
+        if item.startsWith("dpack_app_") or item.startsWith("dpack_inspect_") or item == ".dpack_stage_tmp"
+            let p = path.join(tmpDir, item)
+            if file.isDir(p)
+                try
+                    let sz = calcDirSize(p)
+                    dir.deleteAll(p)
+                    cleanedCount += 1
+                    cleanedBytes += sz
+                catch e
+                    # Skip if currently locked
+                end
+            end
+        end
+    end
+
+    # Also clean leftover build artifacts in the current directory
+    for left in [path.join(process.cwd(), ".dpack_bundle.zip"), path.join(process.cwd(), ".dpack_stage_tmp")]
+        if file.exists(left)
+            try
+                if file.isDir(left)
+                    let leftSize = calcDirSize(left)
+                    dir.deleteAll(left)
+                    cleanedCount += 1
+                    cleanedBytes += leftSize
+                else
+                    let leftSize = file.size(left)
+                    file.delete(left)
+                    cleanedCount += 1
+                    cleanedBytes += leftSize
+                end
+            catch e
+                # Skip if currently locked or in use
+            end
+        end
+    end
+
+    let szStr = ""
+    if cleanedBytes < 1048576
+        szStr = "${math.floor(cleanedBytes / 1024)} KB"
+    else
+        szStr = "${math.floor(cleanedBytes / 1048576)} MB"
+    end
+
+    print("")
+    print("  ✓  Cleaned ${cleanedCount} cached dpack folder(s) (${szStr} freed)")
+    print("")
+end
+
+# Checks whether a file is a valid dpack bundle.
+fn verify(exePath)
+    if !path.isAbsolute(exePath)
+        exePath = path.resolve(exePath)
+    end
+    return Inspector.verify(exePath)
+end
+
+# Lists all files bundled inside a packed executable.
+fn inspect(exePath)
+    if !path.isAbsolute(exePath)
+        exePath = path.resolve(exePath)
+    end
+    let fileList = Inspector.inspect(exePath)
+
+    print("")
+    print("  Contents of: ${path.basename(exePath)}")
+    print("  ------------------------------------")
+    for f in fileList
+        let sz = f["size"]
+        let szStr = ""
+        if sz < 1024
+            szStr = "${sz} B"
+        elif sz < 1048576
+            szStr = "${math.floor(sz / 1024)} KB"
+        else
+            szStr = "${math.floor(sz / 1048576)} MB"
+        end
+        print("  ${f[\"path\"]}  (${szStr})")
+    end
+    print("  ------------------------------------")
+    print("  Total: ${fileList.length()} files")
+    print("")
+    return fileList
+end

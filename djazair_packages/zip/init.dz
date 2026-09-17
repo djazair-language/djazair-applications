@@ -1,0 +1,82 @@
+use assert
+use dir
+use path
+use file
+let _z = __dynamic("zip")
+
+let compress = _z.compress
+let decompress = _z.decompress
+
+class ZipFile
+    init(path, mode = "r")
+        self._handle = _z.open(path, mode)
+    end
+
+    close()
+        _z.close(self._handle)
+    end
+
+    read(name)
+        return _z.read(self._handle, name)
+    end
+
+    write(name)
+        let content = file.read(name)
+        self.writestr(name, content)
+    end
+
+    writestr(name, data)
+        _z.writestr(self._handle, name, data)
+    end
+
+    namelist()
+        return _z.namelist(self._handle)
+    end
+
+    infolist()
+        return _z.infolist(self._handle)
+    end
+
+    getinfo(name)
+        return _z.getinfo(self._handle, name)
+    end
+
+    extract(member, path = Null)
+        if isNull(path)
+            _z.extract(self._handle, member)
+        else
+            _z.extract(self._handle, member, path)
+        end
+    end
+
+    extractall(extractPath = ".")
+        let names = self.namelist()
+        for name in names
+            let destPath = path.join(extractPath, name)
+            if name.endsWith("/")
+                if !file.exists(destPath)
+                    dir.createAll(destPath)
+                end
+            else
+                let parentDir = path.dirname(destPath)
+                if !file.exists(parentDir)
+                    dir.createAll(parentDir)
+                end
+                self.extract(name, destPath)
+            end
+        end
+    end
+
+    printdir()
+        let info = self.infolist()
+        print("File Name\t\t\tSize\tCompressed")
+        print("---------\t\t\t----\t----------")
+        for entry in info
+            print("${entry.filename}\t\t\t${entry.file_size}\t${entry.compress_size}")
+        end
+    end
+
+    testzip()
+        return _z.test(self._handle)
+    end
+end

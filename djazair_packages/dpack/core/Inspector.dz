@@ -1,0 +1,122 @@
+# dpack/core/Inspector.dz
+# Utilities for verifying and inspecting dpack-bundled executables.
+#
+# Developer: Harizi Riyadh (hariziriyadh@gmail.com)
+
+use file
+use path
+use dir
+use bytes
+use os
+use env
+use math
+use random
+use process
+use zip
+
+# ── verify(exePath) ─────────────────────────────────────────────────────────
+# Checks if a file is a valid dpack bundle.
+# Returns: {"valid": Bool, "reason": String, "zipOffset": Int, "zipSize": Int}
+fn verify(exePath)
+    let result = {"valid": False, "reason": "", "zipOffset": 0, "zipSize": 0, "flags": 0}
+
+    if !file.exists(exePath)
+        result["reason"] = "File not found: " + exePath
+        return result
+    end
+
+    let size = file.size(exePath)
+    if size < 16
+        result["reason"] = "File too small to be a valid dpack bundle."
+        return result
+    end
+
+    let handle = file.open(exePath, "rb")
+    if isNull(handle) or !handle.isOpen()
+        result["reason"] = "Could not open file: " + exePath
+        return result
+    end
+
+    # Read 16-byte footer: [flags: 4B][reserved: 4B][offset: 8B]
+    handle.seek(int(size - 16))
+    let footerStr = handle.readBytes(16)
+    if footerStr.length() < 16
+        handle.close()
+        result["reason"] = "Could not read file footer."
+        return result
+    end
+
+    let footerBytes = bytes.fromString(footerStr)
+    let flags = footerBytes[0] | (footerBytes[1] * 256) | (footerBytes[2] * 65536) | (footerBytes[3] * 16777216)
+    let offsetBuf = footerBytes.slice(8, 16)
+    let zipOffset = bytes.toInteger(offsetBuf, False)
+    let zipSize = int(size - zipOffset - 16)
+
+    if zipOffset <= 0 or zipOffset >= size or zipSize <= 0
+        handle.close()
+        result["reason"] = "No valid dpack bundle found in this file."
+        return result
+    end
+
+    # Check ZIP magic bytes: PK\x03\x04
+    handle.seek(int(zipOffset))
+    let magic = handle.readBytes(2)
+    handle.close()
+
+    if magic.length() < 2 or magic[0] != "P" or magic[1] != "K"
+        result["reason"] = "Embedded data does not appear to be a ZIP archive."
+        return result
+    end
+
+    result["valid"] = True
+    result["reason"] = "Valid dpack bundle."
+    result["zipOffset"] = int(zipOffset)
+    result["zipSize"] = int(zipSize)
+    result["flags"] = int(flags)
+    return result
+end
+
+# ── inspect(exePath) ─────────────────────────────────────────────────────────
+# Lists all files bundled inside a packed executable.
+# Returns an array of {"path": String, "size": Number}
+fn inspect(exePath)
+    let check = verify(exePath)
+    if !check["valid"]
+        throw "dpack inspect: ${check[\"reason\"]}"
+    end
+
+    let tmpDir = if os.isWindows() ? env.getOr("TEMP", "C:\\Windows\\Temp") else env.getOr("TMPDIR", "/tmp")
+    let tmpZip = path.join(tmpDir, "dpack_inspect_${random.int(10000, 99999)}.zip")
+
+    # Read the ZIP stream and write to tmpZip
+    let inHandle = file.open(exePath, "rb")
+    inHandle.seek(int(check["zipOffset"]))
+    let zipBytes = inHandle.readBytes(int(check["zipSize"]))
+    inHandle.close()
+
+    let outHandle = file.open(tmpZip, "wb")
+    outHandle.write(zipBytes)
+    outHandle.close()
+
+    let fileList = []
+    try
+        let z = new zip.ZipFile(tmpZip, "r")
+        let entries = z.infolist()
+        for entry in entries
+            fileList.append({"path": entry.filename, "size": entry.file_size})
+        end
+        z.close()
+    catch err
+        if file.exists(tmpZip)
+            file.delete(tmpZip)
+        end
+        throw err
+    end
+
+    if file.exists(tmpZip)
+        file.delete(tmpZip)
+    end
+
+    return fileList
+end
+

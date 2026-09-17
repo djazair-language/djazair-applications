@@ -1,0 +1,264 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         services/geo.dz
+# Description:  Database of Countries, Cities (58 Algerian Wilayas + World), and
+#               Prayer Calculation Methods.
+# =============================================================================
+
+# List of all 58 Algerian Wilayas with accurate coordinates
+let ALGERIA_WILAYAS = [
+    {"code": 1,  "name": "Adrar", "ar": "أدرار", "lat": 27.874, "lng": -0.293},
+    {"code": 2,  "name": "Chlef", "ar": "الشلف", "lat": 36.165, "lng": 1.334},
+    {"code": 3,  "name": "Laghouat", "ar": "الأغواط", "lat": 33.800, "lng": 2.865},
+    {"code": 4,  "name": "Oum El Bouaghi", "ar": "أم البواقي", "lat": 35.875, "lng": 7.113},
+    {"code": 5,  "name": "Batna", "ar": "باتنة", "lat": 35.556, "lng": 6.174},
+    {"code": 6,  "name": "Bejaia", "ar": "بجاية", "lat": 36.755, "lng": 5.084},
+    {"code": 7,  "name": "Biskra", "ar": "بسكرة", "lat": 34.850, "lng": 5.733},
+    {"code": 8,  "name": "Bechar", "ar": "بشار", "lat": 31.616, "lng": -2.216},
+    {"code": 9,  "name": "Blida", "ar": "البليدة", "lat": 36.470, "lng": 2.827},
+    {"code": 10, "name": "Bouira", "ar": "البويرة", "lat": 36.375, "lng": 3.900},
+    {"code": 11, "name": "Tamanrasset", "ar": "تمنراست", "lat": 22.785, "lng": 5.522},
+    {"code": 12, "name": "Tebessa", "ar": "تبسة", "lat": 35.404, "lng": 8.124},
+    {"code": 13, "name": "Tlemcen", "ar": "تلمسان", "lat": 34.878, "lng": -1.315},
+    {"code": 14, "name": "Tiaret", "ar": "تيارت", "lat": 35.371, "lng": 1.316},
+    {"code": 15, "name": "Tizi Ouzou", "ar": "تيزي وزو", "lat": 36.711, "lng": 4.045},
+    {"code": 16, "name": "Algiers", "ar": "الجزائر العاصمة", "lat": 36.753, "lng": 3.058},
+    {"code": 17, "name": "Djelfa", "ar": "الجلفة", "lat": 34.672, "lng": 3.263},
+    {"code": 18, "name": "Jijel", "ar": "جيجل", "lat": 36.820, "lng": 5.766},
+    {"code": 19, "name": "Setif", "ar": "سطيف", "lat": 36.191, "lng": 5.413},
+    {"code": 20, "name": "Saida", "ar": "سعيدة", "lat": 34.830, "lng": 0.151},
+    {"code": 21, "name": "Skikda", "ar": "سكيكدة", "lat": 36.879, "lng": 6.909},
+    {"code": 22, "name": "Sidi Bel Abbes", "ar": "سيدي بلعباس", "lat": 35.189, "lng": -0.630},
+    {"code": 23, "name": "Annaba", "ar": "عنابة", "lat": 36.900, "lng": 7.766},
+    {"code": 24, "name": "Guelma", "ar": "قالمة", "lat": 36.462, "lng": 7.426},
+    {"code": 25, "name": "Constantine", "ar": "قسنطينة", "lat": 36.365, "lng": 6.614},
+    {"code": 26, "name": "Medea", "ar": "المدية", "lat": 36.264, "lng": 2.753},
+    {"code": 27, "name": "Mostaganem", "ar": "مستغانم", "lat": 35.931, "lng": 0.089},
+    {"code": 28, "name": "MSila", "ar": "المسيلة", "lat": 35.705, "lng": 4.541},
+    {"code": 29, "name": "Mascara", "ar": "معسكر", "lat": 35.396, "lng": 0.140},
+    {"code": 30, "name": "Ouargla", "ar": "ورقلة", "lat": 31.949, "lng": 5.325},
+    {"code": 31, "name": "Oran", "ar": "وهران", "lat": 35.698, "lng": -0.633},
+    {"code": 32, "name": "El Bayadh", "ar": "البيض", "lat": 33.683, "lng": 1.019},
+    {"code": 33, "name": "Illizi", "ar": "إليزي", "lat": 26.483, "lng": 8.466},
+    {"code": 34, "name": "Bordj Bou Arreridj", "ar": "برج بوعريريج", "lat": 36.073, "lng": 4.761},
+    {"code": 35, "name": "Boumerdes", "ar": "بومرداس", "lat": 36.766, "lng": 3.477},
+    {"code": 36, "name": "El Tarf", "ar": "الطارف", "lat": 36.767, "lng": 8.313},
+    {"code": 37, "name": "Tindouf", "ar": "تندوف", "lat": 27.674, "lng": -8.147},
+    {"code": 38, "name": "Tissemsilt", "ar": "تسمسيلت", "lat": 35.607, "lng": 1.810},
+    {"code": 39, "name": "El Oued", "ar": "الوادي", "lat": 33.368, "lng": 6.867},
+    {"code": 40, "name": "Khenchela", "ar": "خنشلة", "lat": 35.435, "lng": 7.143},
+    {"code": 41, "name": "Souk Ahras", "ar": "سوق أهراس", "lat": 36.286, "lng": 7.951},
+    {"code": 42, "name": "Tipaza", "ar": "تيبازة", "lat": 36.589, "lng": 2.447},
+    {"code": 43, "name": "Mila", "ar": "ميلة", "lat": 36.450, "lng": 6.264},
+    {"code": 44, "name": "Ain Defla", "ar": "عين الدفلى", "lat": 36.263, "lng": 1.967},
+    {"code": 45, "name": "Naama", "ar": "النعامة", "lat": 33.266, "lng": -0.316},
+    {"code": 46, "name": "Ain Temouchent", "ar": "عين تموشنت", "lat": 35.297, "lng": -1.140},
+    {"code": 47, "name": "Ghardaia", "ar": "غرداية", "lat": 32.490, "lng": 3.673},
+    {"code": 48, "name": "Relizane", "ar": "غليزان", "lat": 35.737, "lng": 0.555},
+    {"code": 49, "name": "Timimoun", "ar": "تيميمون", "lat": 29.263, "lng": 0.231},
+    {"code": 50, "name": "Bordj Badji Mokhtar", "ar": "برج باجي مختار", "lat": 21.328, "lng": 0.954},
+    {"code": 51, "name": "Ouled Djellal", "ar": "أولاد جلال", "lat": 34.427, "lng": 5.064},
+    {"code": 52, "name": "Beni Abbes", "ar": "بني عباس", "lat": 30.133, "lng": -2.166},
+    {"code": 53, "name": "In Salah", "ar": "عين صالح", "lat": 27.213, "lng": 2.463},
+    {"code": 54, "name": "In Guezzam", "ar": "عين قزام", "lat": 19.570, "lng": 5.769},
+    {"code": 55, "name": "Touggourt", "ar": "تقرت", "lat": 33.105, "lng": 6.063},
+    {"code": 56, "name": "Djanet", "ar": "جانت", "lat": 24.553, "lng": 9.485},
+    {"code": 57, "name": "El Mghair", "ar": "المغير", "lat": 33.950, "lng": 5.922},
+    {"code": 58, "name": "El Menia", "ar": "المنيعة", "lat": 30.584, "lng": 2.877}
+]
+
+# Supported Countries list with their default calculation method & key cities
+let COUNTRIES = [
+    {
+        "code": "DZ",
+        "name": "Algeria",
+        "ar": "الجزائر",
+        "defaultMethod": 13,
+        "cities": ALGERIA_WILAYAS
+    },
+    {
+        "code": "SA",
+        "name": "Saudi Arabia",
+        "ar": "المملكة العربية السعودية",
+        "defaultMethod": 4,
+        "cities": [
+            {"name": "Makkah", "ar": "مكة المكرمة", "lat": 21.389, "lng": 39.857},
+            {"name": "Madinah", "ar": "المدينة المنورة", "lat": 24.524, "lng": 39.569},
+            {"name": "Riyadh", "ar": "الرياض", "lat": 24.713, "lng": 46.675},
+            {"name": "Jeddah", "ar": "جدة", "lat": 21.485, "lng": 39.192}
+        ]
+    },
+    {
+        "code": "PS",
+        "name": "Palestine",
+        "ar": "فلسطين",
+        "defaultMethod": 3,
+        "cities": [
+            {"name": "Jerusalem", "ar": "القدس الشريف", "lat": 31.768, "lng": 35.213},
+            {"name": "Gaza", "ar": "غزة", "lat": 31.501, "lng": 34.466}
+        ]
+    },
+    {
+        "code": "EG",
+        "name": "Egypt",
+        "ar": "مصر",
+        "defaultMethod": 5,
+        "cities": [
+            {"name": "Cairo", "ar": "القاهرة", "lat": 30.044, "lng": 31.235},
+            {"name": "Alexandria", "ar": "الإسكندرية", "lat": 31.200, "lng": 29.918}
+        ]
+    },
+    {
+        "code": "MA",
+        "name": "Morocco",
+        "ar": "المغرب",
+        "defaultMethod": 3,
+        "cities": [
+            {"name": "Rabat", "ar": "الرباط", "lat": 34.020, "lng": -6.841},
+            {"name": "Casablanca", "ar": "الدار البيضاء", "lat": 33.573, "lng": -7.589}
+        ]
+    },
+    {
+        "code": "TN",
+        "name": "Tunisia",
+        "ar": "تونس",
+        "defaultMethod": 3,
+        "cities": [
+            {"name": "Tunis", "ar": "تونس", "lat": 36.806, "lng": 10.181},
+            {"name": "Sfax", "ar": "صفاقس", "lat": 34.740, "lng": 10.760}
+        ]
+    },
+    {
+        "code": "AE",
+        "name": "United Arab Emirates",
+        "ar": "الإمارات العربية المتحدة",
+        "defaultMethod": 4,
+        "cities": [
+            {"name": "Abu Dhabi", "ar": "أبو ظبي", "lat": 24.453, "lng": 54.377},
+            {"name": "Dubai", "ar": "دبي", "lat": 25.204, "lng": 55.270}
+        ]
+    },
+    {
+        "code": "QA",
+        "name": "Qatar",
+        "ar": "قطر",
+        "defaultMethod": 4,
+        "cities": [
+            {"name": "Doha", "ar": "الدوحة", "lat": 25.285, "lng": 51.531}
+        ]
+    },
+    {
+        "code": "KW",
+        "name": "Kuwait",
+        "ar": "الكويت",
+        "defaultMethod": 4,
+        "cities": [
+            {"name": "Kuwait City", "ar": "مدينة الكويت", "lat": 29.375, "lng": 47.977}
+        ]
+    },
+    {
+        "code": "TR",
+        "name": "Turkey",
+        "ar": "تركيا",
+        "defaultMethod": 13,
+        "cities": [
+            {"name": "Istanbul", "ar": "إسطنبول", "lat": 41.008, "lng": 28.978},
+            {"name": "Ankara", "ar": "أنقرة", "lat": 39.933, "lng": 32.859}
+        ]
+    },
+    {
+        "code": "GB",
+        "name": "United Kingdom",
+        "ar": "المملكة المتحدة",
+        "defaultMethod": 3,
+        "cities": [
+            {"name": "London", "ar": "لندن", "lat": 51.507, "lng": -0.127}
+        ]
+    },
+    {
+        "code": "FR",
+        "name": "France",
+        "ar": "فرنسا",
+        "defaultMethod": 3,
+        "cities": [
+            {"name": "Paris", "ar": "باريس", "lat": 48.856, "lng": 2.352}
+        ]
+    }
+]
+
+# Calculation Methods
+let CALCULATION_METHODS = [
+    {"id": 13, "name": "وزارة الشؤون الدينية والأوقاف الجزائرية (Algeria)", "fajrAngle": 18.0, "ishaAngle": 17.0},
+    {"id": 4,  "name": "جامعة أم القرى - مكة المكرمة (Umm Al-Qura)", "fajrAngle": 18.5, "ishaInterval": 90},
+    {"id": 3,  "name": "رابطة العالم الإسلامي (Muslim World League)", "fajrAngle": 18.0, "ishaAngle": 17.0},
+    {"id": 5,  "name": "الهيئة المصرية العامة للمساحة (Egyptian General)", "fajrAngle": 19.5, "ishaAngle": 17.5},
+    {"id": 1,  "name": "جامعة العلوم الإسلامية بكراتشي (Karachi)", "fajrAngle": 18.0, "ishaAngle": 18.0},
+    {"id": 2,  "name": "الجمعية الإسلامية لأمريكا الشمالية (ISNA)", "fajrAngle": 15.0, "ishaAngle": 15.0}
+]
+
+fn getCountriesList()
+    let list = []
+    for c in COUNTRIES
+        list.append({
+            "code": c["code"],
+            "name": c["name"],
+            "ar": c["ar"],
+            "defaultMethod": c["defaultMethod"]
+        })
+    end
+    return list
+end
+
+fn getCitiesForCountry(countryCode)
+    for c in COUNTRIES
+        if c["code"] == countryCode or c["name"] == countryCode
+            return c["cities"]
+        end
+    end
+    return []
+end
+
+fn findCity(countryCode, cityName)
+    let cities = getCitiesForCountry(countryCode)
+    for city in cities
+        if city["name"] == cityName or city["ar"] == cityName
+            return city
+        end
+    end
+    return Null
+end
+
+# Finds best matching city by code or closest coordinates (lat, lng)
+fn matchLocation(countryCode, cityName, lat = Null, lng = Null)
+    let cities = getCitiesForCountry(countryCode)
+    if cities.length() == 0
+        return Null
+    end
+
+    # Try exact name match
+    for city in cities
+        if city["name"].lower() == cityName.lower() or city["ar"] == cityName
+            return city
+        end
+    end
+
+    # If lat and lng provided, find closest geographic city
+    if !isNull(lat) and !isNull(lng)
+        let bestCity = cities[0]
+        let minDistanceSq = 999999.0
+
+        for city in cities
+            let dLat = city["lat"] - lat
+            let dLng = city["lng"] - lng
+            let distSq = (dLat * dLat) + (dLng * dLng)
+            if distSq < minDistanceSq
+                minDistanceSq = distSq
+                bestCity = city
+            end
+        end
+        return bestCity
+    end
+
+    return cities[0]
+end
+

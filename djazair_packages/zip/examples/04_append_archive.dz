@@ -1,0 +1,27 @@
+use zip
+use file
+use dir
+use os
+use assert
+
+let tmp = os.tmpDir() + "/zip_example4"
+dir.createAll(tmp)
+let zipPath = tmp + "/append.zip"
+
+let zw = new zip.ZipFile(zipPath, "w")
+zw.writestr("first.txt", "First file")
+zw.close()
+
+let za = new zip.ZipFile(zipPath, "a")
+za.writestr("second.txt", "Second file (appended)")
+za.close()
+
+let zr = new zip.ZipFile(zipPath, "r")
+let names = zr.namelist()
+assert.isTrue(names.length() == 2, "should have 2 files after append")
+for name in names
+    print("${name}: ${zr.read(name)}")
+end
+zr.close()
+
+dir.deleteAll(tmp)

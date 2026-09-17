@@ -1,0 +1,14 @@
+{
+  "name": "dpack",
+  "version": "1.0.1",
+  "description": "Standalone executable bundler for Djazair.",
+  "type": "hybrid",
+  "source": "github:djazair-language/djazair-extensions/dpack",
+  "developer": {
+    "name": "Harizi Riyadh",
+    "email": "hariziriyadh@gmail.com"
+  },
+  "require": {
+    "zip": "*"
+  }
+}

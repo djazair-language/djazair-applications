@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مواقيت الصلاة — لغة جزائر</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.06-1.09.17-1.61 1.95 2.15 4.79 3.53 7.95 3.61.08.32.12.65.12 1 0 2.21-1.79 4-4 4-.69 0-1.33-.18-1.89-.48.88 1.48 2.47 2.48 4.31 2.48 2.76 0 5-2.24 5-5 0-.46-.07-.9-.19-1.32 1.44-.94 2.44-2.52 2.52-4.34.01-.11.01-.23.01-.34 1.25 1.54 2 3.5 2 5.66 0 4.41-3.59 8-8 8z"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>مواقيت الصلاة</h1>
+                    <span class="subtext">مدعوم بلغة جزائر (Djazair WebView)</span>
+                </div>
+            </div>
+
+            <!-- Date & Connection Badges -->
+            <div class="header-center">
+                <div class="date-badge">
+                    <span id="hijriDate" class="hijri-text">جاري التحميل...</span>
+                    <span id="gregDate" class="greg-text">--/--/----</span>
+                </div>
+                <div id="statusBadge" class="status-badge online">
+                    <span class="status-dot"></span>
+                    <span id="statusText">متصل بالإنترنت</span>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="header-actions">
+                <button id="btnMinimizeTray" class="icon-btn" title="تصغير إلى شريط المهام (Tray)">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+                <button id="btnRefresh" class="icon-btn" title="تحديث المواقيت">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
+                <button id="btnTestAdhan" class="icon-btn" title="سماع الأذان / تنبيه">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                    </svg>
+                </button>
+                <button id="btnSettings" class="icon-btn" title="الإعدادات">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="tabPrayers">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.59L8.71 12.3a1 1 0 1 1 1.41-1.41L12 12.76l4.29-4.3a1 1 0 0 1 1.42 1.42z"/></svg>
+                مواقيت الصلاة
+            </button>
+            <button class="nav-tab" data-tab="tabAthkar">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+                أذكار المسلم
+            </button>
+            <button class="nav-tab" data-tab="tabTasbeeh">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+                السبحة الإلكترونية
+            </button>
+            <button class="nav-tab" data-tab="tabRamadan">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.06-1.09.17-1.61 1.95 2.15 4.79 3.53 7.95 3.61.08.32.12.65.12 1 0 2.21-1.79 4-4 4-.69 0-1.33-.18-1.89-.48.88 1.48 2.47 2.48 4.31 2.48 2.76 0 5-2.24 5-5 0-.46-.07-.9-.19-1.32 1.44-.94 2.44-2.52 2.52-4.34.01-.11.01-.23.01-.34 1.25 1.54 2 3.5 2 5.66 0 4.41-3.59 8-8 8z"/></svg>
+                وضع رمضان
+            </button>
+        </nav>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- TAB 1: PRAYER TIMES & LOCATION                                      -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="tabPrayers" class="tab-content active">
+            <!-- Location Selector Bar -->
+            <div class="location-bar">
+                <div class="selector-group">
+                    <label for="countrySelect">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        الدولة:
+                    </label>
+                    <select id="countrySelect" class="styled-select"></select>
+                </div>
+
+                <div class="selector-group">
+                    <label for="citySelect">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M15 11V5l-3-3-3 3v2H3v14h18V11h-6zm-8 8H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5V9h2v2zm6 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V9h2v2zm0-4h-2V5h2v2zm6 12h-2v-2h2v2zm0-4h-2v-2h2v2z"/>
+                        </svg>
+                        المدينة / الولاية:
+                    </label>
+                    <select id="citySelect" class="styled-select"></select>
+                </div>
+
+                <button id="btnAutoLoc" class="btn-sm btn-outline" title="تحديد موقعي التلقائي عبر الـ IP">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+                    </svg>
+                    تحديد تلقائي
+                </button>
+            </div>
+
+            <!-- Hero Section: Next Prayer Countdown & Daily Islamic Reminder -->
+            <div class="hero-card main-hero">
+                <div class="hero-glow"></div>
+                <div class="hero-grid">
+                    <!-- Right Col: Next Prayer Info -->
+                    <div class="hero-prayer-col">
+                        <div class="next-prayer-title">الصلاة القادمة بإذن الله</div>
+                        <div id="nextPrayerName" class="next-prayer-name">--</div>
+                        <div class="next-prayer-time-badge">
+                            موعد الأذان: <span id="nextPrayerTime">--:--</span>
+                        </div>
+                    </div>
+
+                    <!-- Center Col: Large Countdown Timer -->
+                    <div class="hero-countdown-col">
+                        <div class="countdown-wrapper">
+                            <div class="countdown-time" id="countdown">00:00:00</div>
+                            <div class="countdown-label">الوقت المتبقي حتى الأذان</div>
+                        </div>
+                    </div>
+
+                    <!-- Left Col: Daily Spiritual Reminder -->
+                    <div class="hero-reminder-col">
+                        <div class="reminder-header">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                            </svg>
+                            <span>تذكرة المسلم</span>
+                        </div>
+                        <div id="dailyReminderText" class="reminder-text">«إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَوْقُوتًا»</div>
+                        <div id="dailyReminderSource" class="reminder-source">سورة النساء: 103</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prayers Grid -->
+            <main class="prayers-grid">
+                <div class="prayer-card" id="card-Fajr" data-prayer="Fajr">
+                    <div class="prayer-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 12.6l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6 0 2.97 2.16 5.43 5 5.91V21h2v-3.59c2.84-.48 5-2.94 5-5.91 0-3.31-2.69-6-6-6z"/>
+                        </svg>
+                    </div>
+                    <div class="prayer-name">الفجر</div>
+                    <div class="prayer-time" id="time-Fajr">--:--</div>
+                    <div class="prayer-status" id="status-Fajr">--</div>
+                </div>
+
+                <div class="prayer-card" id="card-Sunrise" data-prayer="Sunrise">
+                    <div class="prayer-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M12 7c-2.76 0-5 2.24-5 5h10c0-2.76-2.24-5-5-5zm0-5c.55 0 1 .45 1 1v2c0 .55-.45 1-1 1s-1-.45-1-1V3c0-.55.45-1 1-1zM2 13h20c.55 0 1 .45 1 1s-.45 1-1 1H2c-.55 0-1-.45-1-1s.45-1 1-1zm1 4h18c.55 0 1 .45 1 1s-.45 1-1 1H3c-.55 0-1-.45-1-1s.45-1 1-1z"/>
+                        </svg>
+                    </div>
+                    <div class="prayer-name">الشروق</div>
+                    <div class="prayer-time" id="time-Sunrise">--:--</div>
+                    <div class="prayer-status" id="status-Sunrise">شروق الشمس</div>
+                </div>
+
+                <div class="prayer-card" id="card-Dhuhr" data-prayer="Dhuhr">
+                    <div class="prayer-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <circle cx="12" cy="12" r="5"/>
+                            <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                        </svg>
+                    </div>
+                    <div class="prayer-name">الظهر</div>
+                    <div class="prayer-time" id="time-Dhuhr">--:--</div>
+                    <div class="prayer-status" id="status-Dhuhr">--</div>
+                </div>
+
+                <div class="prayer-card" id="card-Asr" data-prayer="Asr">
+                    <div class="prayer-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.59L8.71 12.3a1 1 0 1 1 1.41-1.41L12 12.76l4.29-4.3a1 1 0 0 1 1.42 1.42z"/>
+                        </svg>
+                    </div>
+                    <div class="prayer-name">العصر</div>
+                    <div class="prayer-time" id="time-Asr">--:--</div>
+                    <div class="prayer-status" id="status-Asr">--</div>
+                </div>
+
+                <div class="prayer-card" id="card-Maghrib" data-prayer="Maghrib">
+                    <div class="prayer-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M12.01 18c-3.57 0-6.52-2.58-7.07-6h14.14c-.55 3.42-3.5 6-7.07 6zm8.99-1h-2.12c-.44 2.82-2.48 5.09-5.26 5.75-.4.1-.62.53-.49.92.11.33.42.53.75.53.07 0 .15-.01.22-.03 3.32-.79 5.76-3.5 6.29-6.87.05-.16.01-.3-.09-.4-.1-.1-.23-.15-.4-.15zM2 13h20c.55 0 1 .45 1 1s-.45 1-1 1H2c-.55 0-1-.45-1-1s.45-1 1-1z"/>
+                        </svg>
+                    </div>
+                    <div class="prayer-name">المغرب</div>
+                    <div class="prayer-time" id="time-Maghrib">--:--</div>
+                    <div class="prayer-status" id="status-Maghrib">--</div>
+                </div>
+
+                <div class="prayer-card" id="card-Isha" data-prayer="Isha">
+                    <div class="prayer-icon">
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                            <path d="M12.3 2a10 10 0 0 0-1.9 19.8 10 10 0 0 0 11.5-11.5A10 10 0 0 0 12.3 2zm0 18a8 8 0 0 1-7.8-9.8 8 8 0 0 1 9.8-7.8 8 8 0 0 1 6.8 9.8 8 8 0 0 1-8.8 7.8z"/>
+                        </svg>
+                    </div>
+                    <div class="prayer-name">العشاء</div>
+                    <div class="prayer-time" id="time-Isha">--:--</div>
+                    <div class="prayer-status" id="status-Isha">--</div>
+                </div>
+            </main>
+
+            <!-- Extra Info Bar: Imsak & Midnight -->
+            <div class="extra-bar">
+                <div class="extra-item">
+                    <span class="label">الإمساك:</span>
+                    <span id="time-Imsak" class="val">--:--</span>
+                </div>
+                <div class="extra-divider"></div>
+                <div class="extra-item">
+                    <span class="label">منتصف الليل:</span>
+                    <span id="time-Midnight" class="val">--:--</span>
+                </div>
+                <div class="extra-divider"></div>
+                <div class="extra-item">
+                    <span class="label">طريقة الحساب:</span>
+                    <span id="calcMethodText" class="val">وزارة الشؤون الدينية والأوقاف (الجزائر)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- TAB 2: ATHKAR AL-MUSLIM                                             -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="tabAthkar" class="tab-content">
+            <div class="athkar-controls">
+                <div class="athkar-subtabs">
+                    <button class="subtab active" data-type="morning">أذكار الصباح</button>
+                    <button class="subtab" data-type="evening">أذكار المساء</button>
+                    <button class="subtab" data-type="afterPrayer">أذكار بعد الصلاة</button>
+                </div>
+                <button id="btnResetAthkar" class="btn-sm btn-outline">إعادة ضبط العدادات</button>
+            </div>
+            <div id="athkarList" class="athkar-list"></div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- TAB 3: DIGITAL TASBEEH                                              -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="tabTasbeeh" class="tab-content">
+            <div class="tasbeeh-container">
+                <div class="tasbeeh-card">
+                    <div class="form-group">
+                        <label for="tasbeehPreset">اختر الذكر المفضل:</label>
+                        <select id="tasbeehPreset" class="styled-select full-width"></select>
+                    </div>
+
+                    <div class="tasbeeh-bead-area">
+                        <button id="btnTapTasbeeh" class="tasbeeh-big-btn">
+                            <div class="tasbeeh-inner">
+                                <span class="tasbeeh-label" id="currentDhikrText">سُبْحَانَ اللَّهِ</span>
+                                <span class="tasbeeh-count" id="tasbeehDisplay">0</span>
+                                <span class="tasbeeh-target" id="tasbeehTarget">الهدف: 33</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div class="tasbeeh-footer">
+                        <div class="tasbeeh-stats">
+                            <span>إجمالي التسبيحات: <strong id="tasbeehTotal">0</strong></span>
+                        </div>
+                        <div class="tasbeeh-actions">
+                            <button id="btnResetTasbeeh" class="btn btn-secondary">تصفير العداد</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- TAB 4: RAMADAN MODE                                                 -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div id="tabRamadan" class="tab-content">
+            <div class="ramadan-hero">
+                <div class="ramadan-banner">
+                    <h2>🌙 شهر رمضان المبارك 🌙</h2>
+                    <p>تقبل الله منا ومنكم الصيام والقيام وصالح الأعمال</p>
+                </div>
+
+                <div class="ramadan-countdowns">
+                    <div class="hero-card ramadan-card">
+                        <div class="hero-content">
+                            <div class="next-prayer-title">الوقت المتبقي حتى الإفطار (المغرب)</div>
+                            <div class="countdown-time gold" id="iftarCountdown">00:00:00</div>
+                            <div class="next-prayer-time-badge">
+                                موعد الإفطار: <span id="iftarTime">--:--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hero-card ramadan-card">
+                        <div class="hero-content">
+                            <div class="next-prayer-title">الوقت المتبقي حتى الإمساك (الفجر)</div>
+                            <div class="countdown-time cyan" id="imsakCountdown">00:00:00</div>
+                            <div class="next-prayer-time-badge">
+                                موعد الإمساك: <span id="imsakTime">--:--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="duaa-box">
+                    <h3>دعاء الإفطار المأثور</h3>
+                    <div class="duaa-arabic">"ذَهَبَ الظَّمَأُ، وَابْتَلَّتِ الْعُرُوقُ، وَثَبَتَ الْأَجْرُ إِنْ شَاءَ اللَّهُ"</div>
+                    <div class="duaa-sub">سنن أبي داود — يُستحب الدعاء به عند الإفطار مباشرة</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <span>تطبيق مواقيت الصلاة &copy; 2026 — كُتب بلغة <strong>جزائر (Djazair)</strong></span>
+        </footer>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>إعدادات التطبيق</h2>
+                    <button id="btnCloseSettings" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="methodSelect">طريقة حساب المواقيت:</label>
+                        <select id="methodSelect" class="styled-select full-width">
+                            <option value="13">وزارة الشؤون الدينية والأوقاف الجزائرية (Algeria)</option>
+                            <option value="4">جامعة أم القرى - مكة المكرمة (Umm Al-Qura)</option>
+                            <option value="3">رابطة العالم الإسلامي (Muslim World League)</option>
+                            <option value="5">الهيئة المصرية العامة للمساحة (Egyptian Authority)</option>
+                            <option value="1">جامعة العلوم الإسلامية بكراتشي (Karachi)</option>
+                            <option value="2">الجمعية الإسلامية لأمريكا الشمالية (ISNA)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="voiceSelect">صوت الأذان / المؤذن:</label>
+                        <select id="voiceSelect" class="styled-select full-width">
+                            <option value="chime">نغمة تنبيه إسلامية هادئة (Melodic Resonance)</option>
+                            <option value="makkah">أذان الحرم المكي الشريف</option>
+                            <option value="madinah">أذان الحرم النبوي الشريف</option>
+                            <option value="algerian">الأذان الجزائري التقليدي الأصيل</option>
+                            <option value="custom">ملف صوتي مخصص من الحاسوب...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="customAudioGroup" style="display:none;">
+                        <button id="btnPickAudio" class="btn btn-secondary full-width">
+                            📂 اختيار ملف MP3 من الجهاز
+                        </button>
+                        <small id="lblCustomAudioPath" class="path-display"></small>
+                    </div>
+
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>صوت الأذان عند دخول الوقت:</strong>
+                            <small>تشغيل التنبيه الصوتي كاملاً عند دخول وقت الصلاة</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkAdhan" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rngVolume">مستوى صوت الأذان (<span id="lblVolume">80%</span>):</label>
+                        <input type="range" id="rngVolume" min="0" max="100" value="80" class="slider-range">
+                    </div>
+
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>إشعارات سطح المكتب (Windows Toast):</strong>
+                            <small>إظهار تنبيه مرئي بجانب الساعة عند دخول كل صلاة</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkNotifications" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>التشغيل التلقائي مع إقلاع ويندوز:</strong>
+                            <small>بدء تشغيل التطبيق في الخلفية عند فتح الكمبيوتر</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkStartup">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>تصغير إلى شريط المهام (Tray) عند الإغلاق:</strong>
+                            <small>استمرار عمل التطبيق في الخلفية بجانب الساعة</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkMinimizeTray" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnSaveSettings" class="btn btn-primary">حفظ الإعدادات</button>
+                    <button id="btnCancelSettings" class="btn btn-secondary">إلغاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Element for Adhan -->
+    <audio id="adhanAudio" preload="auto"></audio>
+
+    <script src="app.js"></script>
+</body>
+</html>

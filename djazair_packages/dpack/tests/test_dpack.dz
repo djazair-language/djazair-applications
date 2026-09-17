@@ -1,0 +1,254 @@
+# dpack/tests/test_dpack.dz
+# Official test suite for dpack: tests deduplication, asset modes, flags, encryption, and edge cases.
+
+use file
+use dir
+use path
+use process
+use os
+use json
+use env
+use dpack
+
+let baseTemp = if os.isWindows() ? env.getOr("TEMP", "C:\\Temp") else env.getOr("TMPDIR", "/tmp")
+let testDir = path.join(baseTemp, "dpack_test_suite")
+if file.exists(testDir)
+    dir.deleteAll(testDir)
+end
+dir.createAll(testDir)
+
+let passed = 0
+let failed = 0
+
+fn ok(msg)
+    print("  [PASS] " + msg)
+    passed += 1
+end
+
+fn fail(msg, reason)
+    print("  [FAIL] " + msg + " -> " + reason)
+    failed += 1
+end
+
+print("")
+print("================================================================")
+print("                    DPACK OFFICIAL TEST SUITE                   ")
+print("================================================================")
+print("")
+
+# ── 1. Deduplication & Clean Bundling ─────────────────────────────────────────
+print(">>> [1/7] Testing File Deduplication & Clean Tree...")
+let p1 = path.join(testDir, "p1")
+dir.createAll(p1)
+file.write(path.join(p1, "main.dz"), "import \"mod.dz\" as m\nprint(\"DEDUP:\" + m.text)\n")
+file.write(path.join(p1, "mod.dz"), "let text = \"SUCCESS\"\n")
+file.write(path.join(p1, "extra.txt"), "asset content\n")
+let out1 = path.join(p1, "app1.exe")
+
+try
+    dpack.pack(path.join(p1, "main.dz"), out1, {"assets": True, "quiet": True})
+    let list1 = dpack.inspect(out1)
+    let seen = {}
+    let dupes = 0
+    for item in list1
+        let p = item["path"]
+        if seen.has(p)
+            dupes += 1
+        end
+        seen[p] = True
+    end
+
+    if dupes == 0
+        ok("Zero duplicate files inside bundle archive")
+    else
+        fail("Zero duplicate files", "Found " + str(dupes) + " duplicates")
+    end
+
+    let r1 = process.exec(out1)
+    if r1["exit_code"] == 0 and r1["stdout"].contains("DEDUP:SUCCESS")
+        ok("Packed executable executed and produced expected output")
+    else
+        fail("Packed executable execution", r1["stdout"])
+    end
+catch e
+    fail("Test 1 Exception", str(e))
+end
+
+# ── 2. Asset Modes (assets: False vs True) ───────────────────────────────────
+print(">>> [2/7] Testing Asset Modes...")
+let p2 = path.join(testDir, "p2")
+dir.createAll(p2)
+file.write(path.join(p2, "main.dz"), "import \"sub.dz\" as s\nprint(\"ASSETS:\" + s.val)\n")
+file.write(path.join(p2, "sub.dz"), "let val = \"OK\"\n")
+file.write(path.join(p2, "unimported.txt"), "SHOULD_BE_EXCLUDED\n")
+let out2 = path.join(p2, "app_no_assets.exe")
+
+try
+    dpack.pack(path.join(p2, "main.dz"), out2, {"assets": False, "quiet": True})
+    let list2 = dpack.inspect(out2)
+    let hasSub = False
+    let hasTxt = False
+    for it in list2
+        if it["path"] == "sub.dz"
+            hasSub = True
+        end
+        if it["path"] == "unimported.txt"
+            hasTxt = True
+        end
+    end
+
+    if hasSub and !hasTxt
+        ok("assets: False bundles imported scripts while excluding unimported files")
+    else
+        fail("assets: False filtering", "sub=" + str(hasSub) + ", txt=" + str(hasTxt))
+    end
+catch e
+    fail("Test 2 Exception", str(e))
+end
+
+# ── 3. GUI Mode (console: False) ─────────────────────────────────────────────
+print(">>> [3/7] Testing GUI Mode (Windowless Stub)...")
+let p3 = path.join(testDir, "p3")
+dir.createAll(p3)
+file.write(path.join(p3, "main.dz"), "use file\nfile.write(\"gui.txt\", \"GUI_OK\")\n")
+let out3 = path.join(p3, "app_gui.exe")
+
+try
+    dpack.pack(path.join(p3, "main.dz"), out3, {"console": False, "quiet": True})
+    let saved = process.cwd()
+    process.chdir(p3)
+    let r3 = process.exec(out3)
+    process.chdir(saved)
+
+    if file.exists(path.join(p3, "gui.txt"))
+        ok("GUI mode binary executed without console window")
+    else
+        fail("GUI mode execution", "Output file was not created")
+    end
+catch e
+    fail("Test 3 Exception", str(e))
+end
+
+# ── 4. Portable Mode (portable: True) ────────────────────────────────────────
+print(">>> [4/7] Testing Portable Cache Location...")
+let p4 = path.join(testDir, "p4")
+dir.createAll(p4)
+file.write(path.join(p4, "main.dz"), "print(\"PORTABLE_OK\")\n")
+let out4 = path.join(p4, "app_port.exe")
+
+try
+    dpack.pack(path.join(p4, "main.dz"), out4, {"portable": True, "quiet": True})
+    let r4 = process.exec(out4)
+
+    let hasLocalCache = False
+    let items = dir.list(p4)
+    for it in items
+        if it.startsWith(".dpack_cache_")
+            hasLocalCache = True
+            break
+        end
+    end
+
+    if r4["exit_code"] == 0 and hasLocalCache
+        ok("Portable cache folder created locally next to executable")
+    else
+        fail("Portable mode", "Local cache not found")
+    end
+catch e
+    fail("Test 4 Exception", str(e))
+end
+
+# ── 5. Script Encryption Mode (encrypt: True) ────────────────────────────────
+print(">>> [5/7] Testing Script Encryption & Decryption...")
+let p5 = path.join(testDir, "p5")
+dir.createAll(p5)
+file.write(path.join(p5, "main.dz"), "import \"secret.dz\" as s\nprint(\"KEY:\" + s.key)\n")
+file.write(path.join(p5, "secret.dz"), "let key = \"CONFIDENTIAL_DATA_9988\"\n")
+let out5 = path.join(p5, "app_enc.exe")
+
+try
+    dpack.pack(path.join(p5, "main.dz"), out5, {"encrypt": True, "quiet": True})
+    let binaryContent = file.read(out5)
+    let r5 = process.exec(out5)
+
+    if !binaryContent.contains("CONFIDENTIAL_DATA_9988") and r5["stdout"].contains("KEY:CONFIDENTIAL_DATA_9988")
+        ok("Scripts encrypted inside binary and seamlessly decrypted by stub at runtime")
+    else
+        fail("Encryption test", "Plaintext leaked or execution failed")
+    end
+catch e
+    fail("Test 5 Exception", str(e))
+end
+
+# ── 6. CLI Argument Preservation ────────────────────────────────────────────
+print(">>> [6/7] Testing Complex CLI Arguments...")
+let p6 = path.join(testDir, "p6")
+dir.createAll(p6)
+file.write(path.join(p6, "main.dz"), "use process\nfor a in process.args()\n    print(\"ARG:\" + a)\nend\n")
+let out6 = path.join(p6, "app_args.exe")
+
+try
+    dpack.pack(path.join(p6, "main.dz"), out6, {"quiet": True})
+    let r6 = process.exec("\"${out6}\" \"spaced argument\" --opt=val \"تجربة عربية\"")
+    if r6["stdout"].contains("ARG:spaced argument") and r6["stdout"].contains("ARG:--opt=val") and r6["stdout"].contains("ARG:تجربة عربية")
+        ok("All command-line arguments (spaces, flags, Unicode) preserved accurately")
+    else
+        fail("CLI arguments", r6["stdout"])
+    end
+catch e
+    fail("Test 6 Exception", str(e))
+end
+
+# ── 7. Verification & Cache Cleanup ──────────────────────────────────────────
+print(">>> [7/8] Testing Verify & cleanCache()...")
+try
+    let vValid = dpack.verify(out1)
+    let vInvalid = dpack.verify(path.join(p1, "extra.txt"))
+    dpack.cleanCache()
+
+    if vValid["valid"] and !vInvalid["valid"]
+        ok("dpack.verify() accurately validates bundles and cleanCache() succeeds")
+    else
+        fail("Verify test", "Valid: " + str(vValid["valid"]) + ", Invalid: " + str(vInvalid["valid"]))
+    end
+catch e
+    fail("Test 7 Exception", str(e))
+end
+
+# ── 8. Out-of-Tree Import Rejection ─────────────────────────────────────────
+print(">>> [8/8] Rejecting Out-of-Tree Imports...")
+let p8 = path.join(testDir, "p8")
+dir.createAll(p8)
+file.write(path.join(p8, "main.dz"), "import \"../outside.dz\" as o\nprint(o.val)\n")
+file.write(path.join(testDir, "outside.dz"), "let val = \"X\"\n")
+let out8 = path.join(p8, "app_bad.exe")
+
+try
+    dpack.pack(path.join(p8, "main.dz"), out8, {"assets": False, "quiet": True})
+    fail("Out-of-tree import rejection", "No error was raised")
+catch e
+    let msg = str(e)
+    if msg.contains("outside") or msg.contains("script directory")
+        ok("Out-of-tree import rejected with a clear error")
+    else
+        fail("Out-of-tree import rejection", msg)
+    end
+end
+
+# Cleanup test directory
+try
+    dir.deleteAll(testDir)
+catch e
+end
+
+print("")
+print("================================================================")
+print("  TOTAL PASSED: " + str(passed))
+print("  TOTAL FAILED: " + str(failed))
+if failed == 0
+    print("  STATUS: ALL TESTS PASSED! (100% SUCCESS)")
+else
+    print("  STATUS: SOME TESTS FAILED!")
+end
+print("================================================================")
+print("")

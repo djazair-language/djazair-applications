@@ -1,0 +1,25 @@
+use zip
+use file
+use dir
+use os
+
+let tmp = os.tmpDir() + "/ziptest"
+dir.createAll(tmp)
+
+let z = new zip.ZipFile(tmp + "/t.zip", "w")
+z.writestr("a.txt", "A")
+z.writestr("c.txt", "CC")
+z.close()
+
+let z2 = new zip.ZipFile(tmp + "/t.zip", "a")
+print("entries in append mode: ", z2.namelist())
+z2.writestr("b.txt", "B")
+z2.close()
+
+let z3 = new zip.ZipFile(tmp + "/t.zip", "r")
+print("files: ", z3.namelist())
+print("a.txt: ", z3.read("a.txt"))
+print("b.txt: ", z3.read("b.txt"))
+z3.close()
+
+dir.deleteAll(tmp)

@@ -1,0 +1,185 @@
+# dpack/core/Scanner.dz
+# Scans Djazair source files to detect `use` statements and local imports.
+# Distinguishes between built-in stdlib modules and external extensions (installed via dpm).
+#
+# Developer: Harizi Riyadh (hariziriyadh@gmail.com)
+
+use file
+use path
+
+# All built-in standard library module names
+let STDLIB_MODULES = [
+    "assert", "bytes", "collections", "crypto", "datetime",
+    "dir", "env", "file", "http", "json", "lang", "math",
+    "net", "os", "path", "process", "random", "regex",
+    "thread", "uuid"
+]
+
+# Returns True if the given module name is a built-in stdlib module.
+fn isStdlib(name)
+    let clean = name
+    if clean.startsWith("std::")
+        clean = clean.slice(5)
+    end
+    for mod in STDLIB_MODULES
+        if mod == clean
+            return True
+        end
+    end
+    return False
+end
+
+# Scans a single .dz source file and returns:
+# {
+#   "stdlib":     ["file", "http", ...],   ← used stdlib modules
+#   "extensions": ["kasbah", "qt", ...],   ← used external extensions
+#   "imports":    ["./utils.dz", ...]      ← local import paths
+# }
+fn scanFile(filePath)
+    let result = {"stdlib": [], "extensions": [], "imports": []}
+
+    if !file.exists(filePath)
+        return result
+    end
+
+    let lines = file.readLines(filePath)
+    for line in lines
+        # Strip leading whitespace
+        let trimmed = line.strip()
+
+        # Skip comments and empty lines
+        if trimmed == "" or trimmed.startsWith("#")
+            continue
+        end
+
+        # Detect: use <module>
+        if trimmed.startsWith("use ")
+            let rest = trimmed.slice(4).strip()
+            # Tolerate parenthesized or aliased forms: use (json as j), use json as j
+            if rest.startsWith("(")
+                rest = rest.slice(1).strip()
+            end
+            # Module name is the first word (no spaces, parens, or trailing punctuation)
+            let nameEnd = rest.length()
+            let i = 0
+            while i < rest.length()
+                let ch = rest[i]
+                if ch == " " or ch == "\t" or ch == "#" or ch == "\r" or ch == ")" or ch == ";"
+                    nameEnd = i
+                    break
+                end
+                i += 1
+            end
+            let modName = rest.slice(0, nameEnd).strip()
+            if modName != ""
+                if isStdlib(modName)
+                    let stdName = if modName.startsWith("std::") ? modName.slice(5) else modName
+                    let foundStd = False
+                    for s in result["stdlib"]
+                        if s == stdName
+                            foundStd = True
+                            break
+                        end
+                    end
+                    if !foundStd
+                        result["stdlib"].append(stdName)
+                    end
+                else
+                    # External extension
+                    let alreadyFound = False
+                    for ext in result["extensions"]
+                        if ext == modName
+                            alreadyFound = True
+                            break
+                        end
+                    end
+                    if !alreadyFound
+                        result["extensions"].append(modName)
+                    end
+                end
+            end
+        end
+
+        # Detect: import "path/to/file.dz" as ... or import 'path/to/file.dz' as ...
+        if trimmed.startsWith("import ")
+            let rest = trimmed.slice(7).strip()
+            if rest.startsWith("\"") or rest.startsWith("'")
+                let quoteChar = rest[0]
+                let endQuote = -1
+                let qi = 1
+                while qi < rest.length()
+                    if rest[qi] == quoteChar
+                        endQuote = qi
+                        break
+                    end
+                    qi += 1
+                end
+                if endQuote != -1
+                    let importPath = rest.slice(1, endQuote)
+                    result["imports"].append(importPath)
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+# Recursively scans a script and all its local imports.
+# Returns a merged result with:
+# - stdlib: unique stdlib modules
+# - extensions: unique external extensions
+# - localFiles: all discovered local imported .dz files (absolute paths)
+fn scanAll(entryFile)
+    let visited = {}
+    let allResult = {"stdlib": [], "extensions": [], "imports": [], "localFiles": []}
+    let absEntry = path.resolve(entryFile)
+
+    fn collectUnique(target, source)
+        for item in source
+            let found = False
+            for existing in target
+                if existing == item
+                    found = True
+                    break
+                end
+            end
+            if !found
+                target.append(item)
+            end
+        end
+    end
+
+    fn visit(filePath)
+        let absPath = path.resolve(filePath)
+        if visited.has(absPath)
+            return
+        end
+        visited[absPath] = True
+
+        if absPath != absEntry
+            allResult["localFiles"].append(absPath)
+        end
+
+        let result = scanFile(absPath)
+        collectUnique(allResult["stdlib"], result["stdlib"])
+        collectUnique(allResult["extensions"], result["extensions"])
+        collectUnique(allResult["imports"], result["imports"])
+
+        # Recursively visit local imports
+        let baseDir = path.dirname(absPath)
+        for importPath in result["imports"]
+            # Only follow relative imports
+            if !importPath.startsWith("http://") and !importPath.startsWith("https://")
+                let resolved = path.join(baseDir, importPath)
+                if file.exists(resolved)
+                    visit(resolved)
+                end
+            end
+        end
+    end
+
+    visit(entryFile)
+    return allResult
+end
+
