@@ -97,6 +97,10 @@
         nextPrayerTime: document.getElementById('nextPrayerTime'),
         dailyReminderText: document.getElementById('dailyReminderText'),
         dailyReminderSource: document.getElementById('dailyReminderSource'),
+        timelinePrevPrayer: document.getElementById('timelinePrevPrayer'),
+        timelineNextPrayer: document.getElementById('timelineNextPrayer'),
+        timelineProgressPercent: document.getElementById('timelineProgressPercent'),
+        timelineProgressBar: document.getElementById('timelineProgressBar'),
         calcMethodText: document.getElementById('calcMethodText'),
         timeImsak: document.getElementById('time-Imsak'),
         timeMidnight: document.getElementById('time-Midnight'),
@@ -347,11 +351,35 @@
             }
         }
 
+        // Determine previous prayer for the smart timeline
+        let prevKey = null;
+        let prevTime = null;
+        const nextIdx = PRAYER_KEYS.indexOf(nextKey);
+        if (nextIdx > 0) {
+            prevKey = PRAYER_KEYS[nextIdx - 1];
+            prevTime = parseTimeToToday(timings[prevKey]);
+        } else {
+            prevKey = 'Isha';
+            const ishaTime = parseTimeToToday(timings['Isha']);
+            if (ishaTime) {
+                prevTime = new Date(ishaTime.getTime() - 24 * 60 * 60 * 1000);
+            }
+        }
+
         state.nextPrayer = {
             key: nextKey,
             nameAr: PRAYER_NAMES[nextKey] || nextKey,
             timeStr: timings[nextKey],
             targetTime: nextTime
+        };
+
+        state.timeline = {
+            prevKey: prevKey,
+            prevName: `${PRAYER_NAMES[prevKey]} ${timings[prevKey]}`,
+            prevTime: prevTime,
+            nextKey: nextKey,
+            nextName: `${state.nextPrayer.nameAr} ${state.nextPrayer.timeStr}`,
+            nextTime: nextTime
         };
 
         elements.nextPrayerName.textContent = state.nextPrayer.nameAr;
@@ -367,7 +395,9 @@
             const pTime = parseTimeToToday(timings[key]);
             if (key === nextKey) {
                 card.classList.add('active');
-                if (status && key !== 'Sunrise') status.textContent = 'الصلاة القادمة';
+                if (status && key !== 'Sunrise') {
+                    status.innerHTML = '<span class="active-pulse-dot"></span> الصلاة القادمة';
+                }
             } else if (pTime && pTime.getTime() < now.getTime()) {
                 card.classList.add('passed');
                 if (status && key !== 'Sunrise') status.textContent = 'مضت';
@@ -378,6 +408,33 @@
 
         updateCountdownDisplay(minDiff);
         updateRamadanCountdowns();
+        updateTimelineProgress(now);
+    }
+
+    function updateTimelineProgress(now) {
+        if (!state.timeline || !elements.timelineProgressBar) return;
+        const { prevTime, nextTime, prevName, nextName } = state.timeline;
+        if (!prevTime || !nextTime) return;
+
+        const totalMs = nextTime.getTime() - prevTime.getTime();
+        const elapsedMs = now.getTime() - prevTime.getTime();
+        let percent = 0;
+        if (totalMs > 0) {
+            percent = Math.min(100, Math.max(0, Math.round((elapsedMs / totalMs) * 100)));
+        }
+
+        if (elements.timelineProgressBar) {
+            elements.timelineProgressBar.style.width = `${percent}%`;
+        }
+        if (elements.timelineProgressPercent) {
+            elements.timelineProgressPercent.textContent = `مضى ${percent}%`;
+        }
+        if (elements.timelinePrevPrayer) {
+            elements.timelinePrevPrayer.textContent = prevName;
+        }
+        if (elements.timelineNextPrayer) {
+            elements.timelineNextPrayer.textContent = nextName;
+        }
     }
 
     function updateCountdownDisplay(diffMs) {
@@ -428,11 +485,12 @@
     function startTimer() {
         if (state.timerId) clearInterval(state.timerId);
         state.timerId = setInterval(() => {
+            const now = new Date();
             if (state.nextPrayer && state.nextPrayer.targetTime) {
-                const now = new Date();
                 const diff = state.nextPrayer.targetTime.getTime() - now.getTime();
                 updateCountdownDisplay(diff);
                 updateRamadanCountdowns();
+                updateTimelineProgress(now);
             } else {
                 calculateNextPrayer();
             }

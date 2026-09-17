@@ -7,59 +7,24 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- ── Frameless Custom Window Titlebar ───────────────────────────────── -->
-    <header class="custom-titlebar">
-        <div class="titlebar-drag-zone" onmousedown="if(event.button === 0 && window.djazair) window.djazair.startDragging();" ondblclick="if(window.djazair) window.djazair.invoke('win_toggleMaximize');">
-            <div class="titlebar-brand">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <!-- ── Unified Modern App Bar (Titlebar + Header) ───────────────────── -->
+    <header class="unified-app-bar">
+        <!-- Right: Brand & App Identity -->
+        <div class="bar-brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.06-1.09.17-1.61 1.95 2.15 4.79 3.53 7.95 3.61.08.32.12.65.12 1 0 2.21-1.79 4-4 4-.69 0-1.33-.18-1.89-.48.88 1.48 2.47 2.48 4.31 2.48 2.76 0 5-2.24 5-5 0-.46-.07-.9-.19-1.32 1.44-.94 2.44-2.52 2.52-4.34.01-.11.01-.23.01-.34 1.25 1.54 2 3.5 2 5.66 0 4.41-3.59 8-8 8z"/>
                 </svg>
-                <span class="titlebar-title">مواقيت الصلاة</span>
-                <span class="titlebar-badge">لغة جزائر</span>
             </div>
-            <div class="titlebar-drag-hint">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle>
-                    <circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle>
-                </svg>
+            <div class="brand-info">
+                <h1>مواقيت الصلاة</h1>
+                <span class="brand-badge">لغة جزائر</span>
             </div>
         </div>
-        <div class="titlebar-controls">
-            <button id="btnWinMin" class="titlebar-btn" title="تصغير (Minimize)">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-            </button>
-            <button id="btnWinMax" class="titlebar-btn" title="تكبير / استعادة (Maximize)">
-                <svg id="iconWinMax" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-                </svg>
-            </button>
-            <button id="btnWinClose" class="titlebar-btn btn-close" title="إغلاق (Close)">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-        </div>
-    </header>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-brand">
-                <div class="brand-icon">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.06-1.09.17-1.61 1.95 2.15 4.79 3.53 7.95 3.61.08.32.12.65.12 1 0 2.21-1.79 4-4 4-.69 0-1.33-.18-1.89-.48.88 1.48 2.47 2.48 4.31 2.48 2.76 0 5-2.24 5-5 0-.46-.07-.9-.19-1.32 1.44-.94 2.44-2.52 2.52-4.34.01-.11.01-.23.01-.34 1.25 1.54 2 3.5 2 5.66 0 4.41-3.59 8-8 8z"/>
-                    </svg>
-                </div>
-                <div class="brand-text">
-                    <h1>مواقيت الصلاة</h1>
-                    <span class="subtext">مدعوم بلغة جزائر (Djazair WebView)</span>
-                </div>
-            </div>
 
-            <!-- Date & Connection Badges -->
-            <div class="header-center">
+        <!-- Center: Draggable Area with Dates & Online Status -->
+        <div class="bar-center-drag" onmousedown="if(event.button === 0 && window.djazair) window.djazair.startDragging();" ondblclick="if(window.djazair) window.djazair.invoke('win_toggleMaximize');">
+            <div class="header-dates">
                 <div class="date-badge">
                     <span id="hijriDate" class="hijri-text">جاري التحميل...</span>
                     <span id="gregDate" class="greg-text">--/--/----</span>
@@ -69,34 +34,53 @@
                     <span id="statusText">متصل بالإنترنت</span>
                 </div>
             </div>
+        </div>
 
-            <!-- Header Actions -->
-            <div class="header-actions">
-                <button id="btnMinimizeTray" class="icon-btn" title="تصغير إلى شريط المهام (Tray)">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                </button>
-                <button id="btnRefresh" class="icon-btn" title="تحديث المواقيت">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                </button>
-                <button id="btnTestAdhan" class="icon-btn" title="سماع الأذان / تنبيه">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                    </svg>
-                </button>
-                <button id="btnSettings" class="icon-btn" title="الإعدادات">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                </button>
-            </div>
-        </header>
+        <!-- Left: Quick Tools & Native Window Controls -->
+        <div class="bar-actions">
+            <!-- App Tools -->
+            <button id="btnRefresh" class="action-btn" title="تحديث المواقيت">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+            </button>
+            <button id="btnTestAdhan" class="action-btn" title="سماع الأذان / تجربة الصوت">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+            </button>
+            <button id="btnSettings" class="action-btn" title="الإعدادات">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </button>
 
+            <!-- Divider -->
+            <div class="bar-divider"></div>
+
+            <!-- Native Window Controls -->
+            <button id="btnWinMin" class="win-btn" title="تصغير إلى شريط المهام (Minimize)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+            <button id="btnWinMax" class="win-btn" title="تكبير / استعادة (Maximize)">
+                <svg id="iconWinMax" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                </svg>
+            </button>
+            <button id="btnWinClose" class="win-btn btn-close" title="إغلاق (Close)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="app-container">
         <!-- Navigation Tabs -->
         <nav class="nav-tabs">
             <button class="nav-tab active" data-tab="tabPrayers">
@@ -121,38 +105,39 @@
         <!-- TAB 1: PRAYER TIMES & LOCATION                                      -->
         <!-- ═══════════════════════════════════════════════════════════════════ -->
         <div id="tabPrayers" class="tab-content active">
-            <!-- Location Selector Bar -->
+            <!-- Location Selector Bar (Modern Pill Design) -->
             <div class="location-bar">
-                <div class="selector-group">
-                    <label for="countrySelect">
+                <div class="pill-selector-group">
+                    <div class="selector-icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                         </svg>
-                        الدولة:
-                    </label>
-                    <select id="countrySelect" class="styled-select"></select>
+                    </div>
+                    <span class="selector-label">الدولة:</span>
+                    <select id="countrySelect" class="pill-select"></select>
                 </div>
 
-                <div class="selector-group">
-                    <label for="citySelect">
+                <div class="pill-selector-group">
+                    <div class="selector-icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                             <path d="M15 11V5l-3-3-3 3v2H3v14h18V11h-6zm-8 8H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5V9h2v2zm6 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V9h2v2zm0-4h-2V5h2v2zm6 12h-2v-2h2v2zm0-4h-2v-2h2v2z"/>
                         </svg>
-                        المدينة / الولاية:
-                    </label>
-                    <select id="citySelect" class="styled-select"></select>
+                    </div>
+                    <span class="selector-label">المدينة / الولاية:</span>
+                    <select id="citySelect" class="pill-select"></select>
                 </div>
 
-                <button id="btnAutoLoc" class="btn-sm btn-outline" title="تحديد موقعي التلقائي عبر الـ IP">
+                <button id="btnAutoLoc" class="pill-btn" title="تحديد موقعي التلقائي عبر الـ IP">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                     </svg>
-                    تحديد تلقائي
+                    <span>تحديد تلقائي</span>
                 </button>
             </div>
 
-            <!-- Hero Section: Next Prayer Countdown & Daily Islamic Reminder -->
+            <!-- Hero Section: Next Prayer Countdown, Timeline & Daily Islamic Reminder -->
             <div class="hero-card main-hero">
+                <div class="hero-arabesque-pattern"></div>
                 <div class="hero-glow"></div>
                 <div class="hero-grid">
                     <!-- Right Col: Next Prayer Info -->
@@ -164,11 +149,24 @@
                         </div>
                     </div>
 
-                    <!-- Center Col: Large Countdown Timer -->
+                    <!-- Center Col: Large Countdown Timer & Smart Timeline Progress -->
                     <div class="hero-countdown-col">
                         <div class="countdown-wrapper">
                             <div class="countdown-time" id="countdown">00:00:00</div>
                             <div class="countdown-label">الوقت المتبقي حتى الأذان</div>
+                        </div>
+                        <!-- Smart Prayer Timeline Progress Bar -->
+                        <div class="prayer-timeline">
+                            <div class="timeline-labels">
+                                <span id="timelinePrevPrayer" class="tl-label tl-prev">--:--</span>
+                                <span id="timelineProgressPercent" class="tl-percent">0%</span>
+                                <span id="timelineNextPrayer" class="tl-label tl-next">--:--</span>
+                            </div>
+                            <div class="timeline-track">
+                                <div id="timelineProgressBar" class="timeline-bar" style="width: 0%;">
+                                    <span class="timeline-glow-point"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -180,7 +178,11 @@
                             </svg>
                             <span>تذكرة المسلم</span>
                         </div>
-                        <div id="dailyReminderText" class="reminder-text">«إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَوْقُوتًا»</div>
+                        <div class="reminder-body">
+                            <span class="quote-ornament">﴿</span>
+                            <div id="dailyReminderText" class="reminder-text">إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَوْقُوتًا</div>
+                            <span class="quote-ornament">﴾</span>
+                        </div>
                         <div id="dailyReminderSource" class="reminder-source">سورة النساء: 103</div>
                     </div>
                 </div>
