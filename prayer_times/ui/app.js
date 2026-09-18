@@ -79,7 +79,6 @@
         gregDate: document.getElementById('gregDate'),
         statusBadge: document.getElementById('statusBadge'),
         statusText: document.getElementById('statusText'),
-        btnMinimizeTray: document.getElementById('btnMinimizeTray'),
         btnRefresh: document.getElementById('btnRefresh'),
         btnTestAdhan: document.getElementById('btnTestAdhan'),
         btnSettings: document.getElementById('btnSettings'),
@@ -759,12 +758,15 @@
             elements.tasbeehDisplay.textContent = '0';
         });
 
-        // Minimize to System Tray
-        elements.btnMinimizeTray.addEventListener('click', () => {
-            if (window.djazair && window.djazair.invoke) {
-                window.djazair.invoke('minimizeToTray').catch(console.error);
-            }
-        });
+        // Minimize to System Tray (if present)
+        const btnMinimizeTray = document.getElementById('btnMinimizeTray');
+        if (btnMinimizeTray) {
+            btnMinimizeTray.addEventListener('click', () => {
+                if (window.djazair && window.djazair.invoke) {
+                    window.djazair.invoke('minimizeToTray').catch(console.error);
+                }
+            });
+        }
 
         // Auto-Location via IP
         elements.btnAutoLoc.addEventListener('click', async () => {
