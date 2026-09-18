@@ -131,6 +131,9 @@
         btnSaveSettings: document.getElementById('btnSaveSettings'),
         methodSelect: document.getElementById('methodSelect'),
         voiceSelect: document.getElementById('voiceSelect'),
+        btnPreviewVoice: document.getElementById('btnPreviewVoice'),
+        iconPreviewVoice: document.getElementById('iconPreviewVoice'),
+        textPreviewVoice: document.getElementById('textPreviewVoice'),
         customAudioGroup: document.getElementById('customAudioGroup'),
         btnPickAudio: document.getElementById('btnPickAudio'),
         lblCustomAudioPath: document.getElementById('lblCustomAudioPath'),
@@ -526,41 +529,119 @@
 
     // ── Audio & Adhan Voices ───────────────────────────────────────────────────
 
-    function playAdhan() {
-        if (state.isPlayingAdhan) return;
-        state.isPlayingAdhan = true;
+    function updateAudioUIState(isPlaying) {
+        if (elements.btnTestAdhan) {
+            if (isPlaying) {
+                elements.btnTestAdhan.classList.add('playing');
+                elements.btnTestAdhan.title = 'إيقاف صوت الأذان (Stop)';
+            } else {
+                elements.btnTestAdhan.classList.remove('playing');
+                elements.btnTestAdhan.title = 'سماع الأذان / تجربة الصوت';
+            }
+        }
+        if (elements.btnPreviewVoice && elements.textPreviewVoice && elements.iconPreviewVoice) {
+            if (isPlaying) {
+                elements.textPreviewVoice.textContent = 'إيقاف';
+                elements.iconPreviewVoice.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
+                elements.btnPreviewVoice.classList.add('playing');
+            } else {
+                elements.textPreviewVoice.textContent = 'تجربة الصوت';
+                elements.iconPreviewVoice.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+                elements.btnPreviewVoice.classList.remove('playing');
+            }
+        }
+    }
 
-        const voice = state.settings.selectedVoice || 'chime';
-
-        // Custom local audio file
-        if (voice === 'custom' && state.settings.customAudioPath) {
-            elements.adhanAudio.src = state.settings.customAudioPath;
-            elements.adhanAudio.volume = state.settings.adhanVolume / 100;
-            elements.adhanAudio.play()
-                .then(() => {
-                    elements.adhanAudio.onended = () => { state.isPlayingAdhan = false; };
-                })
-                .catch(() => {
-                    playSyntheticChime();
-                });
+    function playAdhan(overrideVoice, customVolume) {
+        if (state.isPlayingAdhan) {
+            stopAdhan();
             return;
         }
 
-        playSyntheticChime();
+        const voice = overrideVoice || state.settings.selectedVoice || 'chime';
+        const rawVol = customVolume !== undefined ? customVolume : (state.settings.adhanVolume !== undefined ? state.settings.adhanVolume : 80);
+        const volume = Math.max(0, Math.min(1, rawVol / 100));
+
+        state.isPlayingAdhan = true;
+        updateAudioUIState(true);
+
+        if (voice === 'chime') {
+            playSyntheticChime(volume);
+            return;
+        }
+
+        let audioSrc = '';
+        if (voice === 'makkah') {
+            audioSrc = 'audio/makkah.mp3';
+        } else if (voice === 'madinah') {
+            audioSrc = 'audio/madinah.mp3';
+        } else if (voice === 'algerian') {
+            audioSrc = 'audio/algerian.mp3';
+        } else if (voice === 'custom') {
+            audioSrc = 'audio/custom.mp3?t=' + Date.now();
+        }
+
+        if (audioSrc && elements.adhanAudio) {
+            try {
+                elements.adhanAudio.pause();
+                elements.adhanAudio.currentTime = 0;
+            } catch (e) {}
+
+            elements.adhanAudio.src = audioSrc;
+            elements.adhanAudio.volume = volume;
+
+            elements.adhanAudio.onended = () => {
+                state.isPlayingAdhan = false;
+                updateAudioUIState(false);
+            };
+
+            elements.adhanAudio.onerror = (e) => {
+                console.warn('Audio tag playback error, fallback to chime:', e);
+                playSyntheticChime(volume);
+            };
+
+            elements.adhanAudio.play()
+                .catch(err => {
+                    console.warn('Audio play error, fallback to chime:', err);
+                    playSyntheticChime(volume);
+                });
+        } else {
+            playSyntheticChime(volume);
+        }
     }
 
-    function playSyntheticChime() {
+    function stopAdhan() {
+        if (elements.adhanAudio) {
+            try {
+                elements.adhanAudio.pause();
+                elements.adhanAudio.currentTime = 0;
+            } catch (e) {}
+        }
+        if (state.audioContext && state.audioContext.state === 'running') {
+            try {
+                state.audioContext.suspend();
+            } catch (e) {}
+        }
+        state.isPlayingAdhan = false;
+        updateAudioUIState(false);
+    }
+
+    function playSyntheticChime(volParam) {
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContext) return;
+            if (!AudioContext) {
+                state.isPlayingAdhan = false;
+                updateAudioUIState(false);
+                return;
+            }
             if (!state.audioContext) state.audioContext = new AudioContext();
 
             const ctx = state.audioContext;
             if (ctx.state === 'suspended') ctx.resume();
 
-            // Hijaz / Bayati Maqam frequencies
             const notes = [293.66, 329.63, 349.23, 440.0, 523.25, 587.33];
             let delay = 0;
+            const volume = volParam !== undefined ? volParam : (state.settings.adhanVolume / 100);
 
             notes.forEach((freq) => {
                 const osc = ctx.createOscillator();
@@ -569,7 +650,7 @@
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
 
-                const vol = (state.settings.adhanVolume / 100) * 0.25;
+                const vol = volume * 0.25;
                 gain.gain.setValueAtTime(0.001, ctx.currentTime + delay);
                 gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + delay + 0.1);
                 gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 2.5);
@@ -583,10 +664,14 @@
                 delay += 0.45;
             });
 
-            setTimeout(() => { state.isPlayingAdhan = false; }, (delay + 3) * 1000);
+            setTimeout(() => {
+                state.isPlayingAdhan = false;
+                updateAudioUIState(false);
+            }, (delay + 3) * 1000);
         } catch (e) {
             console.error('Web Audio error:', e);
             state.isPlayingAdhan = false;
+            updateAudioUIState(false);
         }
     }
 
@@ -839,19 +924,36 @@
 
         // Test Adhan Button
         elements.btnTestAdhan.addEventListener('click', () => {
-            playAdhan();
-            if (window.djazair && window.djazair.invoke) {
-                window.djazair.invoke('testNotification').catch(console.error);
+            if (state.isPlayingAdhan) {
+                stopAdhan();
+            } else {
+                playAdhan();
+                if (window.djazair && window.djazair.invoke) {
+                    window.djazair.invoke('testNotification').catch(console.error);
+                }
             }
         });
+
+        // Preview Voice Button in Settings Modal
+        if (elements.btnPreviewVoice) {
+            elements.btnPreviewVoice.addEventListener('click', () => {
+                if (state.isPlayingAdhan) {
+                    stopAdhan();
+                } else {
+                    const currentSelectedVoice = elements.voiceSelect.value;
+                    const currentVolume = Number(elements.rngVolume.value) || 80;
+                    playAdhan(currentSelectedVoice, currentVolume);
+                }
+            });
+        }
 
         // Settings Modal Open/Close
         elements.btnSettings.addEventListener('click', () => {
             elements.methodSelect.value = String(state.settings.method || 13);
             elements.voiceSelect.value = state.settings.selectedVoice || 'chime';
             elements.chkAdhan.checked = state.settings.adhanEnabled;
-            elements.rngVolume.value = state.settings.adhanVolume;
-            elements.lblVolume.textContent = `${state.settings.adhanVolume}%`;
+            elements.rngVolume.value = state.settings.adhanVolume !== undefined ? state.settings.adhanVolume : 80;
+            elements.lblVolume.textContent = `${elements.rngVolume.value}%`;
             elements.chkNotifications.checked = state.settings.notificationEnabled;
             elements.chkStartup.checked = state.settings.startWithWindows || false;
             elements.chkMinimizeTray.checked = state.settings.minimizeToTray !== false;
@@ -867,6 +969,9 @@
         });
 
         elements.voiceSelect.addEventListener('change', (e) => {
+            if (state.isPlayingAdhan) {
+                stopAdhan();
+            }
             if (e.target.value === 'custom') {
                 elements.customAudioGroup.style.display = 'block';
             } else {
@@ -879,25 +984,35 @@
                 const res = await window.djazair.invoke('selectCustomAudio');
                 if (res && res.success && res.path) {
                     state.settings.customAudioPath = res.path;
+                    state.settings.selectedVoice = 'custom';
+                    elements.voiceSelect.value = 'custom';
                     elements.lblCustomAudioPath.textContent = res.path;
+                    playAdhan('custom', Number(elements.rngVolume.value) || 80);
                 }
             }
         });
 
         elements.btnCloseSettings.addEventListener('click', () => {
+            stopAdhan();
             elements.settingsModal.classList.add('hidden');
         });
 
         elements.btnCancelSettings.addEventListener('click', () => {
+            stopAdhan();
             elements.settingsModal.classList.add('hidden');
         });
 
         elements.rngVolume.addEventListener('input', (e) => {
-            elements.lblVolume.textContent = `${e.target.value}%`;
+            const vol = Number(e.target.value);
+            elements.lblVolume.textContent = `${vol}%`;
+            if (elements.adhanAudio && state.isPlayingAdhan) {
+                elements.adhanAudio.volume = vol / 100;
+            }
         });
 
         // Save Settings
         elements.btnSaveSettings.addEventListener('click', async () => {
+            stopAdhan();
             state.settings.method = parseInt(elements.methodSelect.value) || 13;
             state.settings.selectedVoice = elements.voiceSelect.value;
             state.settings.adhanEnabled = elements.chkAdhan.checked;

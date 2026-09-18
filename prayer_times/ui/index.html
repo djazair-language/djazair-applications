@@ -403,12 +403,20 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="voiceSelect">صوت الأذان / المؤذن:</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <label for="voiceSelect">صوت الأذان / المؤذن:</label>
+                            <button id="btnPreviewVoice" type="button" class="btn-sm btn-outline" style="padding: 3px 10px; font-size: 0.78rem;" title="استماع تجريبي للصوت المحدد">
+                                <svg id="iconPreviewVoice" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                <span id="textPreviewVoice">تجربة الصوت</span>
+                            </button>
+                        </div>
                         <select id="voiceSelect" class="styled-select full-width">
                             <option value="chime">نغمة تنبيه إسلامية هادئة (Melodic Resonance)</option>
-                            <option value="makkah">أذان الحرم المكي الشريف</option>
-                            <option value="madinah">أذان الحرم النبوي الشريف</option>
-                            <option value="algerian">الأذان الجزائري التقليدي الأصيل</option>
+                            <option value="makkah">أذان الحرم المكي الشريف (الشيخ علي ملا)</option>
+                            <option value="madinah">أذان الحرم النبوي الشريف (المدينة المنورة)</option>
+                            <option value="algerian">الأذان الجزائري التقليدي الأصيل (حاج سليمان مختار)</option>
                             <option value="custom">ملف صوتي مخصص من الحاسوب...</option>
                         </select>
                     </div>

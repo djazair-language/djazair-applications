@@ -96,6 +96,21 @@ app.onReady(fn()
     catch err
     end
 
+    # Sync custom audio file if configured
+    try
+        let initSettings = storage.loadSettings()
+        if initSettings.has("customAudioPath") and !isNull(initSettings["customAudioPath"]) and initSettings["customAudioPath"] != ""
+            if file.exists(initSettings["customAudioPath"])
+                let audioDir = path.join(UI_DIR, "audio")
+                if !file.exists(audioDir)
+                    dir.createAll(audioDir)
+                end
+                file.copy(initSettings["customAudioPath"], path.join(audioDir, "custom.mp3"))
+            end
+        end
+    catch err
+    end
+
     # Handle window close (Minimize to Tray on Close)
     app.window.onClose(fn()
         let settings = storage.loadSettings()
@@ -236,6 +251,14 @@ app.onReady(fn()
             ]
         })
         if !isNull(filePath) and filePath != ""
+            try
+                let audioDir = path.join(UI_DIR, "audio")
+                if !file.exists(audioDir)
+                    dir.createAll(audioDir)
+                end
+                file.copy(filePath, path.join(audioDir, "custom.mp3"))
+            catch err
+            end
             let settings = storage.loadSettings()
             settings["customAudioPath"] = filePath
             settings["selectedVoice"] = "custom"

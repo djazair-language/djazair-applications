@@ -207,6 +207,24 @@ body {
     transform: translateY(-1px);
 }
 
+.action-btn.playing {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--emerald-primary);
+    border-color: var(--emerald-primary);
+    animation: playing-glow 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes playing-glow {
+    0% {
+        box-shadow: 0 0 4px rgba(16, 185, 129, 0.3);
+        transform: scale(1);
+    }
+    100% {
+        box-shadow: 0 0 16px rgba(16, 185, 129, 0.65);
+        transform: scale(1.06);
+    }
+}
+
 .bar-divider {
     width: 1px;
     height: 20px;
