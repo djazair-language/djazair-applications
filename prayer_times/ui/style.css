@@ -143,8 +143,11 @@ body {
     font-size: 0.78rem;
     color: var(--text-secondary);
     background: rgba(255, 255, 255, 0.05);
-    padding: 2px 8px;
+    padding: 2px 10px;
     border-radius: var(--radius-full);
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
 }
 
 .status-badge {
@@ -857,6 +860,20 @@ body {
     box-shadow: var(--shadow-card), var(--shadow-glow);
 }
 
+.tasbeeh-selector-group {
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+}
+
+.tasbeeh-selector-group label {
+    margin-bottom: 6px;
+    color: var(--gold-light);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: block;
+}
+
 .tasbeeh-bead-area {
     display: flex;
     align-items: center;
@@ -997,14 +1014,76 @@ body {
     z-index: 1;
 }
 
-.modal-header h2 { font-size: 1.15rem; color: var(--gold-primary); }
-.close-btn { background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
-.close-btn:hover { color: #fff; }
+.modal-header h2 { font-size: 1.15rem; color: var(--gold-primary); font-weight: 700; }
+.close-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+.close-btn:hover {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+}
 
 .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 0.85rem; color: var(--text-secondary); }
+.form-group label { font-size: 0.86rem; color: var(--text-secondary); font-weight: 500; }
+
+/* ── Modern Styled Select Component ─────────────────────────────────────────── */
+.styled-select {
+    width: 100%;
+    background-color: #0c1626;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23e6c364' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 14px center;
+    border: 1px solid rgba(230, 195, 100, 0.28);
+    border-radius: var(--radius-sm);
+    color: #f8fafc;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 10px 14px 10px 38px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.styled-select:hover {
+    border-color: rgba(230, 195, 100, 0.6);
+    background-color: #111f35;
+}
+
+.styled-select:focus {
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 14px rgba(230, 195, 100, 0.3);
+    background-color: #13243d;
+}
+
+.styled-select option {
+    background: #0d1726;
+    color: #f8fafc;
+    padding: 10px 14px;
+}
+
+.full-width {
+    width: 100%;
+    box-sizing: border-box;
+}
 
 .path-display {
     font-size: 0.75rem;
@@ -1019,13 +1098,14 @@ body {
     justify-content: space-between;
     align-items: center;
     background: rgba(255, 255, 255, 0.03);
-    padding: 10px 12px;
+    padding: 10px 14px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
 }
 
 .toggle-label { display: flex; flex-direction: column; gap: 2px; }
-.toggle-label small { font-size: 0.72rem; color: var(--text-muted); }
+.toggle-label strong { font-size: 0.88rem; color: #fff; }
+.toggle-label small { font-size: 0.74rem; color: var(--text-muted); }
 
 .slider-range { width: 100%; accent-color: var(--gold-primary); cursor: pointer; }
 
@@ -1064,21 +1144,78 @@ input:checked + .slider:before { transform: translateX(20px); }
     background: rgba(0, 0, 0, 0.2);
 }
 
+/* ── Reusable Buttons ────────────────────────────────────────────────────────── */
 .btn {
     padding: 8px 18px;
     border-radius: var(--radius-sm);
     font-family: inherit;
     font-size: 0.88rem;
     cursor: pointer;
-    border: none;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--gold-primary), #d4a745);
+    color: #070d18;
+    font-weight: 700;
+    border-color: rgba(230, 195, 100, 0.4);
+    box-shadow: 0 2px 8px rgba(230, 195, 100, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--gold-light), var(--gold-primary));
+    box-shadow: 0 4px 14px rgba(230, 195, 100, 0.35);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text-secondary);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+}
+
+.btn-sm {
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     transition: all 0.2s ease;
 }
 
-.btn-primary { background: var(--gold-primary); color: #070d18; font-weight: 600; }
-.btn-primary:hover { background: var(--gold-light); }
+.btn-outline {
+    background: rgba(230, 195, 100, 0.08);
+    border: 1px solid rgba(230, 195, 100, 0.3);
+    color: var(--gold-light);
+    font-weight: 600;
+}
 
-.btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); }
-.btn-secondary:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.btn-outline:hover {
+    background: rgba(230, 195, 100, 0.2);
+    border-color: var(--gold-primary);
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(230, 195, 100, 0.25);
+    transform: translateY(-1px);
+}
+
+.btn-outline:active {
+    transform: translateY(0);
+}
 
 .app-footer { margin-top: auto; text-align: center; font-size: 0.75rem; color: var(--text-muted); padding: 6px 0; }
 .app-footer strong { color: var(--gold-primary); }

@@ -260,7 +260,16 @@
             elements.hijriDate.textContent = data.hijri.formatted;
         }
         if (data.gregorian && data.gregorian.formatted) {
-            elements.gregDate.textContent = data.gregorian.formatted;
+            const AR_MONTHS = {
+                'January': 'جانفي', 'February': 'فيفري', 'March': 'مارس', 'April': 'أفريل',
+                'May': 'ماي', 'June': 'جوان', 'July': 'جويلية', 'August': 'أوت',
+                'September': 'سبتمبر', 'October': 'أكتوبر', 'November': 'نوفمبر', 'December': 'ديسمبر'
+            };
+            let formatted = data.gregorian.formatted;
+            for (const [en, ar] of Object.entries(AR_MONTHS)) {
+                formatted = formatted.replace(en, ar);
+            }
+            elements.gregDate.textContent = formatted;
         }
 
         if (data.source === 'online') {
