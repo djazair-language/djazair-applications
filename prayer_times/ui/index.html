@@ -61,18 +61,18 @@
             <div class="bar-divider"></div>
 
             <!-- Native Window Controls -->
-            <button id="btnWinMin" class="win-btn" title="تصغير إلى شريط المهام (Minimize)">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <button id="btnWinMin" class="win-btn" title="تصغير إلى شريط المهام (Minimize)" onclick="if(window.djazair && window.djazair.invoke) window.djazair.invoke('win_minimize');">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
             </button>
-            <button id="btnWinMax" class="win-btn" title="تكبير / استعادة (Maximize)">
-                <svg id="iconWinMax" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+            <button id="btnWinMax" class="win-btn" title="تكبير / استعادة (Maximize)" onclick="if(window.djazair && window.djazair.invoke) window.djazair.invoke('win_toggleMaximize');">
+                <svg id="iconWinMax" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                     <rect x="4" y="4" width="16" height="16" rx="2"></rect>
                 </svg>
             </button>
-            <button id="btnWinClose" class="win-btn btn-close" title="إغلاق (Close)">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <button id="btnWinClose" class="win-btn btn-close" title="إغلاق / تصغير (Close)" onclick="if(window.djazair && window.djazair.invoke) window.djazair.invoke('win_close');">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>

@@ -16,20 +16,56 @@ import "services/athkar.dz" as athkar
 let SCRIPT_DIR = process.scriptDir()
 let UI_DIR = path.join(SCRIPT_DIR, "ui")
 
+# Check if launched in silent background mode on Windows startup
+let isBackgroundStart = False
+try
+    let cliArgs = process.args()
+    if !isNull(cliArgs)
+        for arg in cliArgs
+            if arg == "--background" or arg == "--silent" or arg == "--tray" or arg == "--autostart"
+                isBackgroundStart = True
+            end
+        end
+    end
+catch err
+end
+
+# Helper to detect actual executable path for startup and shortcuts
+fn getAppExePath()
+    let scriptDirName = path.basename(SCRIPT_DIR)
+    if scriptDirName.startsWith(".dpack_cache_")
+        let parentDir = path.dirname(SCRIPT_DIR)
+        let exeInParent = path.join(parentDir, "prayer_times.exe")
+        if file.exists(exeInParent)
+            return exeInParent
+        end
+    end
+
+    let exeInScript = path.join(SCRIPT_DIR, "prayer_times.exe")
+    if file.exists(exeInScript)
+        return exeInScript
+    end
+
+    let parentDir = path.dirname(SCRIPT_DIR)
+    let exeCandidate = path.join(parentDir, "prayer_times.exe")
+    if file.exists(exeCandidate)
+        return exeCandidate
+    end
+
+    return exeInScript
+end
+
 # Helper to configure Windows startup registry
 fn setWindowsStartup(enabled)
-    let appTarget = path.join(SCRIPT_DIR, "run.bat")
-    let exeFile = path.join(SCRIPT_DIR, "prayer_times.exe")
-    if file.exists(exeFile)
-        appTarget = exeFile
-    end
+    let appTarget = getAppExePath()
+    appTarget = appTarget.replaceAll("/", "\\")
 
     try
         if enabled
-            let cmd = "powershell -WindowStyle Hidden -Command \"Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'DjazairPrayerTimes' -Value '\\\"${appTarget}\\\"'\""
+            let cmd = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).SetValue('DjazairPrayerTimes', [char]34 + '${appTarget}' + [char]34 + ' --background')\""
             process.exec(cmd)
         else
-            let cmd = "powershell -WindowStyle Hidden -Command \"Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'DjazairPrayerTimes' -ErrorAction SilentlyContinue\""
+            let cmd = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).DeleteValue('DjazairPrayerTimes', `$false)\""
             process.exec(cmd)
         end
     catch err
@@ -87,13 +123,25 @@ app.onReady(fn()
         end
     end
 
-    # Explicitly position and foreground window on launch
-    try
-        app.window.center()
-        app.window.restore()
-        app.window.show()
-        app.window.focus()
-    catch err
+    # Position and show window on launch (or keep in tray if autostarted)
+    if isBackgroundStart
+        try
+            app.window.hide()
+            tray.showBalloon(
+                "مواقيت الصلاة — شريط المهام",
+                "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح البرنامج.",
+                4
+            )
+        catch err
+        end
+    else
+        try
+            app.window.center()
+            app.window.restore()
+            app.window.show()
+            app.window.focus()
+        catch err
+        end
     end
 
     # Sync custom audio file if configured
@@ -108,7 +156,25 @@ app.onReady(fn()
                 file.copy(initSettings["customAudioPath"], path.join(audioDir, "custom.mp3"))
             end
         end
+
+        # Ensure Windows startup path is current if enabled
+        if initSettings.has("startWithWindows") and initSettings["startWithWindows"] == True
+            setWindowsStartup(True)
+        end
     catch err
+    end
+
+    # Helper function to perform minimize to tray with notification
+    let performMinimizeToTray = fn()
+        app.window.hide()
+        try
+            tray.showBalloon(
+                "مواقيت الصلاة — شريط المهام",
+                "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح البرنامج مجدداً.",
+                4
+            )
+        catch err
+        end
     end
 
     # Handle window close (Minimize to Tray on Close)
@@ -116,15 +182,7 @@ app.onReady(fn()
         let settings = storage.loadSettings()
         let minToTray = settings.get("minimizeToTray", True)
         if minToTray
-            app.window.hide()
-            try
-                tray.showBalloon(
-                    "مواقيت الصلاة — شريط المهام",
-                    "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح البرنامج مجدداً.",
-                    4
-                )
-            catch err
-            end
+            performMinimizeToTray()
             return False
         end
         return True
@@ -132,7 +190,24 @@ app.onReady(fn()
 
     # ── IPC Bridge: Frameless Window Controls ────────────────────────────────
     app.bridge.on("win_minimize", fn(payload)
-        app.window.minimize()
+        let settings = storage.loadSettings()
+        let minToTray = settings.get("minimizeToTray", True)
+        if minToTray
+            performMinimizeToTray()
+        else
+            app.window.minimize()
+        end
+        return True
+    end)
+
+    app.bridge.on("win_close", fn(payload)
+        let settings = storage.loadSettings()
+        let minToTray = settings.get("minimizeToTray", True)
+        if minToTray
+            performMinimizeToTray()
+        else
+            app.quit()
+        end
         return True
     end)
 
