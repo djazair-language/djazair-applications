@@ -118,6 +118,10 @@ window.PrayerApp = window.PrayerApp || {};
 
         notifyAthkarTime(type) {
             return this.invoke('notifyAthkarTime', { type });
+        },
+
+        openSettingsFolder() {
+            return this.invoke('openSettingsFolder');
         }
     };
 

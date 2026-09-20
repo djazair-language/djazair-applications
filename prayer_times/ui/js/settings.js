@@ -10,10 +10,39 @@ window.PrayerApp = window.PrayerApp || {};
     'use strict';
 
     App.Settings = {
+        switchTab(tabId) {
+            const elements = App.elements;
+            if (elements.settingsTabBtns) {
+                elements.settingsTabBtns.forEach(btn => {
+                    if (btn.dataset.settingsTab === tabId) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+            if (elements.settingsTabPanes) {
+                elements.settingsTabPanes.forEach(pane => {
+                    if (pane.id === tabId) {
+                        pane.classList.add('active');
+                    } else {
+                        pane.classList.remove('active');
+                    }
+                });
+            }
+        },
+
         open() {
             const state = App.state;
             const elements = App.elements;
             if (!elements.settingsModal) return;
+
+            // Default to first tab (General & Windows)
+            this.switchTab('settingsTabGeneral');
+
+            if (elements.lblSettingsJsonPath) {
+                elements.lblSettingsJsonPath.textContent = state.settingsPath || 'data/settings.json';
+            }
 
             if (elements.methodSelect) {
                 elements.methodSelect.value = String(state.settings.method || 13);
@@ -195,6 +224,12 @@ window.PrayerApp = window.PrayerApp || {};
             if (App.IPC) {
                 try {
                     const res = await App.IPC.saveSettings(state.settings);
+                    if (res && res.settingsPath) {
+                        state.settingsPath = res.settingsPath;
+                        if (elements.lblSettingsJsonPath) {
+                            elements.lblSettingsJsonPath.textContent = res.settingsPath;
+                        }
+                    }
                     if (res && res.prayerData && App.Clock && App.Clock.updatePrayerUI) {
                         App.Clock.updatePrayerUI(res.prayerData);
                     }
@@ -206,6 +241,22 @@ window.PrayerApp = window.PrayerApp || {};
 
         bindEvents() {
             const elements = App.elements;
+
+            if (elements.settingsTabBtns) {
+                elements.settingsTabBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.switchTab(btn.dataset.settingsTab);
+                    });
+                });
+            }
+
+            if (elements.btnOpenSettingsFolder) {
+                elements.btnOpenSettingsFolder.addEventListener('click', () => {
+                    if (App.IPC && App.IPC.openSettingsFolder) {
+                        App.IPC.openSettingsFolder();
+                    }
+                });
+            }
 
             if (elements.btnSettings) {
                 elements.btnSettings.addEventListener('click', () => this.open());

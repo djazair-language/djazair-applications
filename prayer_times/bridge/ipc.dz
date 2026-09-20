@@ -8,6 +8,7 @@ use webview
 use file
 use path
 use dir
+use process
 
 import "../core/config.dz" as config
 
@@ -101,6 +102,7 @@ fn registerIpcHandlers(app, tray, services)
         return {
             "countries": countries,
             "settings": settings,
+            "settingsPath": storage.getSettingsPath(),
             "prayerData": prayerData,
             "athkar": athkarData
         }
@@ -171,8 +173,19 @@ fn registerIpcHandlers(app, tray, services)
         return {
             "success": True,
             "settings": payload,
+            "settingsPath": storage.getSettingsPath(),
             "prayerData": prayerData
         }
+    end)
+
+    app.bridge.on("openSettingsFolder", fn(payload)
+        let p = storage.getSettingsPath()
+        try
+            process.exec("explorer.exe /select,\"" + p.replace("/", "\\") + "\"")
+            return True
+        catch err
+            return False
+        end
     end)
 
     app.bridge.on("selectCustomAudio", fn(payload)

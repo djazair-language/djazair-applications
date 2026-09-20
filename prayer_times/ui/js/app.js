@@ -36,10 +36,15 @@ window.PrayerApp = window.PrayerApp || {};
 
         state.countries = data.countries || [];
         state.settings = data.settings || state.settings;
+        state.settingsPath = data.settingsPath || '';
         state.athkarData = data.athkar || null;
         state.currentCountry = state.settings.country;
         state.currentCity = state.settings.city;
         state.tasbeehTotal = state.settings.tasbeehCount || 0;
+
+        if (elements.lblSettingsJsonPath && state.settingsPath) {
+            elements.lblSettingsJsonPath.textContent = state.settingsPath;
+        }
 
         App.Clock.populateCountryDropdown();
         App.Clock.populateCityDropdown(state.currentCountry);

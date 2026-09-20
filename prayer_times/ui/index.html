@@ -439,246 +439,313 @@
                     <h2>إعدادات التطبيق</h2>
                     <button id="btnCloseSettings" class="close-btn">&times;</button>
                 </div>
+
+                <!-- Settings Sub-Tabs Navigation -->
+                <div class="settings-tab-bar">
+                    <button type="button" class="settings-tab-btn active" data-settings-tab="settingsTabGeneral">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                        </svg>
+                        <span>عام وويندوز</span>
+                    </button>
+                    <button type="button" class="settings-tab-btn" data-settings-tab="settingsTabAudio">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                        <span>الأذان والأصوات</span>
+                    </button>
+                    <button type="button" class="settings-tab-btn" data-settings-tab="settingsTabAlerts">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                        </svg>
+                        <span>التنبيهات والإقامة</span>
+                    </button>
+                    <button type="button" class="settings-tab-btn" data-settings-tab="settingsTabCalc">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                        </svg>
+                        <span>الحساب وملف JSON</span>
+                    </button>
+                </div>
+
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="methodSelect">طريقة حساب المواقيت:</label>
-                        <select id="methodSelect" class="styled-select full-width">
-                            <option value="13">وزارة الشؤون الدينية والأوقاف الجزائرية (Algeria)</option>
-                            <option value="4">جامعة أم القرى - مكة المكرمة (Umm Al-Qura)</option>
-                            <option value="3">رابطة العالم الإسلامي (Muslim World League)</option>
-                            <option value="5">الهيئة المصرية العامة للمساحة (Egyptian Authority)</option>
-                            <option value="1">جامعة العلوم الإسلامية بكراتشي (Karachi)</option>
-                            <option value="2">الجمعية الإسلامية لأمريكا الشمالية (ISNA)</option>
-                        </select>
+                    <!-- ── TAB 1: GENERAL & WINDOWS ─────────────────────── -->
+                    <div id="settingsTabGeneral" class="settings-tab-pane active">
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>التشغيل التلقائي مع إقلاع ويندوز:</strong>
+                                <small>بدء تشغيل التطبيق في الخلفية عند فتح الكمبيوتر</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkStartup">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group" id="startupOptionsGroup" style="display: none; padding: 12px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
+                            <div style="margin-bottom: 10px;">
+                                <label for="txtStartupName" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+                                    اسم التسجيل في بدء التشغيل (اختياري - كما يظهر في إدارة المهام):
+                                </label>
+                                <input type="text" id="txtStartupName" class="styled-input full-width" placeholder="Djazair Prayer Times">
+                            </div>
+                            <div>
+                                <label for="txtCustomExeName" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+                                    اسم أو مسار الملف التنفيذي (اختياري - تلقائي إذا تُرك فارغاً):
+                                </label>
+                                <input type="text" id="txtCustomExeName" class="styled-input full-width" placeholder="prayer_times.exe (تلقائي)">
+                            </div>
+                        </div>
+
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>إشعارات سطح المكتب (Windows Toast):</strong>
+                                <small>إظهار تنبيه مرئي بجانب الساعة عند دخول كل صلاة</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkNotifications" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>تصغير إلى شريط المهام (Tray) عند الإغلاق:</strong>
+                                <small>استمرار عمل التطبيق في الخلفية بجانب الساعة</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkMinimizeTray" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <label for="voiceSelect">صوت الأذان / المؤذن:</label>
-                            <button id="btnPreviewVoice" type="button" class="btn-sm btn-outline" style="padding: 3px 10px; font-size: 0.78rem;" title="استماع تجريبي للصوت المحدد">
-                                <svg id="iconPreviewVoice" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-                                    <polygon points="5 3 19 12 5 21 5 3"/>
-                                </svg>
-                                <span id="textPreviewVoice">تجربة الصوت</span>
+                    <!-- ── TAB 2: ADHAN & AUDIO ────────────────────────── -->
+                    <div id="settingsTabAudio" class="settings-tab-pane">
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>صوت الأذان عند دخول الوقت:</strong>
+                                <small>تشغيل التنبيه الصوتي كاملاً عند دخول وقت الصلاة</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkAdhan" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="rngVolume">مستوى صوت الأذان (<span id="lblVolume">80%</span>):</label>
+                            <input type="range" id="rngVolume" min="0" max="100" value="80" class="slider-range">
+                        </div>
+
+                        <div class="form-group">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label for="voiceSelect">صوت الأذان العام / المؤذن:</label>
+                                <button id="btnPreviewVoice" type="button" class="btn-sm btn-outline" style="padding: 3px 10px; font-size: 0.78rem;" title="استماع تجريبي للصوت المحدد">
+                                    <svg id="iconPreviewVoice" viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                                        <polygon points="5 3 19 12 5 21 5 3"/>
+                                    </svg>
+                                    <span id="textPreviewVoice">تجربة الصوت</span>
+                                </button>
+                            </div>
+                            <select id="voiceSelect" class="styled-select full-width">
+                                <option value="chime">نغمة تنبيه إسلامية هادئة (Melodic Resonance)</option>
+                                <option value="makkah">أذان الحرم المكي الشريف (الشيخ علي ملا)</option>
+                                <option value="madinah">أذان الحرم النبوي الشريف (المدينة المنورة)</option>
+                                <option value="algerian">الأذان الجزائري التقليدي الأصيل (حاج سليمان مختار)</option>
+                                <option value="custom">ملف صوتي مخصص من الحاسوب...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="customAudioGroup" style="display:none;">
+                            <button id="btnPickAudio" class="btn btn-secondary full-width">
+                                📂 اختيار ملف MP3 من الجهاز
                             </button>
+                            <small id="lblCustomAudioPath" class="path-display"></small>
                         </div>
-                        <select id="voiceSelect" class="styled-select full-width">
-                            <option value="chime">نغمة تنبيه إسلامية هادئة (Melodic Resonance)</option>
-                            <option value="makkah">أذان الحرم المكي الشريف (الشيخ علي ملا)</option>
-                            <option value="madinah">أذان الحرم النبوي الشريف (المدينة المنورة)</option>
-                            <option value="algerian">الأذان الجزائري التقليدي الأصيل (حاج سليمان مختار)</option>
-                            <option value="custom">ملف صوتي مخصص من الحاسوب...</option>
-                        </select>
-                    </div>
 
-                    <div class="form-group" id="customAudioGroup" style="display:none;">
-                        <button id="btnPickAudio" class="btn btn-secondary full-width">
-                            📂 اختيار ملف MP3 من الجهاز
-                        </button>
-                        <small id="lblCustomAudioPath" class="path-display"></small>
-                    </div>
-
-                    <!-- Per-Prayer Voice Customization -->
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>تخصيص صوت الأذان لكل صلاة (بما في ذلك الفجر):</strong>
-                            <small>تحديد مؤذن أو صوت مختلف لكل فريضة من فرائض اليوم</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkPerPrayerVoices">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="form-group" id="groupPerPrayerVoices" style="display: none; padding: 12px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem;">
-                            <div>
-                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة الفجر (الصلاة خير من النوم):</label>
-                                <select id="selVoiceFajr" class="styled-select full-width">
-                                    <option value="algerian">الأذان الجزائري الأصيل</option>
-                                    <option value="makkah">الحرم المكي الشريف</option>
-                                    <option value="madinah">الحرم النبوي الشريف</option>
-                                    <option value="chime">نغمة تنبيه هادئة</option>
-                                    <option value="custom">ملف مخصص</option>
-                                </select>
+                        <!-- Per-Prayer Voice Customization -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>تخصيص صوت الأذان لكل صلاة:</strong>
+                                <small>تحديد مؤذن أو صوت مختلف لكل فريضة (مثل أذان الفجر الخاص)</small>
                             </div>
-                            <div>
-                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة الظهر:</label>
-                                <select id="selVoiceDhuhr" class="styled-select full-width">
-                                    <option value="chime">نغمة تنبيه هادئة</option>
-                                    <option value="algerian">الأذان الجزائري الأصيل</option>
-                                    <option value="makkah">الحرم المكي الشريف</option>
-                                    <option value="madinah">الحرم النبوي الشريف</option>
-                                    <option value="custom">ملف مخصص</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة العصر:</label>
-                                <select id="selVoiceAsr" class="styled-select full-width">
-                                    <option value="chime">نغمة تنبيه هادئة</option>
-                                    <option value="algerian">الأذان الجزائري الأصيل</option>
-                                    <option value="makkah">الحرم المكي الشريف</option>
-                                    <option value="madinah">الحرم النبوي الشريف</option>
-                                    <option value="custom">ملف مخصص</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة المغرب:</label>
-                                <select id="selVoiceMaghrib" class="styled-select full-width">
-                                    <option value="chime">نغمة تنبيه هادئة</option>
-                                    <option value="algerian">الأذان الجزائري الأصيل</option>
-                                    <option value="makkah">الحرم المكي الشريف</option>
-                                    <option value="madinah">الحرم النبوي الشريف</option>
-                                    <option value="custom">ملف مخصص</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة العشاء:</label>
-                                <select id="selVoiceIsha" class="styled-select full-width">
-                                    <option value="chime">نغمة تنبيه هادئة</option>
-                                    <option value="algerian">الأذان الجزائري الأصيل</option>
-                                    <option value="makkah">الحرم المكي الشريف</option>
-                                    <option value="madinah">الحرم النبوي الشريف</option>
-                                    <option value="custom">ملف مخصص</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Pre-Adhan Reminder -->
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>تنبيه ما قبل الأذان (Pre-Adhan Reminder):</strong>
-                            <small>إشعار لطيف للاستعداد للصلاة والوضوء قبل دخول الوقت</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkPreAdhan" checked>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
-                        <label for="selPreAdhanMinutes">وقت التنبيه قبل الأذان:</label>
-                        <select id="selPreAdhanMinutes" class="styled-select" style="width: 140px;">
-                            <option value="5">قبل 5 دقائق</option>
-                            <option value="10" selected>قبل 10 دقائق</option>
-                            <option value="15">قبل 15 دقيقة</option>
-                            <option value="20">قبل 20 دقيقة</option>
-                        </select>
-                    </div>
-
-                    <!-- Iqama Settings -->
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>عرض مواقيت الإقامة والتنبيه بها (Iqama):</strong>
-                            <small>حساب موعد الإقامة وإظهار التنبيه التنازلي بعد الأذان</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkIqama" checked>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="form-group" id="groupIqamaOffsets" style="padding: 10px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
-                        <label style="display:block; margin-bottom: 6px; font-size: 0.82rem; color: var(--text-secondary);">فترة الإقامة بالدقائق بعد الأذان لكل فريضة:</label>
-                        <div style="display: flex; gap: 8px; justify-content: space-between;">
-                            <div style="text-align: center;">
-                                <span style="display:block; font-size:0.75rem;">الفجر</span>
-                                <input type="number" id="numIqamaFajr" min="5" max="60" value="20" class="styled-input" style="width:50px; text-align:center; padding:4px;">
-                            </div>
-                            <div style="text-align: center;">
-                                <span style="display:block; font-size:0.75rem;">الظهر</span>
-                                <input type="number" id="numIqamaDhuhr" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
-                            </div>
-                            <div style="text-align: center;">
-                                <span style="display:block; font-size:0.75rem;">العصر</span>
-                                <input type="number" id="numIqamaAsr" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
-                            </div>
-                            <div style="text-align: center;">
-                                <span style="display:block; font-size:0.75rem;">المغرب</span>
-                                <input type="number" id="numIqamaMaghrib" min="5" max="60" value="10" class="styled-input" style="width:50px; text-align:center; padding:4px;">
-                            </div>
-                            <div style="text-align: center;">
-                                <span style="display:block; font-size:0.75rem;">العشاء</span>
-                                <input type="number" id="numIqamaIsha" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Athkar Timed Reminders -->
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>تنبيهات أذكار الصباح والمساء في وقتها:</strong>
-                            <small>إشعار بعد الفجر لأذكار الصباح وبعد العصر لأذكار المساء</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkAthkarReminder" checked>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>صوت الأذان عند دخول الوقت:</strong>
-                            <small>تشغيل التنبيه الصوتي كاملاً عند دخول وقت الصلاة</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkAdhan" checked>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="rngVolume">مستوى صوت الأذان (<span id="lblVolume">80%</span>):</label>
-                        <input type="range" id="rngVolume" min="0" max="100" value="80" class="slider-range">
-                    </div>
-
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>إشعارات سطح المكتب (Windows Toast):</strong>
-                            <small>إظهار تنبيه مرئي بجانب الساعة عند دخول كل صلاة</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkNotifications" checked>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>التشغيل التلقائي مع إقلاع ويندوز:</strong>
-                            <small>بدء تشغيل التطبيق في الخلفية عند فتح الكمبيوتر</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkStartup">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-
-                    <div class="form-group" id="startupOptionsGroup" style="display: none; padding: 12px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
-                        <div style="margin-bottom: 10px;">
-                            <label for="txtStartupName" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 4px;">
-                                اسم التسجيل في بدء التشغيل (اختياري - كما يظهر في إدارة المهام):
+                            <label class="switch">
+                                <input type="checkbox" id="chkPerPrayerVoices">
+                                <span class="slider round"></span>
                             </label>
-                            <input type="text" id="txtStartupName" class="styled-input full-width" placeholder="Djazair Prayer Times">
                         </div>
-                        <div>
-                            <label for="txtCustomExeName" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 4px;">
-                                اسم أو مسار الملف التنفيذي (اختياري - تلقائي إذا تُرك فارغاً):
-                            </label>
-                            <input type="text" id="txtCustomExeName" class="styled-input full-width" placeholder="prayer_times.exe (تلقائي)">
+
+                        <div class="form-group" id="groupPerPrayerVoices" style="display: none; padding: 12px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem;">
+                                <div>
+                                    <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة الفجر (الصلاة خير من النوم):</label>
+                                    <select id="selVoiceFajr" class="styled-select full-width">
+                                        <option value="algerian">الأذان الجزائري الأصيل</option>
+                                        <option value="makkah">الحرم المكي الشريف</option>
+                                        <option value="madinah">الحرم النبوي الشريف</option>
+                                        <option value="chime">نغمة تنبيه هادئة</option>
+                                        <option value="custom">ملف مخصص</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة الظهر:</label>
+                                    <select id="selVoiceDhuhr" class="styled-select full-width">
+                                        <option value="chime">نغمة تنبيه هادئة</option>
+                                        <option value="algerian">الأذان الجزائري الأصيل</option>
+                                        <option value="makkah">الحرم المكي الشريف</option>
+                                        <option value="madinah">الحرم النبوي الشريف</option>
+                                        <option value="custom">ملف مخصص</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة العصر:</label>
+                                    <select id="selVoiceAsr" class="styled-select full-width">
+                                        <option value="chime">نغمة تنبيه هادئة</option>
+                                        <option value="algerian">الأذان الجزائري الأصيل</option>
+                                        <option value="makkah">الحرم المكي الشريف</option>
+                                        <option value="madinah">الحرم النبوي الشريف</option>
+                                        <option value="custom">ملف مخصص</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة المغرب:</label>
+                                    <select id="selVoiceMaghrib" class="styled-select full-width">
+                                        <option value="chime">نغمة تنبيه هادئة</option>
+                                        <option value="algerian">الأذان الجزائري الأصيل</option>
+                                        <option value="makkah">الحرم المكي الشريف</option>
+                                        <option value="madinah">الحرم النبوي الشريف</option>
+                                        <option value="custom">ملف مخصص</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة العشاء:</label>
+                                    <select id="selVoiceIsha" class="styled-select full-width">
+                                        <option value="chime">نغمة تنبيه هادئة</option>
+                                        <option value="algerian">الأذان الجزائري الأصيل</option>
+                                        <option value="makkah">الحرم المكي الشريف</option>
+                                        <option value="madinah">الحرم النبوي الشريف</option>
+                                        <option value="custom">ملف مخصص</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group toggle-group">
-                        <div class="toggle-label">
-                            <strong>تصغير إلى شريط المهام (Tray) عند الإغلاق:</strong>
-                            <small>استمرار عمل التطبيق في الخلفية بجانب الساعة</small>
+                    <!-- ── TAB 3: ALERTS & IQAMA ───────────────────────── -->
+                    <div id="settingsTabAlerts" class="settings-tab-pane">
+                        <!-- Pre-Adhan Reminder -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>تنبيه ما قبل الأذان (Pre-Adhan Reminder):</strong>
+                                <small>إشعار لطيف للاستعداد للصلاة والوضوء قبل دخول الوقت</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkPreAdhan" checked>
+                                <span class="slider round"></span>
+                            </label>
                         </div>
-                        <label class="switch">
-                            <input type="checkbox" id="chkMinimizeTray" checked>
-                            <span class="slider round"></span>
-                        </label>
+
+                        <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                            <label for="selPreAdhanMinutes">وقت التنبيه قبل الأذان:</label>
+                            <select id="selPreAdhanMinutes" class="styled-select" style="width: 140px;">
+                                <option value="5">قبل 5 دقائق</option>
+                                <option value="10" selected>قبل 10 دقائق</option>
+                                <option value="15">قبل 15 دقيقة</option>
+                                <option value="20">قبل 20 دقيقة</option>
+                            </select>
+                        </div>
+
+                        <!-- Iqama Settings -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>عرض مواقيت الإقامة والتنبيه بها (Iqama):</strong>
+                                <small>حساب موعد الإقامة وإظهار التنبيه التنازلي بعد الأذان</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkIqama" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group" id="groupIqamaOffsets" style="padding: 10px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
+                            <label style="display:block; margin-bottom: 6px; font-size: 0.82rem; color: var(--text-secondary);">فترة الإقامة بالدقائق بعد الأذان لكل فريضة:</label>
+                            <div style="display: flex; gap: 8px; justify-content: space-between;">
+                                <div style="text-align: center;">
+                                    <span style="display:block; font-size:0.75rem;">الفجر</span>
+                                    <input type="number" id="numIqamaFajr" min="5" max="60" value="20" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                                </div>
+                                <div style="text-align: center;">
+                                    <span style="display:block; font-size:0.75rem;">الظهر</span>
+                                    <input type="number" id="numIqamaDhuhr" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                                </div>
+                                <div style="text-align: center;">
+                                    <span style="display:block; font-size:0.75rem;">العصر</span>
+                                    <input type="number" id="numIqamaAsr" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                                </div>
+                                <div style="text-align: center;">
+                                    <span style="display:block; font-size:0.75rem;">المغرب</span>
+                                    <input type="number" id="numIqamaMaghrib" min="5" max="60" value="10" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                                </div>
+                                <div style="text-align: center;">
+                                    <span style="display:block; font-size:0.75rem;">العشاء</span>
+                                    <input type="number" id="numIqamaIsha" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Athkar Timed Reminders -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>تنبيهات أذكار الصباح والمساء في وقتها:</strong>
+                                <small>إشعار بعد الفجر لأذكار الصباح وبعد العصر لأذكار المساء</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkAthkarReminder" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- ── TAB 4: CALCULATION & JSON DATA ──────────────── -->
+                    <div id="settingsTabCalc" class="settings-tab-pane">
+                        <div class="form-group">
+                            <label for="methodSelect">طريقة حساب المواقيت الفلكية:</label>
+                            <select id="methodSelect" class="styled-select full-width">
+                                <option value="13">وزارة الشؤون الدينية والأوقاف الجزائرية (Algeria)</option>
+                                <option value="4">جامعة أم القرى - مكة المكرمة (Umm Al-Qura)</option>
+                                <option value="3">رابطة العالم الإسلامي (Muslim World League)</option>
+                                <option value="5">الهيئة المصرية العامة للمساحة (Egyptian Authority)</option>
+                                <option value="1">جامعة العلوم الإسلامية بكراتشي (Karachi)</option>
+                                <option value="2">الجمعية الإسلامية لأمريكا الشمالية (ISNA)</option>
+                            </select>
+                        </div>
+
+                        <!-- JSON File Storage Card -->
+                        <div class="json-storage-card">
+                            <div class="json-storage-header">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                <span>ملف حفظ الإعدادات (JSON Storage)</span>
+                            </div>
+                            <p class="json-storage-desc">
+                                يتم حفظ كافة إعدادات التطبيق وخياراتك تلقائياً وبشكل دائم في ملف <code>settings.json</code> بصيغة معيارية مقروءة.
+                            </p>
+                            <div class="json-storage-path-box">
+                                <span class="json-path-label">المسار الحالي:</span>
+                                <span id="lblSettingsJsonPath" class="json-path-value">جاري التحميل...</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button type="button" id="btnOpenSettingsFolder" class="btn btn-outline btn-sm">
+                                    📁 فتح مجلد الإعدادات في Explorer
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

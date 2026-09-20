@@ -1054,6 +1054,124 @@ body {
     border-color: rgba(239, 68, 68, 0.5);
 }
 
+/* ── Settings Modal Tabs Navigation ─────────────────────────────────────────── */
+.settings-tab-bar {
+    display: flex;
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px 12px 0 12px;
+    gap: 6px;
+    overflow-x: auto;
+}
+
+.settings-tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    white-space: nowrap;
+}
+
+.settings-tab-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.settings-tab-btn.active {
+    color: var(--gold-primary);
+    border-bottom-color: var(--gold-primary);
+    background: rgba(230, 195, 100, 0.08);
+}
+
+.settings-tab-btn svg {
+    flex-shrink: 0;
+}
+
+.settings-tab-pane {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    animation: fadeInTab 0.2s ease;
+}
+
+.settings-tab-pane.active {
+    display: flex;
+}
+
+@keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── JSON File Storage Info Card ───────────────────────────────────────────── */
+.json-storage-card {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(230, 195, 100, 0.25);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.json-storage-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--gold-primary);
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.json-storage-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.json-storage-desc code {
+    background: rgba(230, 195, 100, 0.15);
+    color: var(--gold-light);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.json-storage-path-box {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.json-path-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.json-path-value {
+    font-size: 0.78rem;
+    font-family: monospace;
+    color: #34d399;
+    word-break: break-all;
+    user-select: all;
+}
+
 .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }
