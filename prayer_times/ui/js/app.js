@@ -336,15 +336,25 @@ window.PrayerApp = window.PrayerApp || {};
         }
 
         if (elements.btnExpandFromCompact) {
-            elements.btnExpandFromCompact.addEventListener('click', () => setCompactMode(false));
+            elements.btnExpandFromCompact.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setCompactMode(false);
+            });
         }
 
         if (elements.btnCompactMute) {
-            elements.btnCompactMute.addEventListener('click', App.toggleAdhan);
+            elements.btnCompactMute.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                App.toggleAdhan();
+            });
         }
 
         if (elements.btnCompactClose) {
-            elements.btnCompactClose.addEventListener('click', () => {
+            elements.btnCompactClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 if (App.IPC) App.IPC.winClose();
             });
         }
