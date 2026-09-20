@@ -256,7 +256,8 @@ window.PrayerApp = window.PrayerApp || {};
                 if (App.Audio) App.Audio.stopAdhan();
             } else {
                 const prayerKey = (state.nextPrayer && state.nextPrayer.key) || 'Fajr';
-                if (App.Audio) App.Audio.playAdhan(null, null, prayerKey);
+                const vol = (state.settings && state.settings.adhanVolume != null) ? Number(state.settings.adhanVolume) : 80;
+                if (App.Audio) App.Audio.playAdhan(null, vol, prayerKey);
                 if (App.IPC) App.IPC.testNotification().catch(console.error);
             }
         };

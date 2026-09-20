@@ -69,8 +69,13 @@ window.PrayerApp = window.PrayerApp || {};
                 voice = state.settings.selectedVoice || 'chime';
             }
 
-            const rawVol = customVolume !== undefined ? customVolume : (state.settings.adhanVolume !== undefined ? state.settings.adhanVolume : 80);
-            const volume = Math.max(0, Math.min(1, rawVol / 100));
+            let rawVol = 80;
+            if (customVolume != null && !isNaN(customVolume) && customVolume !== '') {
+                rawVol = Number(customVolume);
+            } else if (state.settings && state.settings.adhanVolume != null && !isNaN(state.settings.adhanVolume)) {
+                rawVol = Number(state.settings.adhanVolume);
+            }
+            const volume = Math.max(0.01, Math.min(1, rawVol / 100));
 
             state.isPlayingAdhan = true;
             this.updateUIState(true);

@@ -330,7 +330,8 @@ window.PrayerApp = window.PrayerApp || {};
             }
 
             if (state.settings.adhanEnabled && prayerKey !== 'Sunrise' && App.Audio) {
-                App.Audio.playAdhan(null, null, prayerKey);
+                const vol = (state.settings && state.settings.adhanVolume != null) ? Number(state.settings.adhanVolume) : 80;
+                App.Audio.playAdhan(null, vol, prayerKey);
             }
 
             // Advance to next prayer
