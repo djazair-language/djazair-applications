@@ -1,0 +1,29 @@
+# =============================================================================
+# Project:      Djazair dpack Standalone Bundler Framework
+# File:         docs/run_docs.dz
+# Description:  Interactive Offline Desktop Documentation Viewer Application
+# Author:       Harizi Riyadh (hariziriyadh@gmail.com)
+# Copyright:    (c) 2026 Djazair Language Project. All rights reserved.
+# License:      MIT License
+# =============================================================================
+
+use webview
+
+let app = webview.createWindow({
+    "title": "Djazair dpack - Official Documentation & Standalone Bundler Reference",
+    "width": 1280,
+    "height": 840,
+    "minWidth": 880,
+    "minHeight": 640,
+    "center": True,
+    "darkTitleBar": True,
+    "debug": True,
+    "singleInstance": True,
+    "appId": "com.djazair.dpack.docs"
+})
+
+app.onReady(fn()
+    app.window.navigate("index.html")
+end)
+
+app.run()

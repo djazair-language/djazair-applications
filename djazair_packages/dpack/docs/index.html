@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Djazair dpack Extension | Official Documentation &amp; Standalone Bundler Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="docs.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="docs.js"></script>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="top-header">
+    <a href="#overview" class="logo-area">
+      <div class="logo-icon"><i class="fas fa-box-open"></i></div>
+      <div class="logo-text">
+        <h1>Djazair <span>dpack</span></h1>
+        <small>Official Standalone Bundler</small>
+      </div>
+    </a>
+
+    <div class="header-center">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="apiSearch" class="search-input" placeholder="Search dpack APIs (pack, cleanCache, verify, inspect, portable, console)..." autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <span class="badge-version">v1.0.2 Production</span>
+      <a href="#studio" class="btn-header"><i class="fas fa-sliders-h"></i> Config Studio</a>
+      <a href="https://github.com/djazair-language/djazair-extensions" target="_blank" class="btn-header"><i class="fab fa-github"></i> GitHub</a>
+      <button class="btn-header" id="themeToggleBtn" title="Toggle Dark/Light Mode"><i class="fas fa-sun"></i></button>
+      <button class="btn-header" id="mobileMenuBtn" title="Toggle Navigation"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="app-container">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="nav-group">
+        <div class="nav-title"><i class="fas fa-compass"></i> Getting Started</div>
+        <ul class="nav-links">
+          <li><a href="#overview" class="nav-item active"><span>Overview &amp; Features</span></a></li>
+          <li><a href="#quickstart" class="nav-item"><span>Quick Start Guide</span></a></li>
+          <li><a href="#studio" class="nav-item"><span>Interactive Config Studio</span> <span class="nav-tag live">Live</span></a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title"><i class="fas fa-cube"></i> Core API Reference</div>
+        <ul class="nav-links">
+          <li><a href="#api-pack" class="nav-item"><span>dpack.pack()</span></a></li>
+          <li><a href="#api-verify" class="nav-item"><span>dpack.verify()</span> <span class="nav-tag new">New</span></a></li>
+          <li><a href="#api-inspect" class="nav-item"><span>dpack.inspect()</span> <span class="nav-tag new">New</span></a></li>
+          <li><a href="#api-cleancache" class="nav-item"><span>dpack.cleanCache()</span></a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title"><i class="fas fa-cogs"></i> Configuration</div>
+        <ul class="nav-links">
+          <li><a href="#cfg-json" class="nav-item"><span>dpack.json Configuration</span></a></li>
+          <li><a href="#cfg-options" class="nav-item"><span>Options Dictionary</span></a></li>
+          <li><a href="#cfg-assets" class="nav-item"><span>Asset Bundling Modes</span></a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title"><i class="fas fa-microchip"></i> Runtime &amp; Architecture</div>
+        <ul class="nav-links">
+          <li><a href="#arch-howitworks" class="nav-item"><span>How It Works Under The Hood</span></a></li>
+          <li><a href="#arch-foreground" class="nav-item"><span>Foreground Window Focus</span> <span class="nav-tag">v1.0.2</span></a></li>
+          <li><a href="#arch-cache" class="nav-item"><span>Fast Caching &amp; Execution</span></a></li>
+          <li><a href="#arch-security" class="nav-item"><span>Obfuscation vs Security</span></a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title"><i class="fas fa-book-open"></i> Recipes &amp; Workflows</div>
+        <ul class="nav-links">
+          <li><a href="#recipe-webview" class="nav-item"><span>Bundling WebView Desktop Apps</span></a></li>
+          <li><a href="#recipe-raylib" class="nav-item"><span>Bundling Raylib 2D/3D Games</span></a></li>
+          <li><a href="#recipe-cli" class="nav-item"><span>Bundling Fast CLI Utilities</span></a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title"><i class="fas fa-history"></i> Release Notes</div>
+        <ul class="nav-links">
+          <li><a href="#changelog" class="nav-item"><span>Version Changelog</span></a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="mainContent">
+
+      <!-- Hero Banner -->
+      <section class="hero-banner" id="overview">
+        <div class="hero-badge"><i class="fas fa-shield-alt"></i> Official Djazair Bundler</div>
+        <h1 class="hero-title">Djazair <code>dpack</code> Bundler</h1>
+        <p class="hero-desc">
+          Package your Djazair scripts (<code>.dz</code>) and all their dependencies—including the native interpreter, standard libraries, extensions, and assets—into a single, self-contained executable file (<code>.exe</code> on Windows or native binary on Linux). Distribute without requiring any runtime installation!
+        </p>
+        <div class="hero-actions">
+          <a href="#quickstart" class="btn-primary"><i class="fas fa-bolt"></i> Get Started</a>
+          <a href="#studio" class="btn-secondary"><i class="fas fa-sliders-h"></i> Interactive Config Studio</a>
+          <a href="#api-pack" class="btn-secondary"><i class="fas fa-code"></i> API Reference</a>
+        </div>
+      </section>
+
+      <!-- Key Features Grid -->
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-box"></i></div>
+          <h3 class="feature-title">Self-Contained Executables</h3>
+          <p class="feature-text">Embeds the Djazair interpreter, prelude, and standard libraries inside the executable binary with instant subsequent launches.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-magic"></i></div>
+          <h3 class="feature-title">Smart Dependency Scanning</h3>
+          <p class="feature-text">Automatically scans your code for <code>use &lt;module&gt;</code> statements and bundles external extensions (e.g. <code>webview</code>, <code>raylib</code>, <code>kasbah</code>) without extra configuration.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-window-restore"></i></div>
+          <h3 class="feature-title">Seamless GUI Focus</h3>
+          <p class="feature-text">Automatically grants foreground window rights (<code>AllowSetForegroundWindow</code>) on Windows to ensure GUI apps restore and focus properly from system tray.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-user-secret"></i></div>
+          <h3 class="feature-title">Source Obfuscation</h3>
+          <p class="feature-text">Optional XOR scrambling protects your raw source code from standard zip extraction and casual inspection.</p>
+        </div>
+      </div>
+
+      <!-- Quick Start Guide -->
+      <section class="doc-section" id="quickstart">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fas fa-bolt"></i> Quick Start Guide</h2>
+          <p class="section-desc">Create a standalone executable in two lines of Djazair code.</p>
+        </div>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-lang">Djazair (build.dz)</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <pre class="code-content"><code>use dpack
+
+# Compile app.dz into app.exe (automatically bundles assets and dependencies)
+dpack.pack("app.dz")</code></pre>
+        </div>
+
+        <p style="margin-bottom:12px; color:var(--text-secondary);">Run the build script from your terminal:</p>
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-lang">Shell</span>
+            <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+          </div>
+          <pre class="code-content"><code>djazair build.dz</code></pre>
+        </div>
+      </section>
+
+      <!-- Interactive Config Studio -->
+      <section class="doc-section" id="studio">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fas fa-sliders-h"></i> Interactive Config Studio</h2>
+          <p class="section-desc">Customize your bundle settings in real time and copy the generated <code>dpack.json</code> or <code>build.dz</code>.</p>
+        </div>
+
+        <div class="interactive-panel">
+          <div class="panel-grid">
+            <div class="panel-form">
+              <div class="form-group">
+                <label class="form-label">Entry Script Path</label>
+                <input type="text" id="cfgMainScript" class="form-control" value="main.dz" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Output Executable Name</label>
+                <input type="text" id="cfgOutputExe" class="form-control" value="MyApplication.exe" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Asset Bundling Mode</label>
+                <select id="cfgAssetMode" class="form-control">
+                  <option value="all" selected>Auto-bundle all directory assets (True)</option>
+                  <option value="none">Disable asset bundling (False)</option>
+                  <option value="explicit">Explicit files list (Array)</option>
+                </select>
+              </div>
+
+              <div class="form-checkbox-group">
+                <label class="form-checkbox">
+                  <input type="checkbox" id="cfgConsole" />
+                  <span><strong>Console Window:</strong> Keep terminal window open (uncheck for WebView / GUI apps)</span>
+                </label>
+                <label class="form-checkbox">
+                  <input type="checkbox" id="cfgPortable" checked />
+                  <span><strong>Portable Mode:</strong> Place cache next to executable (ideal for USB / self-contained)</span>
+                </label>
+                <label class="form-checkbox">
+                  <input type="checkbox" id="cfgEncrypt" checked />
+                  <span><strong>Source Obfuscation:</strong> XOR-scramble user .dz scripts inside bundle</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="panel-previews">
+              <div class="code-container">
+                <div class="code-header">
+                  <span class="code-lang">Generated dpack.json</span>
+                  <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+                </div>
+                <pre class="code-content"><code id="dpackJsonPreview"></code></pre>
+              </div>
+
+              <div class="code-container">
+                <div class="code-header">
+                  <span class="code-lang">Generated build.dz</span>
+                  <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+                </div>
+                <pre class="code-content"><code id="buildDzPreview"></code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Core API Reference -->
+      <section class="doc-section" id="api-reference">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fas fa-cube"></i> Core API Reference</h2>
+          <p class="section-desc">Detailed specification of all methods exported by the <code>dpack</code> extension.</p>
+        </div>
+
+        <!-- dpack.pack() -->
+        <div class="method-card" id="api-pack">
+          <div class="method-header">
+            <div class="method-signature">
+              dpack.<span class="func-name">pack</span>(<span class="param-type">scriptPath</span> = Null, <span class="param-type">outputPath</span> = Null, <span class="param-type">options</span> = {})
+            </div>
+            <div class="method-badges">
+              <span class="nav-tag live">Primary API</span>
+            </div>
+          </div>
+          <div class="method-body">
+            <p class="method-desc">
+              Packages a Djazair entry script into a standalone executable. If <code>scriptPath</code> is omitted, <code>dpack</code> automatically loads the <code>main</code> script specified in <code>dpack.json</code>.
+            </p>
+            <table class="api-table">
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Type</th>
+                  <th>Default</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>scriptPath</code></td>
+                  <td>String | Null</td>
+                  <td><code>Null</code></td>
+                  <td>The entry script path (e.g. <code>"main.dz"</code>). If <code>Null</code>, resolved from <code>dpack.json</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>outputPath</code></td>
+                  <td>String | Null</td>
+                  <td><code>Null</code></td>
+                  <td>Target executable path. If <code>Null</code>, defaults to script basename with <code>.exe</code> on Windows.</td>
+                </tr>
+                <tr>
+                  <td><code>options</code></td>
+                  <td>Dictionary</td>
+                  <td><code>{}</code></td>
+                  <td>Configuration dictionary overriding <code>dpack.json</code> settings.</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="code-container">
+              <div class="code-header">
+                <span class="code-lang">Djazair</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <pre class="code-content"><code>use dpack
+
+dpack.pack("src/main.dz", "dist/MyApp.exe", {
+    "console": False,
+    "portable": True,
+    "encrypt": True,
+    "assets": ["ui/", "audio/"]
+})</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- dpack.verify() -->
+        <div class="method-card" id="api-verify">
+          <div class="method-header">
+            <div class="method-signature">
+              dpack.<span class="func-name">verify</span>(<span class="param-type">exePath</span>) &rarr; <span class="param-type">Bool</span>
+            </div>
+            <div class="method-badges">
+              <span class="nav-tag new">v1.0.2</span>
+            </div>
+          </div>
+          <div class="method-body">
+            <p class="method-desc">
+              Inspects the binary trailer of the specified executable to verify whether it contains a valid <code>dpack</code> payload and matching footer signature.
+            </p>
+            <div class="code-container">
+              <div class="code-header">
+                <span class="code-lang">Djazair</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <pre class="code-content"><code>use dpack
+
+if dpack.verify("dist/MyApp.exe")
+    print("Executable is a verified dpack standalone bundle.")
+else
+    print("Not a valid dpack bundle.")
+end</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- dpack.inspect() -->
+        <div class="method-card" id="api-inspect">
+          <div class="method-header">
+            <div class="method-signature">
+              dpack.<span class="func-name">inspect</span>(<span class="param-type">exePath</span>) &rarr; <span class="param-type">Array&lt;Dictionary&gt;</span>
+            </div>
+            <div class="method-badges">
+              <span class="nav-tag new">v1.0.2</span>
+            </div>
+          </div>
+          <div class="method-body">
+            <p class="method-desc">
+              Extracts and returns the manifest of all files bundled inside a packed executable (including path, compressed size, and attributes) without executing the application.
+            </p>
+            <div class="code-container">
+              <div class="code-header">
+                <span class="code-lang">Djazair</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <pre class="code-content"><code>use dpack
+
+let files = dpack.inspect("dist/MyApp.exe")
+for item in files
+    print("File: ${item[\"path\"]} - ${item[\"size\"]} bytes")
+end</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- dpack.cleanCache() -->
+        <div class="method-card" id="api-cleancache">
+          <div class="method-header">
+            <div class="method-signature">
+              dpack.<span class="func-name">cleanCache</span>()
+            </div>
+          </div>
+          <div class="method-body">
+            <p class="method-desc">
+              Purges old cached build staging folders and temporary runtime caches from <code>%TEMP%</code> (Windows) or <code>/tmp</code> (Linux) to reclaim disk space.
+            </p>
+            <div class="code-container">
+              <div class="code-header">
+                <span class="code-lang">Djazair</span>
+                <button class="btn-copy"><i class="far fa-copy"></i> Copy</button>
+              </div>
+              <pre class="code-content"><code>use dpack
+
+# Frees disk space by removing old cached dpack runs
+dpack.cleanCache()</code></pre>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Configuration Reference -->
+      <section class="doc-section" id="cfg-json">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fas fa-cogs"></i> Configuration &amp; Options</h2>
+          <p class="section-desc">Configure your builds with declarative <code>dpack.json</code> files or options dictionaries.</p>
+        </div>
+
+        <div class="callout tip">
+          <i class="fas fa-lightbulb callout-icon"></i>
+          <div>
+            <strong>Zero Configuration:</strong> If a <code>dpack.json</code> file exists in the directory where <code>dpack.pack()</code> is invoked, its options are automatically loaded and applied.
+          </div>
+        </div>
+
+        <table class="api-table" id="cfg-options">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Type</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>main</code></td>
+              <td>String</td>
+              <td><code>"main.dz"</code></td>
+              <td>Entry script to package.</td>
+            </tr>
+            <tr>
+              <td><code>output</code></td>
+              <td>String</td>
+              <td><code>Null</code></td>
+              <td>Destination binary path.</td>
+            </tr>
+            <tr>
+              <td><code>console</code></td>
+              <td>Bool</td>
+              <td><code>True</code></td>
+              <td>Set to <code>False</code> to hide the console terminal window for GUI applications.</td>
+            </tr>
+            <tr>
+              <td><code>portable</code></td>
+              <td>Bool</td>
+              <td><code>False</code></td>
+              <td>If <code>True</code>, places the cache folder next to the <code>.exe</code> rather than in <code>%TEMP%</code>.</td>
+            </tr>
+            <tr>
+              <td><code>encrypt</code></td>
+              <td>Bool</td>
+              <td><code>False</code></td>
+              <td>Enables XOR source obfuscation for bundled <code>.dz</code> scripts.</td>
+            </tr>
+            <tr>
+              <td><code>assets</code></td>
+              <td>Bool | Array</td>
+              <td><code>True</code></td>
+              <td><code>True</code> auto-bundles directory assets; <code>False</code> excludes assets; <code>Array</code> specifies exact assets.</td>
+            </tr>
+            <tr>
+              <td><code>extensions</code></td>
+              <td>Array</td>
+              <td><code>[]</code></td>
+              <td>Explicit list of extensions to force-include if dynamically loaded.</td>
+            </tr>
+            <tr>
+              <td><code>quiet</code></td>
+              <td>Bool</td>
+              <td><code>False</code></td>
+              <td>Suppresses build progress output.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Architecture & Runtime -->
+      <section class="doc-section" id="arch-foreground">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fas fa-microchip"></i> Runtime Architecture &amp; Foreground Focus</h2>
+          <p class="section-desc">How dpack executes bundled applications and manages Windows desktop integration.</p>
+        </div>
+
+        <div class="callout success">
+          <i class="fas fa-check-circle callout-icon"></i>
+          <div>
+            <strong>Foreground Window Focus in v1.0.2:</strong><br />
+            On Windows, background and spawned processes are subject to focus-stealing prevention. In <code>dpack v1.0.2</code>, the native stub calls <code>AllowSetForegroundWindow(pi.dwProcessId)</code> immediately upon spawning the child interpreter. This ensures that GUI applications (e.g. WebView, Qt, Raylib) can reliably take focus, activate, and restore their windows from the system tray when clicked!
+          </div>
+        </div>
+
+        <div class="callout warning" id="arch-security">
+          <i class="fas fa-exclamation-triangle callout-icon"></i>
+          <div>
+            <strong>Security Boundary Notice:</strong><br />
+            The <code>encrypt</code> / <code>protect</code> option provides source code <em>obfuscation</em> against casual inspection. Because the stub must decrypt files at runtime to execute them, decrypted scripts reside in the cache folder. Never store confidential passwords or API private keys in bundled code!
+          </div>
+        </div>
+      </section>
+
+      <!-- Changelog -->
+      <section class="doc-section" id="changelog">
+        <div class="section-header">
+          <h2 class="section-title"><i class="fas fa-history"></i> Version Changelog</h2>
+        </div>
+
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-signature">Version 1.0.2 — 2026-09-20</div>
+            <span class="nav-tag new">Current Release</span>
+          </div>
+          <div class="method-body">
+            <ul style="padding-left:20px; color:var(--text-secondary); line-height:1.8;">
+              <li><strong>Foreground Window Focus:</strong> Added <code>AllowSetForegroundWindow(pi.dwProcessId)</code> in <code>stub/stub.c</code>. Allows child GUI processes to reliably restore and bring windows to the foreground from system tray or background states without Windows focus restrictions.</li>
+              <li><strong>Recompiled Stubs:</strong> Rebuilt <code>stub/stub_win.exe</code> and <code>stub/stub_win_gui.exe</code> with foreground focus delegation.</li>
+              <li><strong>Verification &amp; Inspection:</strong> Fully documented and exposed <code>dpack.verify()</code> and <code>dpack.inspect()</code>.</li>
+              <li><strong>Interactive Documentation:</strong> Added complete offline documentation suite with <code>run_docs.dz</code> and live Interactive Config Studio.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="method-card">
+          <div class="method-header">
+            <div class="method-signature">Version 1.0.1</div>
+          </div>
+          <div class="method-body">
+            <ul style="padding-left:20px; color:var(--text-secondary); line-height:1.8;">
+              <li><strong>Project Configuration:</strong> Added <code>dpack.json</code> support for automatic zero-config builds.</li>
+              <li><strong>Source Obfuscation:</strong> Added <code>encrypt</code> / <code>protect</code> XOR scrambling mode for packaged <code>.dz</code> scripts.</li>
+              <li><strong>Portable Deployment:</strong> Added <code>portable: true</code> mode to store cache next to the executable.</li>
+              <li><strong>Cache Management:</strong> Added <code>dpack.cleanCache()</code> for clearing temporary application caches.</li>
+              <li><strong>Zero-Duplicate Bundling:</strong> Optimized bundling logic to prevent duplicate libraries and extensions.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+</body>
+</html>

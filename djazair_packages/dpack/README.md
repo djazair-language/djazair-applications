@@ -1,5 +1,9 @@
 # dpack - Djazair Standalone Bundler
 
+![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)
+![Djazair](https://img.shields.io/badge/djazair-compatible-green.svg)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)
+
 `dpack` is the official bundler for the **Djazair Programming Language**. It allows you to package your Djazair scripts (`.dz`) and all their dependencies into a single, self-contained executable file (`.exe` on Windows, or a native binary on Linux). 
 
 With `dpack`, you can distribute your Djazair programs to anyone, and they can run them immediately—**even if they don't have Djazair installed!**
@@ -99,6 +103,40 @@ Simply run `dpack.pack()` in your code, and it will automatically detect and loa
 
 ---
 
+## 🔍 Inspecting & Verifying Bundles
+
+`dpack` provides built-in tools to inspect and verify packaged executables:
+
+### 1. `dpack.verify(exePath)`
+Returns `True` if the specified file is a valid executable packaged by `dpack`, or `False` otherwise:
+
+```dz
+use dpack
+
+if dpack.verify("app.exe")
+    print("Valid dpack bundle!")
+end
+```
+
+### 2. `dpack.inspect(exePath)`
+Reads and lists all internal files bundled within a `dpack` executable without running it:
+
+```dz
+use dpack
+
+let files = dpack.inspect("app.exe")
+# Prints:
+#   Contents of: app.exe
+#   ------------------------------------
+#   __main__.dz  (4 KB)
+#   bin/djazair.exe  (1.8 MB)
+#   std/math/init.dz  (12 KB)
+#   ------------------------------------
+#   Total: 45 files
+```
+
+---
+
 ## 🧹 Cleaning Cache (`dpack.cleanCache()`)
 
 To clean up old cached application build folders from system temp directory and free disk space:
@@ -142,6 +180,7 @@ dpack.pack("cli_tool.dz", Null, {
 - **Local imports**: Only imports inside the entry script's directory tree are supported. `import "../foo.dz"` (or any path escaping the project folder) is rejected at build time with a clear error — keep such files in the project folder or bundle them as `assets`.
 - **Unicode paths (Windows)**: The stub currently uses ANSI system APIs; non-ASCII (e.g. Arabic) characters in the executable's path are not reliably supported on Windows.
 - **Unsigned output**: Bundled executables are not cryptographically signed; a tampered bundle (replacing the embedded ZIP payload) will still run. Distribute through trusted channels, and keep the last 16 bytes (the dpack footer) intact.
+- **Foreground Focus (Windows)**: In v1.0.2+, the runner stub automatically delegates foreground window focus rights via `AllowSetForegroundWindow` to child processes, ensuring GUI windows (e.g., WebView, Qt, Raylib) can reliably take focus and restore from the system tray without being blocked by Windows focus-stealing prevention.
 
 ---
 
@@ -151,5 +190,25 @@ When you run `dpack.pack()`, the following happens:
 1. **Staging**: A temporary directory (`.dpack_stage_tmp`) is created.
 2. **Copying**: Your script (renamed to `__main__.dz`), the Djazair interpreter, standard libraries, extensions, and your assets are securely copied into the staging folder.
 3. **Compression**: The staging directory is zipped into a highly compressed archive.
-4. **Assembly**: The archive is injected into a tiny, pre-compiled C-binary stub (`stub/stub_win.exe`).
-5. **Execution**: When a user runs your final executable, the stub transparently extracts the application (via `Expand-Archive` / `unzip`) into a versioned cache directory (`%TEMP%` or locally in portable mode), executes your app seamlessly with full access to the user's working directory and arguments, and preserves the cache so subsequent launches start instantly. Old cache folders can be cleaned at any time using `dpack.cleanCache()`.
+4. **Assembly**: The archive is injected into a tiny, pre-compiled C-binary stub (`stub/stub_win.exe` or `stub/stub_win_gui.exe`).
+5. **Execution**: When a user runs your final executable, the stub transparently extracts the application (via `Expand-Archive` / `unzip`) into a versioned cache directory (`%TEMP%` or locally in portable mode), delegates foreground rights via `AllowSetForegroundWindow(pi.dwProcessId)`, executes your app seamlessly with full access to the user's working directory and arguments, and preserves the cache so subsequent launches start instantly. Old cache folders can be cleaned at any time using `dpack.cleanCache()`.
+
+---
+
+## 📋 Changelog
+
+### v1.0.2 — 2026-09-20
+- **Foreground Window Focus (Windows)**: Added `AllowSetForegroundWindow(pi.dwProcessId)` in `stub/stub.c`. Allows child GUI processes (WebView, Qt, Raylib) to reliably restore and bring windows to the foreground from system tray or background states without Windows focus restrictions.
+- **Recompiled Stubs**: Rebuilt `stub/stub_win.exe` and `stub/stub_win_gui.exe` with foreground focus delegation.
+- **Verification & Inspection Documentation**: Fully documented `dpack.verify(exePath)` and `dpack.inspect(exePath)`.
+- **Offline Interactive Documentation**: Added full offline documentation suite under `docs/` (`index.html`, `run_docs.dz`, `docs.css`, `docs.js`) with an interactive configuration generator and bundler calculator.
+
+### v1.0.1
+- **Project Configuration**: Added `dpack.json` support for automatic build configurations.
+- **Source Obfuscation**: Added `encrypt` / `protect` XOR scrambling mode for packaged `.dz` scripts.
+- **Portable Deployment**: Added `portable: true` mode to store cache next to the executable (`.dpack_cache_<hash>`).
+- **Cache Management**: Added `dpack.cleanCache()` for clearing temporary application caches.
+- **Zero-Duplicate Bundling**: Optimized bundling logic to prevent duplicate libraries and extensions.
+
+### v1.0.0
+- Initial release of `dpack` standalone bundler for the Djazair Programming Language.
