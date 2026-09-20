@@ -222,6 +222,23 @@ fn registerIpcHandlers(app, tray, services)
         return True
     end)
 
+    # Helper to display clean notifications via the application's existing tray icon
+    let showNotification = fn(title, message, sub = "", timeout = 6)
+        if !isNull(tray)
+            try
+                let fullMsg = message
+                if sub != ""
+                    fullMsg = fullMsg + "\n" + sub
+                end
+                tray.showBalloon(title, fullMsg, timeout)
+                return True
+            catch err
+            end
+        end
+        webview.notificationShow(title, message, sub, True, "", timeout)
+        return True
+    end
+
     # ── IPC: Desktop Notifications ───────────────────────────────────────────
     app.bridge.on("notifyPrayer", fn(payload)
         let prayer = payload["prayer"]
@@ -231,12 +248,10 @@ fn registerIpcHandlers(app, tray, services)
             notifMsg = notifMsg + " (" + time + ")"
         end
 
-        webview.notificationShow(
+        showNotification(
             "مواقيت الصلاة",
             notifMsg,
             "حي على الصلاة • حي على الفلاح",
-            True,
-            "",
             7
         )
         return True
@@ -246,17 +261,15 @@ fn registerIpcHandlers(app, tray, services)
         let title = payload.get("title", "تذكير إسلامي")
         let message = payload.get("message", "")
         let sub = payload.get("sub", "")
-        webview.notificationShow(title, message, sub, True, "", 6)
+        showNotification(title, message, sub, 6)
         return True
     end)
 
     app.bridge.on("testNotification", fn(payload)
-        webview.notificationShow(
+        showNotification(
             "مواقيت الصلاة",
             "هذا إشعار تجريبي لمواقيت الصلاة",
             "لغة جزائر - تطبيق سطح المكتب",
-            True,
-            "",
             5
         )
         return True
@@ -297,12 +310,10 @@ fn registerIpcHandlers(app, tray, services)
         let prayer = payload.get("prayer", "")
         let minutes = payload.get("minutes", 10)
         let msg = "اقترب موعد صلاة " + prayer + " (باقي " + str(minutes) + " دقيقة)"
-        webview.notificationShow(
+        showNotification(
             "تنبيه دخول الصلاة",
             msg,
             "حي على الصلاة • حان وقت الاستعداد والوضوء",
-            True,
-            "",
             6
         )
         return True
@@ -311,12 +322,10 @@ fn registerIpcHandlers(app, tray, services)
     app.bridge.on("notifyIqama", fn(payload)
         let prayer = payload.get("prayer", "")
         let msg = "حان الآن موعد إقامة صلاة " + prayer
-        webview.notificationShow(
+        showNotification(
             "موعد إقامة الصلاة",
             msg,
             "أقيموا صفوفكم وتراصوا • تقبل الله منا ومنكم",
-            True,
-            "",
             6
         )
         return True
@@ -330,12 +339,10 @@ fn registerIpcHandlers(app, tray, services)
             title = "أذكار المساء"
             msg = "أمسينا وأمسى الملك لله — حان وقت قراءة أذكار المساء المباركة"
         end
-        webview.notificationShow(
+        showNotification(
             title,
             msg,
             "ألا بذكر الله تطمئن القلوب",
-            True,
-            "",
             7
         )
         return True
