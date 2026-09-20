@@ -1,10 +1,10 @@
 {
   "adhanVolume": 90,
   "city": "Algiers",
-  "adhanEnabled": true,
-  "startWithWindows": false,
-  "ramadanMode": false,
   "minimizeToTray": true,
+  "adhanEnabled": true,
+  "ramadanMode": false,
+  "startWithWindows": true,
   "method": 13,
   "country": "DZ",
   "cityAr": "الجزائر العاصمة",

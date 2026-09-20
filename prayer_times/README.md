@@ -51,8 +51,7 @@ prayer_times/
 │   ├── index.html         # هيكل الواجهة والتبويبات الأربعة
 │   ├── style.css          # التصميم والأنماط البصرية الزجاجية الإسلامية
 │   └── app.js             # محرك التفاعل والعدادات التنازلية والسبحة والأذان
-├── data/                  # مجلد الحفظ التلقائي لـ settings.json و cache.json
-└── WebView2Loader.dll     # مكتبة ربط WebView2 الرسمية لنظام ويندوز
+└── data/                  # مجلد الحفظ التلقائي لـ settings.json و cache.json
 ```
 
 ---
