@@ -142,6 +142,9 @@
         lblVolume: document.getElementById('lblVolume'),
         chkNotifications: document.getElementById('chkNotifications'),
         chkStartup: document.getElementById('chkStartup'),
+        startupOptionsGroup: document.getElementById('startupOptionsGroup'),
+        txtStartupName: document.getElementById('txtStartupName'),
+        txtCustomExeName: document.getElementById('txtCustomExeName'),
         chkMinimizeTray: document.getElementById('chkMinimizeTray'),
 
         // Audio
@@ -958,6 +961,16 @@
             elements.chkStartup.checked = state.settings.startWithWindows || false;
             elements.chkMinimizeTray.checked = state.settings.minimizeToTray !== false;
 
+            if (elements.txtStartupName) {
+                elements.txtStartupName.value = state.settings.startupName || 'Djazair Prayer Times';
+            }
+            if (elements.txtCustomExeName) {
+                elements.txtCustomExeName.value = state.settings.customExeName || '';
+            }
+            if (elements.startupOptionsGroup) {
+                elements.startupOptionsGroup.style.display = elements.chkStartup.checked ? 'block' : 'none';
+            }
+
             if (elements.voiceSelect.value === 'custom') {
                 elements.customAudioGroup.style.display = 'block';
                 elements.lblCustomAudioPath.textContent = state.settings.customAudioPath || '';
@@ -967,6 +980,15 @@
 
             elements.settingsModal.classList.remove('hidden');
         });
+
+        // Toggle startup options visibility
+        if (elements.chkStartup) {
+            elements.chkStartup.addEventListener('change', () => {
+                if (elements.startupOptionsGroup) {
+                    elements.startupOptionsGroup.style.display = elements.chkStartup.checked ? 'block' : 'none';
+                }
+            });
+        }
 
         elements.voiceSelect.addEventListener('change', (e) => {
             if (state.isPlayingAdhan) {
@@ -1020,6 +1042,12 @@
             state.settings.notificationEnabled = elements.chkNotifications.checked;
             state.settings.startWithWindows = elements.chkStartup.checked;
             state.settings.minimizeToTray = elements.chkMinimizeTray.checked;
+            if (elements.txtStartupName) {
+                state.settings.startupName = elements.txtStartupName.value.trim() || 'Djazair Prayer Times';
+            }
+            if (elements.txtCustomExeName) {
+                state.settings.customExeName = elements.txtCustomExeName.value.trim();
+            }
 
             elements.settingsModal.classList.add('hidden');
 

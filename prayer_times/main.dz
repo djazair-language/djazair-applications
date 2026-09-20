@@ -80,24 +80,63 @@ fn getAppBaseName()
     return base
 end
 
-# Helper to configure Windows startup registry dynamically
-fn setWindowsStartup(enabled)
-    let appTarget = getAppExePath()
+# Helper to configure Windows startup registry dynamically and optionally
+fn setWindowsStartup(enabled, customName = Null, customExe = Null, oldName = Null)
+    let appTarget = ""
+    if !isNull(customExe) and customExe != ""
+        if path.isAbsolute(customExe) and file.exists(customExe)
+            appTarget = customExe
+        else
+            let parentDir = path.dirname(getAppExePath())
+            let cand = path.join(parentDir, customExe)
+            if file.exists(cand)
+                appTarget = cand
+            end
+        end
+    end
+    if appTarget == ""
+        appTarget = getAppExePath()
+    end
+
     appTarget = appTarget.replaceAll("/", "\\")
     let baseName = getAppBaseName()
-    let regKeyName = "Djazair_" + baseName
+
+    # Determine registry value name (user custom name > default "Djazair Prayer Times")
+    let regKeyName = ""
+    if !isNull(customName) and customName != ""
+        regKeyName = customName
+    else
+        regKeyName = "Djazair Prayer Times"
+    end
 
     try
-        if enabled
-            let cmd = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).SetValue('${regKeyName}', [char]34 + '${appTarget}' + [char]34 + ' --background')\""
-            process.exec(cmd)
-        else
-            let cmd1 = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).DeleteValue('${regKeyName}', `$false)\""
-            process.exec(cmd1)
-            # Also delete legacy key name if present
-            let cmd2 = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).DeleteValue('DjazairPrayerTimes', `$false)\""
-            process.exec(cmd2)
+        # Collect all old or possible key names to delete
+        let keysToDelete = [
+            "DjazairPrayerTimes",
+            "Djazair Prayer Times",
+            "prayer_times",
+            "djazair_prayer",
+            "Djazair_" + baseName
+        ]
+        if !isNull(oldName) and oldName != ""
+            keysToDelete.push(oldName)
         end
+        if !enabled
+            keysToDelete.push(regKeyName)
+        end
+
+        # Build PowerShell command to delete all old keys
+        let delScript = "`$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true); "
+        for k in keysToDelete
+            delScript = delScript + "`$k.DeleteValue('${k}', `$false); "
+        end
+
+        if enabled
+            delScript = delScript + "`$k.SetValue('${regKeyName}', [char]34 + '${appTarget}' + [char]34 + ' --background'); "
+        end
+
+        let cmd = "powershell -WindowStyle Hidden -Command \"" + delScript + "\""
+        process.exec(cmd)
     catch err
     end
 end
@@ -342,9 +381,15 @@ app.onReady(fn()
         let oldSettings = storage.loadSettings()
         storage.saveSettings(payload)
 
-        # Handle Windows Startup Toggle if changed
-        if payload.has("startWithWindows") and payload["startWithWindows"] != oldSettings.get("startWithWindows", False)
-            setWindowsStartup(payload["startWithWindows"])
+        # Handle Windows Startup Toggle if changed or if name/exe updated
+        if payload.has("startWithWindows")
+            let startupChanged = payload["startWithWindows"] != oldSettings.get("startWithWindows", False)
+            let nameChanged = payload.get("startupName", "") != oldSettings.get("startupName", "")
+            let exeChanged = payload.get("customExeName", "") != oldSettings.get("customExeName", "")
+            if startupChanged or nameChanged or exeChanged
+                let oldName = oldSettings.get("startupName", Null)
+                setWindowsStartup(payload["startWithWindows"], payload.get("startupName", Null), payload.get("customExeName", Null), oldName)
+            end
         end
 
         let prayerData = api.getPrayerTimes(

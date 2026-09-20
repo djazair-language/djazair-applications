@@ -18,6 +18,8 @@ let DEFAULT_SETTINGS = {
     "adhanVolume": 80,
     "notificationEnabled": True,
     "startWithWindows": False,
+    "startupName": "Djazair Prayer Times",
+    "customExeName": "",
     "minimizeToTray": True,
     "ramadanMode": False,
     "selectedVoice": "chime",

@@ -1103,6 +1103,32 @@ body {
     box-sizing: border-box;
 }
 
+/* ── Modern Styled Input Component ─────────────────────────────────────────── */
+.styled-input {
+    width: 100%;
+    background-color: #0c1626;
+    border: 1px solid rgba(230, 195, 100, 0.28);
+    border-radius: var(--radius-sm);
+    color: #f8fafc;
+    font-family: inherit;
+    font-size: 0.88rem;
+    padding: 8px 14px;
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.styled-input:hover {
+    border-color: rgba(230, 195, 100, 0.6);
+    background-color: #111f35;
+}
+
+.styled-input:focus {
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 14px rgba(230, 195, 100, 0.3);
+    background-color: #13243d;
+}
+
 .path-display {
     font-size: 0.75rem;
     color: var(--text-muted);
