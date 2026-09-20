@@ -21,6 +21,25 @@ window.PrayerApp = window.PrayerApp || {};
                     elements.btnTestAdhan.title = 'سماع الأذان / تجربة الصوت';
                 }
             }
+            if (elements.btnCompactMute) {
+                if (isPlaying) {
+                    elements.btnCompactMute.classList.add('playing');
+                    elements.btnCompactMute.title = 'إيقاف صوت الأذان (Stop)';
+                    elements.btnCompactMute.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="pointer-events: none;">
+                            <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+                        </svg>
+                    `;
+                } else {
+                    elements.btnCompactMute.classList.remove('playing');
+                    elements.btnCompactMute.title = 'سماع الأذان / تجربة الصوت';
+                    elements.btnCompactMute.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="pointer-events: none;">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                        </svg>
+                    `;
+                }
+            }
             if (elements.btnPreviewVoice && elements.textPreviewVoice && elements.iconPreviewVoice) {
                 if (isPlaying) {
                     elements.textPreviewVoice.textContent = 'إيقاف';

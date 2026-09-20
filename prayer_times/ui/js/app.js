@@ -238,16 +238,20 @@ window.PrayerApp = window.PrayerApp || {};
             });
         }
 
+        // Toggle Adhan Playback (Test / Stop)
+        App.toggleAdhan = function() {
+            if (state.isPlayingAdhan) {
+                if (App.Audio) App.Audio.stopAdhan();
+            } else {
+                const prayerKey = (state.nextPrayer && state.nextPrayer.key) || 'Fajr';
+                if (App.Audio) App.Audio.playAdhan(null, null, prayerKey);
+                if (App.IPC) App.IPC.testNotification().catch(console.error);
+            }
+        };
+
         // Test Adhan Button
         if (elements.btnTestAdhan) {
-            elements.btnTestAdhan.addEventListener('click', () => {
-                if (state.isPlayingAdhan) {
-                    if (App.Audio) App.Audio.stopAdhan();
-                } else {
-                    if (App.Audio) App.Audio.playAdhan();
-                    if (App.IPC) App.IPC.testNotification().catch(console.error);
-                }
-            });
+            elements.btnTestAdhan.addEventListener('click', App.toggleAdhan);
         }
 
         // Frameless Custom Titlebar Controls
@@ -323,9 +327,7 @@ window.PrayerApp = window.PrayerApp || {};
         }
 
         if (elements.btnCompactMute) {
-            elements.btnCompactMute.addEventListener('click', () => {
-                if (App.Audio) App.Audio.stopAdhan();
-            });
+            elements.btnCompactMute.addEventListener('click', App.toggleAdhan);
         }
 
         if (elements.btnCompactClose) {

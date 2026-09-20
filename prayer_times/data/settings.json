@@ -2,8 +2,8 @@
   "adhanVolume": 90,
   "city": "Algiers",
   "perPrayerVoicesEnabled": false,
-  "preAdhanMinutes": 5,
   "preAdhanEnabled": true,
+  "preAdhanMinutes": 5,
   "startWithWindows": false,
   "minimizeToTray": true,
   "selectedVoice": "algerian",
@@ -14,7 +14,7 @@
   "notificationEnabled": true,
   "ramadanMode": false,
   "adhanEnabled": true,
-  "tasbeehCount": 0,
+  "tasbeehCount": 6,
   "startupName": "Djazair Prayer Times",
   "customExeName": "djazair_prayer.exe",
   "prayerVoices": {
