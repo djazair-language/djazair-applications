@@ -331,8 +331,8 @@ window.PrayerApp = window.PrayerApp || {};
                 elements.rngVolume.addEventListener('input', (e) => {
                     const vol = Number(e.target.value);
                     if (elements.lblVolume) elements.lblVolume.textContent = `${vol}%`;
-                    if (elements.adhanAudio && App.state.isPlayingAdhan) {
-                        elements.adhanAudio.volume = vol / 100;
+                    if (App.Audio && App.Audio.setVolume) {
+                        App.Audio.setVolume(vol / 100);
                     }
                 });
             }

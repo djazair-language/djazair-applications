@@ -55,7 +55,6 @@ window.PrayerApp = window.PrayerApp || {};
 
         async playAdhan(overrideVoice, customVolume, prayerKey) {
             const state = App.state;
-            const elements = App.elements;
 
             // If already playing, stop current playback first before starting new
             if (state.isPlayingAdhan) {
@@ -81,92 +80,123 @@ window.PrayerApp = window.PrayerApp || {};
                 return;
             }
 
-            let audioSrc = '';
+            let audioPath = '';
             if (voice === 'makkah') {
-                audioSrc = 'audio/makkah.mp3';
+                audioPath = 'audio/makkah.mp3';
             } else if (voice === 'madinah') {
-                audioSrc = 'audio/madinah.mp3';
+                audioPath = 'audio/madinah.mp3';
             } else if (voice === 'algerian') {
-                audioSrc = 'audio/algerian.mp3';
+                audioPath = 'audio/algerian.mp3';
             } else if (voice === 'custom') {
-                audioSrc = 'audio/custom.mp3?t=' + Date.now();
+                audioPath = 'audio/custom.mp3?t=' + Date.now();
             }
 
-            if (!audioSrc) {
+            if (!audioPath) {
                 this.playSyntheticChime(volume);
                 return;
             }
 
-            // Tier 1: Try HTML5 Audio element
-            let htmlAudioSucceeded = false;
-            if (elements.adhanAudio) {
+            const fullAudioUrl = new URL(audioPath, window.location.href).href;
+
+            // PRIMARY: Web Audio API Buffer Playback (Bypasses WebView2 Range-request media bug)
+            try {
+                await this.playAudioBuffer(fullAudioUrl, volume);
+            } catch (err) {
+                console.warn('[Audio] Web Audio buffer decoding failed, trying HTML5 Audio fallback:', err);
                 try {
-                    elements.adhanAudio.pause();
-                    elements.adhanAudio.currentTime = 0;
-                    elements.adhanAudio.src = audioSrc;
-                    elements.adhanAudio.volume = volume;
-                    elements.adhanAudio.load();
-
-                    elements.adhanAudio.onended = () => {
-                        state.isPlayingAdhan = false;
-                        this.updateUIState(false);
-                    };
-
-                    const playPromise = elements.adhanAudio.play();
-                    if (playPromise !== undefined) {
-                        await playPromise;
-                        htmlAudioSucceeded = true;
-                    }
-                } catch (err) {
-                    console.warn('[Audio] HTML5 Audio play error, trying Web Audio API buffer decode:', err);
+                    await this.playHtmlAudioFallback(fullAudioUrl, volume);
+                } catch (err2) {
+                    console.warn('[Audio] HTML5 Audio also failed, fallback to synthetic chime:', err2);
+                    this.playSyntheticChime(volume);
                 }
             }
-
-            if (htmlAudioSucceeded) return;
-
-            // Tier 2: Web Audio API Buffer Decode Fallback (reads MP3 file directly)
-            await this.playAudioBuffer(audioSrc, volume);
         },
 
-        async playAudioBuffer(audioSrc, volume) {
+        async playAudioBuffer(fullUrl, volume) {
             const state = App.state;
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) throw new Error('AudioContext not supported');
-                if (!state.audioContext) state.audioContext = new AudioContext();
-                const ctx = state.audioContext;
-                if (ctx.state === 'suspended') await ctx.resume();
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) throw new Error('AudioContext not supported');
 
-                const response = await fetch(audioSrc);
-                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            if (!state.audioContext) {
+                state.audioContext = new AudioContext();
+            }
+            const ctx = state.audioContext;
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
+            }
+
+            // Cache decoded buffers in memory for instant playback
+            state.audioCache = state.audioCache || {};
+            let audioBuffer = state.audioCache[fullUrl];
+
+            if (!audioBuffer) {
+                const response = await fetch(fullUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${fullUrl}`);
                 const arrayBuffer = await response.arrayBuffer();
-                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                state.audioCache[fullUrl] = audioBuffer;
+            }
 
-                if (!state.isPlayingAdhan) return; // was stopped while loading
+            if (!state.isPlayingAdhan) return; // user cancelled while fetching/decoding
 
-                const source = ctx.createBufferSource();
-                source.buffer = audioBuffer;
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
 
-                const gainNode = ctx.createGain();
-                gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+            const gainNode = ctx.createGain();
+            gainNode.gain.setValueAtTime(volume, ctx.currentTime);
 
-                source.connect(gainNode);
-                gainNode.connect(ctx.destination);
+            source.connect(gainNode);
+            gainNode.connect(ctx.destination);
 
-                state.currentSourceNode = source;
-                source.onended = () => {
-                    if (state.currentSourceNode === source) {
-                        state.currentSourceNode = null;
-                        state.isPlayingAdhan = false;
-                        this.updateUIState(false);
-                    }
+            state.currentSourceNode = source;
+            state.currentGainNode = gainNode;
+
+            source.onended = () => {
+                if (state.currentSourceNode === source) {
+                    state.currentSourceNode = null;
+                    state.currentGainNode = null;
+                    state.isPlayingAdhan = false;
+                    this.updateUIState(false);
+                }
+            };
+
+            source.start(0);
+        },
+
+        playHtmlAudioFallback(fullUrl, volume) {
+            return new Promise((resolve, reject) => {
+                const state = App.state;
+                const audio = new Audio();
+                audio.src = fullUrl;
+                audio.volume = volume;
+
+                audio.onended = () => {
+                    state.isPlayingAdhan = false;
+                    this.updateUIState(false);
                 };
 
-                source.start(0);
-            } catch (err) {
-                console.warn('[Audio] Web Audio buffer decoding failed, fallback to synthetic chime:', err);
-                // Tier 3: Synthetic Chime Fallback
-                this.playSyntheticChime(volume);
+                audio.onerror = (e) => {
+                    reject(new Error('HTML5 audio error'));
+                };
+
+                audio.play()
+                    .then(resolve)
+                    .catch(reject);
+            });
+        },
+
+        setVolume(volume) {
+            const state = App.state;
+            const vol = Math.max(0, Math.min(1, volume));
+            if (state.currentGainNode && state.audioContext) {
+                try {
+                    state.currentGainNode.gain.setValueAtTime(vol, state.audioContext.currentTime);
+                } catch (e) {}
+            }
+            if (App.elements.adhanAudio) {
+                try {
+                    App.elements.adhanAudio.volume = vol;
+                } catch (e) {}
             }
         },
 
@@ -174,27 +204,23 @@ window.PrayerApp = window.PrayerApp || {};
             const state = App.state;
             const elements = App.elements;
 
-            if (elements.adhanAudio) {
-                try {
-                    elements.adhanAudio.pause();
-                    elements.adhanAudio.currentTime = 0;
-                } catch (e) {}
-            }
             if (state.currentSourceNode) {
                 try {
                     state.currentSourceNode.stop();
                     state.currentSourceNode.disconnect();
                 } catch (e) {}
                 state.currentSourceNode = null;
+                state.currentGainNode = null;
+            }
+            if (elements.adhanAudio) {
+                try {
+                    elements.adhanAudio.pause();
+                    elements.adhanAudio.currentTime = 0;
+                } catch (e) {}
             }
             if (state.chimeTimeoutId) {
                 clearTimeout(state.chimeTimeoutId);
                 state.chimeTimeoutId = null;
-            }
-            if (state.audioContext && state.audioContext.state === 'running') {
-                try {
-                    state.audioContext.suspend();
-                } catch (e) {}
             }
             state.isPlayingAdhan = false;
             this.updateUIState(false);

@@ -10,6 +10,13 @@ window.PrayerApp = window.PrayerApp || {};
     'use strict';
 
     App.init = async function() {
+        // Ensure AudioContext is resumed on any user interaction
+        document.addEventListener('pointerdown', () => {
+            if (App.state && App.state.audioContext && App.state.audioContext.state === 'suspended') {
+                App.state.audioContext.resume().catch(() => {});
+            }
+        }, { once: false });
+
         App.initElements();
         App.Settings.bindEvents();
         setupEventListeners();
