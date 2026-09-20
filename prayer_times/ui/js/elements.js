@@ -115,10 +115,16 @@ window.PrayerApp = window.PrayerApp || {};
 
             // Frameless Titlebar Controls
             btnCompactMode: document.getElementById('btnCompactMode'),
+            btnAbout: document.getElementById('btnAbout'),
             btnWinMin: document.getElementById('btnWinMin'),
             btnWinMax: document.getElementById('btnWinMax'),
             iconWinMax: document.getElementById('iconWinMax'),
             btnWinClose: document.getElementById('btnWinClose'),
+
+            // About Modal Elements
+            aboutModal: document.getElementById('aboutModal'),
+            btnCloseAbout: document.getElementById('btnCloseAbout'),
+            btnOkAbout: document.getElementById('btnOkAbout'),
 
             // Compact Floating Widget Elements
             compactWidget: document.getElementById('compactWidget'),

@@ -1,0 +1,31 @@
+# =============================================================================
+# Djazair Prayer Times - Git Ignore Configuration
+# =============================================================================
+
+# dpack build cache & temporary extracted files
+.dpack_cache_*/
+.dpack_cache*
+*.tmp
+*.temp
+
+# Local runtime user data & cache
+data/cache.json
+data/*_cache.json
+
+# Logs
+*.log
+
+# Windows thumbnail and system caches
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Backup & editor files
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+.idea/
+.vscode/

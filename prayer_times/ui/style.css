@@ -1519,3 +1519,107 @@ body.compact-mode {
     text-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
 }
 
+/* ── About Modal Styles ────────────────────────────────────────────────────── */
+.about-card-modal {
+    max-width: 500px;
+}
+
+.about-hero {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0 14px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.about-icon-badge {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(230, 195, 100, 0.15), transparent 70%);
+    border: 1px solid rgba(230, 195, 100, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+
+.about-app-title {
+    font-size: 1.15rem;
+    color: #ffffff;
+    font-weight: 700;
+    margin: 0;
+}
+
+.about-badge {
+    display: inline-block;
+    background: rgba(230, 195, 100, 0.12);
+    border: 1px solid rgba(230, 195, 100, 0.25);
+    color: var(--gold-light);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 12px;
+}
+
+.about-lead {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 6px 0 0 0;
+}
+
+.about-section-card {
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.about-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: var(--gold-primary);
+}
+
+.about-card-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.about-card-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.about-card-text strong {
+    color: #ffffff;
+}
+
+.about-card-text code {
+    background: rgba(230, 195, 100, 0.12);
+    color: var(--gold-light);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.about-features-list {
+    margin: 0;
+    padding-right: 18px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+

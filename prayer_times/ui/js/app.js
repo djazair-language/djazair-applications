@@ -359,6 +359,29 @@ window.PrayerApp = window.PrayerApp || {};
             });
         }
 
+        // About Modal
+        function openAboutModal() {
+            if (elements.aboutModal) elements.aboutModal.classList.remove('hidden');
+        }
+        function closeAboutModal() {
+            if (elements.aboutModal) elements.aboutModal.classList.add('hidden');
+        }
+
+        if (elements.btnAbout) {
+            elements.btnAbout.addEventListener('click', openAboutModal);
+        }
+        if (elements.btnCloseAbout) {
+            elements.btnCloseAbout.addEventListener('click', closeAboutModal);
+        }
+        if (elements.btnOkAbout) {
+            elements.btnOkAbout.addEventListener('click', closeAboutModal);
+        }
+        if (elements.aboutModal) {
+            elements.aboutModal.addEventListener('click', (e) => {
+                if (e.target === elements.aboutModal) closeAboutModal();
+            });
+        }
+
         // Global Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
