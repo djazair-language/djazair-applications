@@ -53,13 +53,13 @@ window.PrayerApp = window.PrayerApp || {};
             }
         },
 
-        playAdhan(overrideVoice, customVolume, prayerKey) {
+        async playAdhan(overrideVoice, customVolume, prayerKey) {
             const state = App.state;
             const elements = App.elements;
 
+            // If already playing, stop current playback first before starting new
             if (state.isPlayingAdhan) {
                 this.stopAdhan();
-                return;
             }
 
             let voice = overrideVoice;
@@ -92,31 +92,80 @@ window.PrayerApp = window.PrayerApp || {};
                 audioSrc = 'audio/custom.mp3?t=' + Date.now();
             }
 
-            if (audioSrc && elements.adhanAudio) {
+            if (!audioSrc) {
+                this.playSyntheticChime(volume);
+                return;
+            }
+
+            // Tier 1: Try HTML5 Audio element
+            let htmlAudioSucceeded = false;
+            if (elements.adhanAudio) {
                 try {
                     elements.adhanAudio.pause();
                     elements.adhanAudio.currentTime = 0;
-                } catch (e) {}
+                    elements.adhanAudio.src = audioSrc;
+                    elements.adhanAudio.volume = volume;
+                    elements.adhanAudio.load();
 
-                elements.adhanAudio.src = audioSrc;
-                elements.adhanAudio.volume = volume;
+                    elements.adhanAudio.onended = () => {
+                        state.isPlayingAdhan = false;
+                        this.updateUIState(false);
+                    };
 
-                elements.adhanAudio.onended = () => {
-                    state.isPlayingAdhan = false;
-                    this.updateUIState(false);
+                    const playPromise = elements.adhanAudio.play();
+                    if (playPromise !== undefined) {
+                        await playPromise;
+                        htmlAudioSucceeded = true;
+                    }
+                } catch (err) {
+                    console.warn('[Audio] HTML5 Audio play error, trying Web Audio API buffer decode:', err);
+                }
+            }
+
+            if (htmlAudioSucceeded) return;
+
+            // Tier 2: Web Audio API Buffer Decode Fallback (reads MP3 file directly)
+            await this.playAudioBuffer(audioSrc, volume);
+        },
+
+        async playAudioBuffer(audioSrc, volume) {
+            const state = App.state;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) throw new Error('AudioContext not supported');
+                if (!state.audioContext) state.audioContext = new AudioContext();
+                const ctx = state.audioContext;
+                if (ctx.state === 'suspended') await ctx.resume();
+
+                const response = await fetch(audioSrc);
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+                if (!state.isPlayingAdhan) return; // was stopped while loading
+
+                const source = ctx.createBufferSource();
+                source.buffer = audioBuffer;
+
+                const gainNode = ctx.createGain();
+                gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+
+                source.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                state.currentSourceNode = source;
+                source.onended = () => {
+                    if (state.currentSourceNode === source) {
+                        state.currentSourceNode = null;
+                        state.isPlayingAdhan = false;
+                        this.updateUIState(false);
+                    }
                 };
 
-                elements.adhanAudio.onerror = (e) => {
-                    console.warn('[Audio] Audio tag playback error, fallback to chime:', e);
-                    this.playSyntheticChime(volume);
-                };
-
-                elements.adhanAudio.play()
-                    .catch(err => {
-                        console.warn('[Audio] Audio play error, fallback to chime:', err);
-                        this.playSyntheticChime(volume);
-                    });
-            } else {
+                source.start(0);
+            } catch (err) {
+                console.warn('[Audio] Web Audio buffer decoding failed, fallback to synthetic chime:', err);
+                // Tier 3: Synthetic Chime Fallback
                 this.playSyntheticChime(volume);
             }
         },
@@ -130,6 +179,17 @@ window.PrayerApp = window.PrayerApp || {};
                     elements.adhanAudio.pause();
                     elements.adhanAudio.currentTime = 0;
                 } catch (e) {}
+            }
+            if (state.currentSourceNode) {
+                try {
+                    state.currentSourceNode.stop();
+                    state.currentSourceNode.disconnect();
+                } catch (e) {}
+                state.currentSourceNode = null;
+            }
+            if (state.chimeTimeoutId) {
+                clearTimeout(state.chimeTimeoutId);
+                state.chimeTimeoutId = null;
             }
             if (state.audioContext && state.audioContext.state === 'running') {
                 try {
@@ -179,9 +239,10 @@ window.PrayerApp = window.PrayerApp || {};
                     delay += 0.45;
                 });
 
-                setTimeout(() => {
+                state.chimeTimeoutId = setTimeout(() => {
                     state.isPlayingAdhan = false;
                     this.updateUIState(false);
+                    state.chimeTimeoutId = null;
                 }, (delay + 3) * 1000);
             } catch (e) {
                 console.error('[Audio] Web Audio error:', e);

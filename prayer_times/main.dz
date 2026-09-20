@@ -8,6 +8,10 @@ use webview
 use file
 use path
 use dir
+use env
+
+# Allow background and unprompted audio playback in WebView2
+env.set("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required")
 
 import "core/config.dz" as config
 import "core/platform.dz" as platform

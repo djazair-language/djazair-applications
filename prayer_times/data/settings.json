@@ -4,7 +4,7 @@
   "perPrayerVoicesEnabled": false,
   "preAdhanEnabled": true,
   "preAdhanMinutes": 5,
-  "startWithWindows": false,
+  "startWithWindows": true,
   "minimizeToTray": true,
   "selectedVoice": "algerian",
   "customAudioPath": "",

@@ -310,20 +310,31 @@ window.PrayerApp = window.PrayerApp || {};
 
         onPrayerTimeReached() {
             const state = App.state;
-            if (state.nextPrayer) {
-                const prayerName = state.nextPrayer.nameAr;
-                const timeStr = state.nextPrayer.timeStr;
-                const prayerKey = state.nextPrayer.key;
+            if (!state.nextPrayer) return;
 
-                if (state.settings.notificationEnabled && App.IPC) {
-                    App.IPC.notifyPrayer(prayerName, timeStr).catch(console.error);
-                }
+            const prayerKey = state.nextPrayer.key;
+            const timeStr = state.nextPrayer.timeStr;
+            const todayStr = new Date().toDateString();
+            const triggerId = `${prayerKey}_${timeStr}_${todayStr}`;
 
-                if (state.settings.adhanEnabled && prayerKey !== 'Sunrise' && App.Audio) {
-                    App.Audio.playAdhan(null, null, prayerKey);
-                }
+            // Guard: ensure Adhan and notification only fire once per prayer arrival
+            if (state.lastTriggeredPrayer === triggerId) {
+                return;
             }
-            setTimeout(() => this.calculateNextPrayer(), 2000);
+            state.lastTriggeredPrayer = triggerId;
+
+            const prayerName = state.nextPrayer.nameAr;
+
+            if (state.settings.notificationEnabled && App.IPC) {
+                App.IPC.notifyPrayer(prayerName, timeStr).catch(console.error);
+            }
+
+            if (state.settings.adhanEnabled && prayerKey !== 'Sunrise' && App.Audio) {
+                App.Audio.playAdhan(null, null, prayerKey);
+            }
+
+            // Advance to next prayer
+            setTimeout(() => this.calculateNextPrayer(), 1500);
         },
 
         updateIqamaUI() {
