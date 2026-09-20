@@ -22,7 +22,7 @@ import "protocol/protocol.dz" as *
 # -----------------------------------------------------------------------------
 # Core Framework Class & Metadata Exports
 # -----------------------------------------------------------------------------
-let VERSION      = "0.4.0"
+let VERSION      = "0.4.1"
 let App          = application.App
 let Window       = Window
 let Bridge       = Bridge
@@ -36,7 +36,7 @@ let Notification = Notification
 
 # Returns the current semantic version of the webview framework.
 #
-# @return {String} Semantic version string (e.g. "0.4.0")
+# @return {String} Semantic version string (e.g. "0.4.1")
 fn version()
     return VERSION
 end

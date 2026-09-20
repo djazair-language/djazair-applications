@@ -19,7 +19,7 @@
     <div class="logo-area">
       <div class="logo-icon"><i class="fas fa-feather"></i></div>
       <div class="logo-text">Djazair <span>WebView</span></div>
-      <span class="badge-version">v0.4.0 (100% Verified)</span>
+      <span class="badge-version">v0.4.1 (100% Verified)</span>
     </div>
 
     <div class="search-container">
@@ -368,10 +368,10 @@ app.run()</code></pre>
         <div class="method-card">
           <div class="method-header">
             <span class="method-sig">webview.<span class="method-name">version</span>() &rarr; String / webview.VERSION</span>
-            <span class="method-badge new">v0.4.0</span>
+            <span class="method-badge new">v0.4.1</span>
           </div>
           <div class="method-desc">
-            Returns the current semantic release version of the installed Djazair WebView framework (e.g. <code>"0.4.0"</code>). Useful for runtime version detection, feature gating, and diagnostics. Constant <code>webview.VERSION</code> is also exported for static inspections.
+            Returns the current semantic release version of the installed Djazair WebView framework (e.g. <code>"0.4.1"</code>). Useful for runtime version detection, feature gating, and diagnostics. Constant <code>webview.VERSION</code> is also exported for static inspections.
           </div>
           <div class="code-wrapper">
             <div class="code-header">
@@ -382,10 +382,10 @@ app.run()</code></pre>
               <pre><code>use webview
 
 print("Running WebView v" + webview.version())
-# Output: Running WebView v0.4.0
+# Output: Running WebView v0.4.1
 
-if webview.version() &gt;= "0.4.0"
-    print("Framework v0.4.0+ features active!")
+if webview.version() &gt;= "0.4.1"
+    print("Framework v0.4.1+ features active!")
 end</code></pre>
             </div>
           </div>
@@ -1228,7 +1228,7 @@ app.run()</code></pre>
             <tbody>
               <tr>
                 <td><code>window.onClose(fn)</code></td>
-                <td>User clicked the close button or window received <code>WM_CLOSE</code>.</td>
+                <td>User clicked the close button or window received <code>WM_CLOSE</code>. Returning <code>False</code> cancels window closure (useful for Minimize to Tray).</td>
                 <td><code>()</code></td>
               </tr>
               <tr>
@@ -1711,7 +1711,7 @@ end)</code></pre>
       <section id="system-tray" class="doc-section">
         <h2 class="section-title"><i class="fas fa-tray"></i> System Tray &amp; Notifications</h2>
         <p class="section-desc">
-          Keep applications running in the background notification area (System Tray) and display system notifications.
+          Keep applications running in the background notification area (System Tray) and display system notifications. Left-clicking or double-clicking the tray icon automatically restores, un-minimizes, and brings the window to the foreground, while right-clicking opens the attached context menu.
         </p>
 
         <div class="code-wrapper">
@@ -1864,12 +1864,12 @@ webview.protocolUnregister("djazair")</code></pre>
               <tr>
                 <td><code>webview.version()</code></td>
                 <td>None</td>
-                <td>Returns the current semantic version string (e.g. <code>"0.4.0"</code>). Useful for version gating and diagnostics.</td>
+                <td>Returns the current semantic version string (e.g. <code>"0.4.1"</code>). Useful for version gating and diagnostics.</td>
               </tr>
               <tr>
                 <td><code>webview.VERSION</code></td>
                 <td>String (read-only)</td>
-                <td>Framework release version constant string (e.g. <code>"0.4.0"</code>).</td>
+                <td>Framework release version constant string (e.g. <code>"0.4.1"</code>).</td>
               </tr>
               <tr>
                 <td><code>webview.setLogLevel(level)</code></td>

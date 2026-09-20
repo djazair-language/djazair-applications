@@ -330,6 +330,9 @@ app.window.onRestore(fn()
 end)
 
 app.window.onClose(fn()
+    # Returning False cancels window close (useful for Minimize to Tray)
+    # app.window.hide()
+    # return False
     print("Window closing")
 end)
 
@@ -881,7 +884,9 @@ Tray methods and functions:
 | `tray.showBalloon(title, msg, timeout)` | `trayShowBalloon(handle, title, msg, timeout)` | Show balloon notification |
 | `tray.destroy()` | `trayDestroy(handle)` | Remove the tray icon |
 
-> **Note:** Tray functionality requires a valid `.ico` file path. On Linux/macOS these are stub implementations.
+> **Note:** 
+> - Tray functionality requires a valid `.ico` file path. On Linux/macOS these are stub implementations.
+> - **Mouse Interaction:** Left-clicking or double-clicking the tray icon automatically restores, un-minimizes, and brings the application window to the foreground (`SetForegroundWindow` & `SetFocus`). Right-clicking opens the attached context menu.
 
 ---
 
@@ -1486,6 +1491,16 @@ app.run()
 ---
 
 ## Changelog
+
+### v0.4.1 — 2026-09-17
+
+#### 🐛 Fixes & Improvements
+- **Tray Left-Click & Double-Click Restore** — Left-clicking or double-clicking the system tray icon (`WM_LBUTTONUP` / `WM_LBUTTONDBLCLK`) now automatically un-minimizes, restores, and brings the application window to the foreground (`ShowWindow(SW_RESTORE)` + `SetForegroundWindow` + `SetFocus`).
+- **Cancellable `onClose` Callback** — `window.onClose(callback)` now inspects the return value of the callback. Returning `False` prevents window destruction, enabling seamless "Minimize to Tray on Close" workflows without terminating the process.
+- **Window Auto-Centering & Taskbar Integration (`nativeWindowCreate`)** — Windows without explicit `x` / `y` coordinates are now automatically centered on the screen by default. Added `WS_EX_APPWINDOW` to `GWL_EXSTYLE` to ensure reliable taskbar icon presence and grouping for frameless and standalone windows.
+- **Dpack Foreground Permission** — Integrated `AllowSetForegroundWindow(ASFW_ANY)` in `dpack` stub to ensure packaged executables can reliably bring windows to the foreground.
+
+---
 
 ### v0.4.0 — 2026-09-13
 

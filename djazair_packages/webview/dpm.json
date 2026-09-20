@@ -1,6 +1,6 @@
 {
   "name": "webview",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Desktop WebView2 window application framework extension for Djazair",
   "type": "hybrid",
   "source": "github:djazair-language/djazair-extensions/webview",
