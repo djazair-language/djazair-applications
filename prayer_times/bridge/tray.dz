@@ -1,0 +1,47 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         bridge/tray.dz
+# Description:  System Tray controller, context menu, and balloon notifications.
+# =============================================================================
+
+use webview
+
+# Creates and configures the native system tray icon and menu
+fn createTray(app, iconPath, title = "مواقيت الصلاة — Djazair Prayer Times")
+    let trayMenu = new webview.Menu()
+    trayMenu.addItem("فتح مواقيت الصلاة (Open)", fn()
+        app.window.show()
+        app.window.restore()
+        app.window.center()
+        app.window.focus()
+    end)
+    trayMenu.addSeparator()
+    trayMenu.addItem("إغلاق التطبيق نهائياً (Exit)", fn()
+        app.quit()
+    end)
+
+    let tray = new webview.Tray(title, iconPath)
+    tray.setMenu(trayMenu)
+
+    app.onQuit(fn()
+        try
+            tray.destroy()
+        catch err
+        end
+    end)
+
+    return tray
+end
+
+# Minimizes the main window to the system tray and displays a balloon tip
+fn performMinimizeToTray(app, tray)
+    app.window.hide()
+    try
+        tray.showBalloon(
+            "مواقيت الصلاة — شريط المهام",
+            "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح البرنامج مجدداً.",
+            4
+        )
+    catch err
+    end
+end

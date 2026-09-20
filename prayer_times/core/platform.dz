@@ -1,0 +1,138 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         core/platform.dz
+# Description:  Platform-specific OS integration, Windows registry & executable detection.
+# =============================================================================
+
+use env
+use file
+use path
+use dir
+use process
+
+import "config.dz" as config
+
+# Helper to detect actual executable path dynamically (handles renaming of .exe)
+fn getAppExePath()
+    # 1. Check DPACK_EXE environment variable set by dpack stub
+    let envExe = env.getOr("DPACK_EXE", "")
+    if envExe != "" and file.exists(envExe)
+        return envExe
+    end
+
+    # 2. Check parent directory if running inside a .dpack_cache_ folder
+    let scriptDirName = path.basename(config.SCRIPT_DIR)
+    if scriptDirName.startsWith(".dpack_cache_")
+        let parentDir = path.dirname(config.SCRIPT_DIR)
+        let files = dir.list(parentDir)
+        for f in files
+            if f.endsWith(".exe") and !f.startsWith("djazair")
+                let p = path.join(parentDir, f)
+                if file.exists(p)
+                    return p
+                end
+            end
+        end
+    end
+
+    # 3. Check current dir / SCRIPT_DIR
+    let files = dir.list(config.SCRIPT_DIR)
+    for f in files
+        if f.endsWith(".exe") and !f.startsWith("djazair")
+            let p = path.join(config.SCRIPT_DIR, f)
+            if file.exists(p)
+                return p
+            end
+        end
+    end
+
+    # 4. Fallback
+    return path.join(config.SCRIPT_DIR, "prayer_times.exe")
+end
+
+# Retrieves the clean base name of the running executable
+fn getAppBaseName()
+    let exePath = getAppExePath()
+    let base = path.basename(exePath)
+    if base.endsWith(".exe")
+        base = base.slice(0, base.length() - 4)
+    end
+    return base
+end
+
+# Dynamically finds the best matching icon (.ico) for the application
+fn getAppIconPath()
+    let baseName = getAppBaseName()
+    let customExeDir = path.dirname(getAppExePath())
+    let customIcon = path.join(customExeDir, "${baseName}.ico")
+
+    if file.exists(customIcon)
+        return customIcon
+    elif file.exists(path.join(config.SCRIPT_DIR, "assets", "app.ico"))
+        return path.join(config.SCRIPT_DIR, "assets", "app.ico")
+    elif file.exists(path.join(config.SCRIPT_DIR, "app.ico"))
+        return path.join(config.SCRIPT_DIR, "app.ico")
+    end
+    return ""
+end
+
+# Configures Windows startup registry dynamically and cleans old entries
+fn setWindowsStartup(enabled, customName = Null, customExe = Null, oldName = Null)
+    let appTarget = ""
+    if !isNull(customExe) and customExe != ""
+        if path.isAbsolute(customExe) and file.exists(customExe)
+            appTarget = customExe
+        else
+            let parentDir = path.dirname(getAppExePath())
+            let cand = path.join(parentDir, customExe)
+            if file.exists(cand)
+                appTarget = cand
+            end
+        end
+    end
+    if appTarget == ""
+        appTarget = getAppExePath()
+    end
+
+    appTarget = appTarget.replace("/", "\\")
+    let baseName = getAppBaseName()
+
+    # Determine registry value name (user custom name > default "Djazair Prayer Times")
+    let regKeyName = ""
+    if !isNull(customName) and customName != ""
+        regKeyName = customName
+    else
+        regKeyName = config.DEFAULT_APP_NAME
+    end
+
+    try
+        # Collect all old or possible key names to delete
+        let keysToDelete = [
+            "DjazairPrayerTimes",
+            "Djazair Prayer Times",
+            "prayer_times",
+            "djazair_prayer",
+            "Djazair_" + baseName
+        ]
+        if !isNull(oldName) and oldName != ""
+            keysToDelete.push(oldName)
+        end
+        if !enabled
+            keysToDelete.push(regKeyName)
+        end
+
+        # Build PowerShell command to delete all old keys
+        let delScript = "`$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true); "
+        for k in keysToDelete
+            delScript = delScript + "`$k.DeleteValue('${k}', `$false); "
+        end
+
+        if enabled
+            delScript = delScript + "`$k.SetValue('${regKeyName}', [char]34 + '${appTarget}' + [char]34 + ' --background'); "
+        end
+
+        let cmd = "powershell -WindowStyle Hidden -Command \"" + delScript + "\""
+        process.exec(cmd)
+    catch err
+    end
+end

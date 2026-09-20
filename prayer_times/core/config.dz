@@ -1,0 +1,35 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         core/config.dz
+# Description:  Application constants, directory paths, and startup arguments.
+# =============================================================================
+
+use process
+use path
+use dir
+use file
+
+let rawDir = process.scriptDir()
+let SCRIPT_DIR = rawDir
+if path.basename(rawDir) == "core"
+    SCRIPT_DIR = path.dirname(rawDir)
+elif file.exists(path.join(path.dirname(rawDir), "ui"))
+    SCRIPT_DIR = path.dirname(rawDir)
+end
+
+let UI_DIR = path.join(SCRIPT_DIR, "ui")
+let DEFAULT_APP_NAME = "Djazair Prayer Times"
+
+# Check if launched in silent background mode on Windows startup
+let isBackgroundStart = False
+try
+    let cliArgs = process.args()
+    if !isNull(cliArgs)
+        for arg in cliArgs
+            if arg == "--background" or arg == "--silent" or arg == "--tray" or arg == "--autostart"
+                isBackgroundStart = True
+            end
+        end
+    end
+catch err
+end

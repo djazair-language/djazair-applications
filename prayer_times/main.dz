@@ -1,167 +1,33 @@
 # =============================================================================
 # Project:      Djazair Prayer Times Desktop Application
 # File:         main.dz
-# Description:  Main Application Entry Point, WebView2 Controller & IPC Bridge.
+# Description:  Application Bootstrap & Main Entry Point.
 # =============================================================================
 
 use webview
 use file
 use path
-use process
-import "services/geo.dz" as geo
-import "services/storage.dz" as storage
-import "services/api.dz" as api
-import "services/athkar.dz" as athkar
-
-let SCRIPT_DIR = process.scriptDir()
-let UI_DIR = path.join(SCRIPT_DIR, "ui")
-
-# Check if launched in silent background mode on Windows startup
-let isBackgroundStart = False
-try
-    let cliArgs = process.args()
-    if !isNull(cliArgs)
-        for arg in cliArgs
-            if arg == "--background" or arg == "--silent" or arg == "--tray" or arg == "--autostart"
-                isBackgroundStart = True
-            end
-        end
-    end
-catch err
-end
-
-use env
 use dir
 
-# Helper to detect actual executable path dynamically (handles renaming of .exe)
-fn getAppExePath()
-    # 1. Check DPACK_EXE environment variable set by dpack stub
-    let envExe = env.getOr("DPACK_EXE", "")
-    if envExe != "" and file.exists(envExe)
-        return envExe
-    end
+import "core/config.dz" as config
+import "core/platform.dz" as platform
+import "services/storage.dz" as storage
+import "services/api.dz" as api
+import "services/geo.dz" as geo
+import "services/athkar.dz" as athkar
+import "bridge/tray.dz" as trayModule
+import "bridge/ipc.dz" as ipc
 
-    # 2. Check parent directory if running inside a .dpack_cache_ folder
-    let scriptDirName = path.basename(SCRIPT_DIR)
-    if scriptDirName.startsWith(".dpack_cache_")
-        let parentDir = path.dirname(SCRIPT_DIR)
-        let files = dir.list(parentDir)
-        for f in files
-            if f.endsWith(".exe") and !f.startsWith("djazair")
-                let p = path.join(parentDir, f)
-                if file.exists(p)
-                    return p
-                end
-            end
-        end
-    end
-
-    # 3. Check current dir / SCRIPT_DIR
-    let files = dir.list(SCRIPT_DIR)
-    for f in files
-        if f.endsWith(".exe") and !f.startsWith("djazair")
-            let p = path.join(SCRIPT_DIR, f)
-            if file.exists(p)
-                return p
-            end
-        end
-    end
-
-    # 4. Fallback
-    return path.join(SCRIPT_DIR, "prayer_times.exe")
-end
-
-fn getAppBaseName()
-    let exePath = getAppExePath()
-    let base = path.basename(exePath)
-    if base.endsWith(".exe")
-        base = base.slice(0, base.length() - 4)
-    end
-    return base
-end
-
-# Helper to configure Windows startup registry dynamically and optionally
-fn setWindowsStartup(enabled, customName = Null, customExe = Null, oldName = Null)
-    let appTarget = ""
-    if !isNull(customExe) and customExe != ""
-        if path.isAbsolute(customExe) and file.exists(customExe)
-            appTarget = customExe
-        else
-            let parentDir = path.dirname(getAppExePath())
-            let cand = path.join(parentDir, customExe)
-            if file.exists(cand)
-                appTarget = cand
-            end
-        end
-    end
-    if appTarget == ""
-        appTarget = getAppExePath()
-    end
-
-    appTarget = appTarget.replace("/", "\\")
-    let baseName = getAppBaseName()
-
-    # Determine registry value name (user custom name > default "Djazair Prayer Times")
-    let regKeyName = ""
-    if !isNull(customName) and customName != ""
-        regKeyName = customName
-    else
-        regKeyName = "Djazair Prayer Times"
-    end
-
-    try
-        # Collect all old or possible key names to delete
-        let keysToDelete = [
-            "DjazairPrayerTimes",
-            "Djazair Prayer Times",
-            "prayer_times",
-            "djazair_prayer",
-            "Djazair_" + baseName
-        ]
-        if !isNull(oldName) and oldName != ""
-            keysToDelete.push(oldName)
-        end
-        if !enabled
-            keysToDelete.push(regKeyName)
-        end
-
-        # Build PowerShell command to delete all old keys
-        let delScript = "`$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true); "
-        for k in keysToDelete
-            delScript = delScript + "`$k.DeleteValue('${k}', `$false); "
-        end
-
-        if enabled
-            delScript = delScript + "`$k.SetValue('${regKeyName}', [char]34 + '${appTarget}' + [char]34 + ' --background'); "
-        end
-
-        let cmd = "powershell -WindowStyle Hidden -Command \"" + delScript + "\""
-        process.exec(cmd)
-    catch err
-    end
-end
-
-# Path to application icon (supports custom <baseName>.ico or assets/app.ico)
-let appBaseName = getAppBaseName()
-let customExeDir = path.dirname(getAppExePath())
-let customIcon = path.join(customExeDir, "${appBaseName}.ico")
-let iconPath = ""
-if file.exists(customIcon)
-    iconPath = customIcon
-elif file.exists(path.join(SCRIPT_DIR, "assets", "app.ico"))
-    iconPath = path.join(SCRIPT_DIR, "assets", "app.ico")
-elif file.exists(path.join(SCRIPT_DIR, "app.ico"))
-    iconPath = path.join(SCRIPT_DIR, "app.ico")
-end
-
-# Dynamic window title
+# Resolve dynamic application metadata
+let iconPath = platform.getAppIconPath()
+let appBaseName = platform.getAppBaseName()
 let displayAppName = "Djazair Prayer Times"
 if appBaseName != "prayer_times" and appBaseName != "djazair_prayer" and appBaseName != "main"
     displayAppName = appBaseName
 end
 let winTitle = "مواقيت الصلاة — " + displayAppName
 
-# Create native application window
+# Initialize native application window
 let app = webview.createWindow({
     "title": winTitle,
     "width": 1020,
@@ -169,36 +35,29 @@ let app = webview.createWindow({
     "minWidth": 820,
     "minHeight": 600,
     "frameless": True,
-    "virtualHostDir": UI_DIR,
+    "virtualHostDir": config.UI_DIR,
     "debug": False
 })
 
-# Create native System Tray Menu
-let trayMenu = new webview.Menu()
-trayMenu.addItem("فتح مواقيت الصلاة (Open)", fn()
-    app.window.show()
-    app.window.restore()
-    app.window.center()
-    app.window.focus()
-end)
-trayMenu.addSeparator()
-trayMenu.addItem("إغلاق التطبيق نهائياً (Exit)", fn()
-    app.quit()
-end)
+# Initialize native System Tray
+let tray = trayModule.createTray(app, iconPath, winTitle)
 
-# Create native System Tray Icon
-let tray = new webview.Tray("مواقيت الصلاة — Djazair Prayer Times", iconPath)
-tray.setMenu(trayMenu)
+# Package services map for dependency injection
+let services = {
+    "storage": storage,
+    "api": api,
+    "geo": geo,
+    "athkar": athkar,
+    "platform": platform,
+    "tray": trayModule
+}
 
-app.onQuit(fn()
-    try
-        tray.destroy()
-    catch err
-    end
-end)
+# Register all IPC channels
+ipc.registerIpcHandlers(app, tray, services)
 
+# Lifecycle onReady hook
 app.onReady(fn()
-    # Set window icon for taskbar and titlebar
+    # Set window icon
     if file.exists(iconPath)
         try
             app.window.setIcon(iconPath)
@@ -206,15 +65,11 @@ app.onReady(fn()
         end
     end
 
-    # Position and show window on launch (or keep in tray if autostarted)
-    if isBackgroundStart
+    # Handle launch mode (silent background or visible)
+    if config.isBackgroundStart
         try
             app.window.hide()
-            tray.showBalloon(
-                "مواقيت الصلاة — شريط المهام",
-                "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح البرنامج.",
-                4
-            )
+            trayModule.performMinimizeToTray(app, tray)
         catch err
         end
     else
@@ -227,12 +82,12 @@ app.onReady(fn()
         end
     end
 
-    # Sync custom audio file if configured
+    # Synchronize startup path and audio files
     try
         let initSettings = storage.loadSettings()
         if initSettings.has("customAudioPath") and !isNull(initSettings["customAudioPath"]) and initSettings["customAudioPath"] != ""
             if file.exists(initSettings["customAudioPath"])
-                let audioDir = path.join(UI_DIR, "audio")
+                let audioDir = path.join(config.UI_DIR, "audio")
                 if !file.exists(audioDir)
                     dir.createAll(audioDir)
                 end
@@ -240,278 +95,14 @@ app.onReady(fn()
             end
         end
 
-        # Ensure Windows startup path is current if enabled
         if initSettings.has("startWithWindows") and initSettings["startWithWindows"] == True
-            setWindowsStartup(True)
+            platform.setWindowsStartup(True, initSettings.get("startupName", Null), initSettings.get("customExeName", Null))
         end
     catch err
     end
 
-    # Helper function to perform minimize to tray with notification
-    let performMinimizeToTray = fn()
-        app.window.hide()
-        try
-            tray.showBalloon(
-                "مواقيت الصلاة — شريط المهام",
-                "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح البرنامج مجدداً.",
-                4
-            )
-        catch err
-        end
-    end
-
-    # Handle window close (Minimize to Tray on Close)
-    app.window.onClose(fn()
-        let settings = storage.loadSettings()
-        let minToTray = settings.get("minimizeToTray", True)
-        if minToTray
-            performMinimizeToTray()
-            return False
-        end
-        return True
-    end)
-
-    # ── IPC Bridge: Frameless Window Controls ────────────────────────────────
-    app.bridge.on("win_minimize", fn(payload)
-        let settings = storage.loadSettings()
-        let minToTray = settings.get("minimizeToTray", True)
-        if minToTray
-            performMinimizeToTray()
-        else
-            app.window.minimize()
-        end
-        return True
-    end)
-
-    app.bridge.on("win_close", fn(payload)
-        let settings = storage.loadSettings()
-        let minToTray = settings.get("minimizeToTray", True)
-        if minToTray
-            performMinimizeToTray()
-        else
-            app.quit()
-        end
-        return True
-    end)
-
-    app.bridge.on("win_toggleMaximize", fn(payload)
-        let isMax = app.window.toggleMaximize()
-        return isMax
-    end)
-
-    app.bridge.on("win_isMaximized", fn(payload)
-        return app.window.isMaximized()
-    end)
-
-    app.window.onResize(fn(w, h)
-        try
-            app.bridge.send("window_state_changed", {
-                "isMaximized": app.window.isMaximized()
-            })
-        catch err
-        end
-    end)
-
-    # ── IPC Bridge: Initial Data Channel ─────────────────────────────────────
-    app.bridge.on("getInitialData", fn(payload)
-        let settings = storage.loadSettings()
-        let countries = geo.COUNTRIES
-        let prayerData = api.getPrayerTimes(
-            settings["country"],
-            settings["city"],
-            settings["method"]
-        )
-        let athkarData = athkar.getAllAthkarData()
-
-        return {
-            "countries": countries,
-            "settings": settings,
-            "prayerData": prayerData,
-            "athkar": athkarData
-        }
-    end)
-
-    # ── IPC Bridge: Change Location Channel ──────────────────────────────────
-    app.bridge.on("changeLocation", fn(payload)
-        let country = payload["country"]
-        let city = payload["city"]
-        let method = payload.get("method", 13)
-
-        let settings = storage.loadSettings()
-        settings["country"] = country
-        settings["city"] = city
-        storage.saveSettings(settings)
-
-        let prayerData = api.getPrayerTimes(country, city, method)
-        return prayerData
-    end)
-
-    # ── IPC Bridge: Auto-Detect Location via IP ──────────────────────────────
-    app.bridge.on("autoDetectLocation", fn(payload)
-        let detected = api.detectLocation()
-        if !isNull(detected)
-            let settings = storage.loadSettings()
-            settings["country"] = detected["country"]
-            settings["city"] = detected["city"]
-            settings["cityAr"] = detected["cityAr"]
-            storage.saveSettings(settings)
-
-            let prayerData = api.getPrayerTimes(detected["country"], detected["city"], settings["method"])
-            return {
-                "success": True,
-                "detected": detected,
-                "prayerData": prayerData
-            }
-        end
-        return {"success": False}
-    end)
-
-    # ── IPC Bridge: Refresh Prayer Times Channel ─────────────────────────────
-    app.bridge.on("refreshPrayerTimes", fn(payload)
-        let country = payload["country"]
-        let city = payload["city"]
-        let method = payload.get("method", 13)
-
-        let prayerData = api.getPrayerTimes(country, city, method)
-        return prayerData
-    end)
-
-    # ── IPC Bridge: Save Settings Channel ────────────────────────────────────
-    app.bridge.on("saveSettings", fn(payload)
-        let oldSettings = storage.loadSettings()
-        storage.saveSettings(payload)
-
-        # Handle Windows Startup Toggle if changed or if name/exe updated
-        if payload.has("startWithWindows")
-            let startupChanged = payload["startWithWindows"] != oldSettings.get("startWithWindows", False)
-            let nameChanged = payload.get("startupName", "") != oldSettings.get("startupName", "")
-            let exeChanged = payload.get("customExeName", "") != oldSettings.get("customExeName", "")
-            if startupChanged or nameChanged or exeChanged
-                let oldName = oldSettings.get("startupName", Null)
-                setWindowsStartup(payload["startWithWindows"], payload.get("startupName", Null), payload.get("customExeName", Null), oldName)
-            end
-        end
-
-        let prayerData = api.getPrayerTimes(
-            payload["country"],
-            payload["city"],
-            payload["method"]
-        )
-
-        return {
-            "success": True,
-            "settings": payload,
-            "prayerData": prayerData
-        }
-    end)
-
-    # ── IPC Bridge: Select Custom Audio File ─────────────────────────────────
-    app.bridge.on("selectCustomAudio", fn(payload)
-        let filePath = webview.showOpenFileDialog({
-            "title": "اختر ملف صوتي للأذان",
-            "filters": [
-                {"name": "ملفات الصوت (MP3, WAV, OGG)", "extensions": ["mp3", "wav", "ogg"]},
-                {"name": "جميع الملفات", "extensions": ["*"]}
-            ]
-        })
-        if !isNull(filePath) and filePath != ""
-            try
-                let audioDir = path.join(UI_DIR, "audio")
-                if !file.exists(audioDir)
-                    dir.createAll(audioDir)
-                end
-                file.copy(filePath, path.join(audioDir, "custom.mp3"))
-            catch err
-            end
-            let settings = storage.loadSettings()
-            settings["customAudioPath"] = filePath
-            settings["selectedVoice"] = "custom"
-            storage.saveSettings(settings)
-            return {"success": True, "path": filePath}
-        end
-        return {"success": False}
-    end)
-
-    # ── IPC Bridge: Save Tasbeeh Counter ─────────────────────────────────────
-    app.bridge.on("saveTasbeeh", fn(payload)
-        let count = payload.get("count", 0)
-        let settings = storage.loadSettings()
-        settings["tasbeehCount"] = count
-        storage.saveSettings(settings)
-        return True
-    end)
-
-    # ── IPC Bridge: Desktop Notification Channel ─────────────────────────────
-    app.bridge.on("notifyPrayer", fn(payload)
-        let prayer = payload["prayer"]
-        let time = payload.get("time", "")
-        let notifMsg = "حان الآن موعد أذان صلاة " + prayer
-        if time != ""
-            notifMsg = notifMsg + " (" + time + ")"
-        end
-
-        webview.notificationShow(
-            "مواقيت الصلاة",
-            notifMsg,
-            "حي على الصلاة • حي على الفلاح",
-            True,
-            "",
-            7
-        )
-        return True
-    end)
-
-    # ── IPC Bridge: General Notification Channel (Athkar / Reminders) ─────────
-    app.bridge.on("notifyMessage", fn(payload)
-        let title = payload.get("title", "تذكير إسلامي")
-        let message = payload.get("message", "")
-        let sub = payload.get("sub", "")
-
-        webview.notificationShow(title, message, sub, True, "", 6)
-        return True
-    end)
-
-    # ── IPC Bridge: Test Notification Channel ────────────────────────────────
-    app.bridge.on("testNotification", fn(payload)
-        webview.notificationShow(
-            "مواقيت الصلاة",
-            "هذا إشعار تجريبي لمواقيت الصلاة",
-            "لغة جزائر - تطبيق سطح المكتب",
-            True,
-            "",
-            5
-        )
-        return True
-    end)
-
-    # ── IPC Bridge: Minimize to System Tray ──────────────────────────────────
-    app.bridge.on("minimizeToTray", fn(payload)
-        app.window.hide()
-        try
-            tray.showBalloon(
-                "مواقيت الصلاة — شريط المهام",
-                "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح النافذة مجدداً.",
-                4
-            )
-        catch err
-        end
-        return True
-    end)
-
-    # ── IPC Bridge: Restore from Tray ────────────────────────────────────────
-    app.bridge.on("restoreWindow", fn(payload)
-        try
-            app.window.show()
-            app.window.restore()
-            app.window.center()
-            app.window.focus()
-        catch err
-        end
-        return True
-    end)
-
-    # ── Load User Interface ──────────────────────────────────────────────────
-    let indexHtmlPath = path.join(UI_DIR, "index.html")
+    # Navigate to frontend UI
+    let indexHtmlPath = path.join(config.UI_DIR, "index.html")
     if file.exists(indexHtmlPath)
         try
             app.window.navigate("http://djazair.localhost/index.html")
@@ -522,5 +113,5 @@ app.onReady(fn()
     end
 end)
 
-# Start desktop application
+# Start desktop application event loop
 app.run()

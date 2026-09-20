@@ -1,0 +1,251 @@
+# =============================================================================
+# Project:      Djazair Prayer Times Desktop Application
+# File:         bridge/ipc.dz
+# Description:  Decoupled IPC bridge handler registration and event routing.
+# =============================================================================
+
+use webview
+use file
+use path
+use dir
+
+import "../core/config.dz" as config
+
+# Registers all IPC channels between the WebView frontend and Djazair backend
+fn registerIpcHandlers(app, tray, services)
+    let storage = services["storage"]
+    let api = services["api"]
+    let geo = services["geo"]
+    let athkar = services["athkar"]
+    let platform = services["platform"]
+    let trayModule = services["tray"]
+
+    # ── Window Lifecycle & Tray Callbacks ────────────────────────────────────
+    app.window.onClose(fn()
+        let settings = storage.loadSettings()
+        let minToTray = settings.get("minimizeToTray", True)
+        if minToTray
+            trayModule.performMinimizeToTray(app, tray)
+            return False
+        end
+        return True
+    end)
+
+    app.window.onResize(fn(w, h)
+        try
+            app.bridge.send("window_state_changed", {
+                "isMaximized": app.window.isMaximized()
+            })
+        catch err
+        end
+    end)
+
+    # ── IPC: Window Controls ─────────────────────────────────────────────────
+    app.bridge.on("win_minimize", fn(payload)
+        let settings = storage.loadSettings()
+        let minToTray = settings.get("minimizeToTray", True)
+        if minToTray
+            trayModule.performMinimizeToTray(app, tray)
+        else
+            app.window.minimize()
+        end
+        return True
+    end)
+
+    app.bridge.on("win_close", fn(payload)
+        let settings = storage.loadSettings()
+        let minToTray = settings.get("minimizeToTray", True)
+        if minToTray
+            trayModule.performMinimizeToTray(app, tray)
+        else
+            app.quit()
+        end
+        return True
+    end)
+
+    app.bridge.on("win_toggleMaximize", fn(payload)
+        return app.window.toggleMaximize()
+    end)
+
+    app.bridge.on("win_isMaximized", fn(payload)
+        return app.window.isMaximized()
+    end)
+
+    app.bridge.on("minimizeToTray", fn(payload)
+        trayModule.performMinimizeToTray(app, tray)
+        return True
+    end)
+
+    app.bridge.on("restoreWindow", fn(payload)
+        try
+            app.window.show()
+            app.window.restore()
+            app.window.center()
+            app.window.focus()
+        catch err
+        end
+        return True
+    end)
+
+    # ── IPC: Initial Data Channel ────────────────────────────────────────────
+    app.bridge.on("getInitialData", fn(payload)
+        let settings = storage.loadSettings()
+        let countries = geo.COUNTRIES
+        let prayerData = api.getPrayerTimes(
+            settings["country"],
+            settings["city"],
+            settings["method"]
+        )
+        let athkarData = athkar.getAllAthkarData()
+
+        return {
+            "countries": countries,
+            "settings": settings,
+            "prayerData": prayerData,
+            "athkar": athkarData
+        }
+    end)
+
+    # ── IPC: Location & Prayer Times ─────────────────────────────────────────
+    app.bridge.on("changeLocation", fn(payload)
+        let country = payload["country"]
+        let city = payload["city"]
+        let method = payload.get("method", 13)
+
+        let settings = storage.loadSettings()
+        settings["country"] = country
+        settings["city"] = city
+        storage.saveSettings(settings)
+
+        return api.getPrayerTimes(country, city, method)
+    end)
+
+    app.bridge.on("autoDetectLocation", fn(payload)
+        let detected = api.detectLocation()
+        if !isNull(detected)
+            let settings = storage.loadSettings()
+            settings["country"] = detected["country"]
+            settings["city"] = detected["city"]
+            settings["cityAr"] = detected["cityAr"]
+            storage.saveSettings(settings)
+
+            let prayerData = api.getPrayerTimes(detected["country"], detected["city"], settings["method"])
+            return {
+                "success": True,
+                "detected": detected,
+                "prayerData": prayerData
+            }
+        end
+        return {"success": False}
+    end)
+
+    app.bridge.on("refreshPrayerTimes", fn(payload)
+        let country = payload["country"]
+        let city = payload["city"]
+        let method = payload.get("method", 13)
+        return api.getPrayerTimes(country, city, method)
+    end)
+
+    # ── IPC: Settings Management ─────────────────────────────────────────────
+    app.bridge.on("saveSettings", fn(payload)
+        let oldSettings = storage.loadSettings()
+        storage.saveSettings(payload)
+
+        # Handle Windows Startup Toggle if changed or if name/exe updated
+        if payload.has("startWithWindows")
+            let startupChanged = payload["startWithWindows"] != oldSettings.get("startWithWindows", False)
+            let nameChanged = payload.get("startupName", "") != oldSettings.get("startupName", "")
+            let exeChanged = payload.get("customExeName", "") != oldSettings.get("customExeName", "")
+            if startupChanged or nameChanged or exeChanged
+                let oldName = oldSettings.get("startupName", Null)
+                platform.setWindowsStartup(payload["startWithWindows"], payload.get("startupName", Null), payload.get("customExeName", Null), oldName)
+            end
+        end
+
+        let prayerData = api.getPrayerTimes(
+            payload["country"],
+            payload["city"],
+            payload["method"]
+        )
+
+        return {
+            "success": True,
+            "settings": payload,
+            "prayerData": prayerData
+        }
+    end)
+
+    app.bridge.on("selectCustomAudio", fn(payload)
+        let filePath = webview.showOpenFileDialog({
+            "title": "اختر ملف صوتي للأذان",
+            "filters": [
+                {"name": "ملفات الصوت (MP3, WAV, OGG)", "extensions": ["mp3", "wav", "ogg"]},
+                {"name": "جميع الملفات", "extensions": ["*"]}
+            ]
+        })
+        if !isNull(filePath) and filePath != ""
+            try
+                let audioDir = path.join(config.UI_DIR, "audio")
+                if !file.exists(audioDir)
+                    dir.createAll(audioDir)
+                end
+                file.copy(filePath, path.join(audioDir, "custom.mp3"))
+            catch err
+            end
+            let settings = storage.loadSettings()
+            settings["customAudioPath"] = filePath
+            settings["selectedVoice"] = "custom"
+            storage.saveSettings(settings)
+            return {"success": True, "path": filePath}
+        end
+        return {"success": False}
+    end)
+
+    app.bridge.on("saveTasbeeh", fn(payload)
+        let count = payload.get("count", 0)
+        let settings = storage.loadSettings()
+        settings["tasbeehCount"] = count
+        storage.saveSettings(settings)
+        return True
+    end)
+
+    # ── IPC: Desktop Notifications ───────────────────────────────────────────
+    app.bridge.on("notifyPrayer", fn(payload)
+        let prayer = payload["prayer"]
+        let time = payload.get("time", "")
+        let notifMsg = "حان الآن موعد أذان صلاة " + prayer
+        if time != ""
+            notifMsg = notifMsg + " (" + time + ")"
+        end
+
+        webview.notificationShow(
+            "مواقيت الصلاة",
+            notifMsg,
+            "حي على الصلاة • حي على الفلاح",
+            True,
+            "",
+            7
+        )
+        return True
+    end)
+
+    app.bridge.on("notifyMessage", fn(payload)
+        let title = payload.get("title", "تذكير إسلامي")
+        let message = payload.get("message", "")
+        let sub = payload.get("sub", "")
+        webview.notificationShow(title, message, sub, True, "", 6)
+        return True
+    end)
+
+    app.bridge.on("testNotification", fn(payload)
+        webview.notificationShow(
+            "مواقيت الصلاة",
+            "هذا إشعار تجريبي لمواقيت الصلاة",
+            "لغة جزائر - تطبيق سطح المكتب",
+            True,
+            "",
+            5
+        )
+        return True
+    end)
+end

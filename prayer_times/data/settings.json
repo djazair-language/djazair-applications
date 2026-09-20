@@ -1,7 +1,7 @@
 {
   "adhanVolume": 90,
   "city": "Algiers",
-  "startWithWindows": true,
+  "startWithWindows": false,
   "minimizeToTray": true,
   "ramadanMode": false,
   "adhanEnabled": true,
@@ -11,5 +11,7 @@
   "notificationEnabled": true,
   "selectedVoice": "algerian",
   "customAudioPath": "",
-  "tasbeehCount": 0
+  "tasbeehCount": 0,
+  "startupName": "Djazair Prayer Times",
+  "customExeName": "djazair_prayer.exe"
 }
