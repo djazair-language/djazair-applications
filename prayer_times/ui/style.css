@@ -1334,6 +1334,9 @@ body.compact-mode {
     display: flex;
     align-items: center;
     gap: 4px;
+    position: relative;
+    z-index: 1000;
+    -webkit-app-region: no-drag;
 }
 
 .compact-btn {
@@ -1348,6 +1351,10 @@ body.compact-mode {
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+    z-index: 1001;
+    -webkit-app-region: no-drag;
+    pointer-events: auto;
 }
 
 .compact-btn:hover {

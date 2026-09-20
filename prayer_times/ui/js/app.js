@@ -312,6 +312,7 @@ window.PrayerApp = window.PrayerApp || {};
                 }
             }
         }
+        App.setCompactMode = setCompactMode;
 
         if (elements.btnCompactMode) {
             elements.btnCompactMode.addEventListener('click', () => setCompactMode(true));

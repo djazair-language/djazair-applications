@@ -87,28 +87,28 @@
     </header>
 
     <!-- ── Compact Floating Widget (Active when body.compact-mode) ─────── -->
-    <div id="compactWidget" class="compact-widget" onmousedown="if(event.button === 0 && window.djazair) window.djazair.startDragging();">
+    <div id="compactWidget" class="compact-widget" onmousedown="if(event.button === 0 && !event.target.closest('.compact-actions') && window.djazair) window.djazair.startDragging();">
         <div class="compact-header">
             <div class="compact-city-badge">
                 <span class="compact-dot"></span>
                 <span id="compactCity" class="compact-city">الجزائر العاصمة</span>
             </div>
-            <div class="compact-actions">
-                <button id="btnCompactMute" class="compact-btn" title="كتم الصوت / إيقاف الأذان (M)">
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+            <div class="compact-actions" onmousedown="event.stopPropagation();">
+                <button id="btnCompactMute" class="compact-btn" title="كتم الصوت / إيقاف الأذان (M)" onmousedown="event.stopPropagation();" onclick="if(window.PrayerApp && window.PrayerApp.Audio) window.PrayerApp.Audio.stopAdhan();">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="pointer-events: none;">
                         <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
                     </svg>
                 </button>
-                <button id="btnExpandFromCompact" class="compact-btn" title="تكبير للواجهة الكاملة (Expand)">
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <button id="btnExpandFromCompact" class="compact-btn" title="تكبير للواجهة الكاملة (Expand)" onmousedown="event.stopPropagation();" onclick="if(window.PrayerApp && window.PrayerApp.setCompactMode) window.PrayerApp.setCompactMode(false);">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                         <polyline points="15 3 21 3 21 9"/>
                         <polyline points="9 21 3 21 3 15"/>
                         <line x1="21" y1="3" x2="14" y2="10"/>
                         <line x1="3" y1="21" x2="10" y2="14"/>
                     </svg>
                 </button>
-                <button id="btnCompactClose" class="compact-btn" title="تصغير إلى شريط المهام (Tray)">
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <button id="btnCompactClose" class="compact-btn" title="تصغير إلى شريط المهام (Tray)" onmousedown="event.stopPropagation();" onclick="if(window.djazair && window.djazair.invoke) window.djazair.invoke('win_close');">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                         <line x1="18" y1="6" x2="6" y2="18"/>
                         <line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>

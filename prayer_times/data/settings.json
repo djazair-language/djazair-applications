@@ -1,17 +1,37 @@
 {
   "adhanVolume": 90,
   "city": "Algiers",
+  "perPrayerVoicesEnabled": false,
+  "preAdhanMinutes": 5,
+  "preAdhanEnabled": true,
   "startWithWindows": false,
   "minimizeToTray": true,
-  "ramadanMode": false,
-  "adhanEnabled": true,
+  "selectedVoice": "algerian",
+  "customAudioPath": "",
   "method": 13,
   "country": "DZ",
   "cityAr": "الجزائر العاصمة",
   "notificationEnabled": true,
-  "selectedVoice": "algerian",
-  "customAudioPath": "",
+  "ramadanMode": false,
+  "adhanEnabled": true,
   "tasbeehCount": 0,
   "startupName": "Djazair Prayer Times",
-  "customExeName": "djazair_prayer.exe"
+  "customExeName": "djazair_prayer.exe",
+  "prayerVoices": {
+    "Maghrib": "chime",
+    "Dhuhr": "chime",
+    "Isha": "chime",
+    "Fajr": "algerian",
+    "Asr": "chime"
+  },
+  "iqamaOffsets": {
+    "Maghrib": 10,
+    "Dhuhr": 15,
+    "Isha": 15,
+    "Fajr": 20,
+    "Asr": 15
+  },
+  "athkarReminderEnabled": true,
+  "iqamaEnabled": true,
+  "isCompactMode": false
 }
