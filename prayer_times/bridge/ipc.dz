@@ -271,8 +271,8 @@ fn registerIpcHandlers(app, tray, services)
             app.window.setAlwaysOnTop(True)
         else
             app.window.setAlwaysOnTop(False)
-            app.window.setSize(1020, 780)
-            app.window.setMinimumSize(820, 600)
+            app.window.setSize(1020, 630)
+            app.window.setMinimumSize(820, 550)
             app.window.center()
         end
         return isCompact

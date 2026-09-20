@@ -259,11 +259,10 @@ body {
 .app-container {
     max-width: 980px;
     margin: 0 auto;
-    padding: 14px 20px;
+    padding: 12px 20px 8px 20px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    min-height: calc(100vh - 52px);
+    gap: 10px;
 }
 
 /* ── Navigation Tabs ─────────────────────────────────────────────────────────── */
@@ -1379,7 +1378,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     transform: translateY(0);
 }
 
-.app-footer { margin-top: auto; text-align: center; font-size: 0.75rem; color: var(--text-muted); padding: 6px 0; }
+.app-footer { margin-top: 6px; text-align: center; font-size: 0.75rem; color: var(--text-muted); padding: 4px 0; }
 .app-footer strong { color: var(--gold-primary); }
 
 /* ── Prayer Iqama Display ─────────────────────────────────────────────────── */
