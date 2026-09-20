@@ -86,15 +86,45 @@ window.PrayerApp = window.PrayerApp || {};
             txtCustomExeName: document.getElementById('txtCustomExeName'),
             chkMinimizeTray: document.getElementById('chkMinimizeTray'),
 
+            // New Settings Controls
+            chkPreAdhan: document.getElementById('chkPreAdhan'),
+            selPreAdhanMinutes: document.getElementById('selPreAdhanMinutes'),
+            chkPerPrayerVoices: document.getElementById('chkPerPrayerVoices'),
+            groupPerPrayerVoices: document.getElementById('groupPerPrayerVoices'),
+            selVoiceFajr: document.getElementById('selVoiceFajr'),
+            selVoiceDhuhr: document.getElementById('selVoiceDhuhr'),
+            selVoiceAsr: document.getElementById('selVoiceAsr'),
+            selVoiceMaghrib: document.getElementById('selVoiceMaghrib'),
+            selVoiceIsha: document.getElementById('selVoiceIsha'),
+            chkIqama: document.getElementById('chkIqama'),
+            groupIqamaOffsets: document.getElementById('groupIqamaOffsets'),
+            numIqamaFajr: document.getElementById('numIqamaFajr'),
+            numIqamaDhuhr: document.getElementById('numIqamaDhuhr'),
+            numIqamaAsr: document.getElementById('numIqamaAsr'),
+            numIqamaMaghrib: document.getElementById('numIqamaMaghrib'),
+            numIqamaIsha: document.getElementById('numIqamaIsha'),
+            chkAthkarReminder: document.getElementById('chkAthkarReminder'),
+
             // Audio & Tray
             adhanAudio: document.getElementById('adhanAudio'),
             btnMinimizeTray: document.getElementById('btnMinimizeTray'),
 
             // Frameless Titlebar Controls
+            btnCompactMode: document.getElementById('btnCompactMode'),
             btnWinMin: document.getElementById('btnWinMin'),
             btnWinMax: document.getElementById('btnWinMax'),
             iconWinMax: document.getElementById('iconWinMax'),
-            btnWinClose: document.getElementById('btnWinClose')
+            btnWinClose: document.getElementById('btnWinClose'),
+
+            // Compact Floating Widget Elements
+            compactWidget: document.getElementById('compactWidget'),
+            btnExpandFromCompact: document.getElementById('btnExpandFromCompact'),
+            compactPrayerName: document.getElementById('compactPrayerName'),
+            compactPrayerTime: document.getElementById('compactPrayerTime'),
+            compactCountdown: document.getElementById('compactCountdown'),
+            compactCity: document.getElementById('compactCity'),
+            btnCompactMute: document.getElementById('btnCompactMute'),
+            btnCompactClose: document.getElementById('btnCompactClose')
         };
     };
 

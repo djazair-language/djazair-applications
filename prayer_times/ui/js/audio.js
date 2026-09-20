@@ -34,7 +34,7 @@ window.PrayerApp = window.PrayerApp || {};
             }
         },
 
-        playAdhan(overrideVoice, customVolume) {
+        playAdhan(overrideVoice, customVolume, prayerKey) {
             const state = App.state;
             const elements = App.elements;
 
@@ -43,7 +43,14 @@ window.PrayerApp = window.PrayerApp || {};
                 return;
             }
 
-            const voice = overrideVoice || state.settings.selectedVoice || 'chime';
+            let voice = overrideVoice;
+            if (!voice && prayerKey && state.settings.perPrayerVoicesEnabled && state.settings.prayerVoices) {
+                voice = state.settings.prayerVoices[prayerKey];
+            }
+            if (!voice) {
+                voice = state.settings.selectedVoice || 'chime';
+            }
+
             const rawVol = customVolume !== undefined ? customVolume : (state.settings.adhanVolume !== undefined ? state.settings.adhanVolume : 80);
             const volume = Math.max(0, Math.min(1, rawVol / 100));
 

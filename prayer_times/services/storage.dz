@@ -24,7 +24,27 @@ let DEFAULT_SETTINGS = {
     "ramadanMode": False,
     "selectedVoice": "chime",
     "customAudioPath": "",
-    "tasbeehCount": 0
+    "tasbeehCount": 0,
+    "preAdhanEnabled": True,
+    "preAdhanMinutes": 10,
+    "perPrayerVoicesEnabled": False,
+    "prayerVoices": {
+        "Fajr": "algerian",
+        "Dhuhr": "chime",
+        "Asr": "chime",
+        "Maghrib": "chime",
+        "Isha": "chime"
+    },
+    "iqamaEnabled": True,
+    "iqamaOffsets": {
+        "Fajr": 20,
+        "Dhuhr": 15,
+        "Asr": 15,
+        "Maghrib": 10,
+        "Isha": 15
+    },
+    "athkarReminderEnabled": True,
+    "isCompactMode": False
 }
 
 use process

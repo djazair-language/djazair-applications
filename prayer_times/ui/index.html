@@ -56,6 +56,12 @@
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
             </button>
+            <button id="btnCompactMode" class="action-btn" title="الوضع المصغر العائم (Compact Floating Mode)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <rect x="11" y="11" width="8" height="8" rx="1" fill="currentColor" opacity="0.4"/>
+                </svg>
+            </button>
 
             <!-- Divider -->
             <div class="bar-divider"></div>
@@ -79,6 +85,45 @@
             </button>
         </div>
     </header>
+
+    <!-- ── Compact Floating Widget (Active when body.compact-mode) ─────── -->
+    <div id="compactWidget" class="compact-widget" onmousedown="if(event.button === 0 && window.djazair) window.djazair.startDragging();">
+        <div class="compact-header">
+            <div class="compact-city-badge">
+                <span class="compact-dot"></span>
+                <span id="compactCity" class="compact-city">الجزائر العاصمة</span>
+            </div>
+            <div class="compact-actions">
+                <button id="btnCompactMute" class="compact-btn" title="كتم الصوت / إيقاف الأذان (M)">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                </button>
+                <button id="btnExpandFromCompact" class="compact-btn" title="تكبير للواجهة الكاملة (Expand)">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 3 21 3 21 9"/>
+                        <polyline points="9 21 3 21 3 15"/>
+                        <line x1="21" y1="3" x2="14" y2="10"/>
+                        <line x1="3" y1="21" x2="10" y2="14"/>
+                    </svg>
+                </button>
+                <button id="btnCompactClose" class="compact-btn" title="تصغير إلى شريط المهام (Tray)">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="compact-body">
+            <div class="compact-prayer-info">
+                <span class="compact-label">الصلاة القادمة:</span>
+                <span id="compactPrayerName" class="compact-name">--</span>
+                <span id="compactPrayerTime" class="compact-time">--:--</span>
+            </div>
+            <div id="compactCountdown" class="compact-countdown">00:00:00</div>
+        </div>
+    </div>
 
     <div class="app-container">
         <!-- Navigation Tabs -->
@@ -198,6 +243,7 @@
                     </div>
                     <div class="prayer-name">الفجر</div>
                     <div class="prayer-time" id="time-Fajr">--:--</div>
+                    <div class="prayer-iqama" id="iqama-Fajr">الإقامة: --:--</div>
                     <div class="prayer-status" id="status-Fajr">--</div>
                 </div>
 
@@ -221,6 +267,7 @@
                     </div>
                     <div class="prayer-name">الظهر</div>
                     <div class="prayer-time" id="time-Dhuhr">--:--</div>
+                    <div class="prayer-iqama" id="iqama-Dhuhr">الإقامة: --:--</div>
                     <div class="prayer-status" id="status-Dhuhr">--</div>
                 </div>
 
@@ -232,6 +279,7 @@
                     </div>
                     <div class="prayer-name">العصر</div>
                     <div class="prayer-time" id="time-Asr">--:--</div>
+                    <div class="prayer-iqama" id="iqama-Asr">الإقامة: --:--</div>
                     <div class="prayer-status" id="status-Asr">--</div>
                 </div>
 
@@ -243,6 +291,7 @@
                     </div>
                     <div class="prayer-name">المغرب</div>
                     <div class="prayer-time" id="time-Maghrib">--:--</div>
+                    <div class="prayer-iqama" id="iqama-Maghrib">الإقامة: --:--</div>
                     <div class="prayer-status" id="status-Maghrib">--</div>
                 </div>
 
@@ -254,6 +303,7 @@
                     </div>
                     <div class="prayer-name">العشاء</div>
                     <div class="prayer-time" id="time-Isha">--:--</div>
+                    <div class="prayer-iqama" id="iqama-Isha">الإقامة: --:--</div>
                     <div class="prayer-status" id="status-Isha">--</div>
                 </div>
             </main>
@@ -426,6 +476,145 @@
                             📂 اختيار ملف MP3 من الجهاز
                         </button>
                         <small id="lblCustomAudioPath" class="path-display"></small>
+                    </div>
+
+                    <!-- Per-Prayer Voice Customization -->
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>تخصيص صوت الأذان لكل صلاة (بما في ذلك الفجر):</strong>
+                            <small>تحديد مؤذن أو صوت مختلف لكل فريضة من فرائض اليوم</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkPerPrayerVoices">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" id="groupPerPrayerVoices" style="display: none; padding: 12px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem;">
+                            <div>
+                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة الفجر (الصلاة خير من النوم):</label>
+                                <select id="selVoiceFajr" class="styled-select full-width">
+                                    <option value="algerian">الأذان الجزائري الأصيل</option>
+                                    <option value="makkah">الحرم المكي الشريف</option>
+                                    <option value="madinah">الحرم النبوي الشريف</option>
+                                    <option value="chime">نغمة تنبيه هادئة</option>
+                                    <option value="custom">ملف مخصص</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة الظهر:</label>
+                                <select id="selVoiceDhuhr" class="styled-select full-width">
+                                    <option value="chime">نغمة تنبيه هادئة</option>
+                                    <option value="algerian">الأذان الجزائري الأصيل</option>
+                                    <option value="makkah">الحرم المكي الشريف</option>
+                                    <option value="madinah">الحرم النبوي الشريف</option>
+                                    <option value="custom">ملف مخصص</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة العصر:</label>
+                                <select id="selVoiceAsr" class="styled-select full-width">
+                                    <option value="chime">نغمة تنبيه هادئة</option>
+                                    <option value="algerian">الأذان الجزائري الأصيل</option>
+                                    <option value="makkah">الحرم المكي الشريف</option>
+                                    <option value="madinah">الحرم النبوي الشريف</option>
+                                    <option value="custom">ملف مخصص</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة المغرب:</label>
+                                <select id="selVoiceMaghrib" class="styled-select full-width">
+                                    <option value="chime">نغمة تنبيه هادئة</option>
+                                    <option value="algerian">الأذان الجزائري الأصيل</option>
+                                    <option value="makkah">الحرم المكي الشريف</option>
+                                    <option value="madinah">الحرم النبوي الشريف</option>
+                                    <option value="custom">ملف مخصص</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; margin-bottom:3px; color: var(--gold-primary);">صلاة العشاء:</label>
+                                <select id="selVoiceIsha" class="styled-select full-width">
+                                    <option value="chime">نغمة تنبيه هادئة</option>
+                                    <option value="algerian">الأذان الجزائري الأصيل</option>
+                                    <option value="makkah">الحرم المكي الشريف</option>
+                                    <option value="madinah">الحرم النبوي الشريف</option>
+                                    <option value="custom">ملف مخصص</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pre-Adhan Reminder -->
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>تنبيه ما قبل الأذان (Pre-Adhan Reminder):</strong>
+                            <small>إشعار لطيف للاستعداد للصلاة والوضوء قبل دخول الوقت</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkPreAdhan" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label for="selPreAdhanMinutes">وقت التنبيه قبل الأذان:</label>
+                        <select id="selPreAdhanMinutes" class="styled-select" style="width: 140px;">
+                            <option value="5">قبل 5 دقائق</option>
+                            <option value="10" selected>قبل 10 دقائق</option>
+                            <option value="15">قبل 15 دقيقة</option>
+                            <option value="20">قبل 20 دقيقة</option>
+                        </select>
+                    </div>
+
+                    <!-- Iqama Settings -->
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>عرض مواقيت الإقامة والتنبيه بها (Iqama):</strong>
+                            <small>حساب موعد الإقامة وإظهار التنبيه التنازلي بعد الأذان</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkIqama" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" id="groupIqamaOffsets" style="padding: 10px 14px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm); border-right: 3px solid var(--gold-primary); margin-top: -6px;">
+                        <label style="display:block; margin-bottom: 6px; font-size: 0.82rem; color: var(--text-secondary);">فترة الإقامة بالدقائق بعد الأذان لكل فريضة:</label>
+                        <div style="display: flex; gap: 8px; justify-content: space-between;">
+                            <div style="text-align: center;">
+                                <span style="display:block; font-size:0.75rem;">الفجر</span>
+                                <input type="number" id="numIqamaFajr" min="5" max="60" value="20" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                            </div>
+                            <div style="text-align: center;">
+                                <span style="display:block; font-size:0.75rem;">الظهر</span>
+                                <input type="number" id="numIqamaDhuhr" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                            </div>
+                            <div style="text-align: center;">
+                                <span style="display:block; font-size:0.75rem;">العصر</span>
+                                <input type="number" id="numIqamaAsr" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                            </div>
+                            <div style="text-align: center;">
+                                <span style="display:block; font-size:0.75rem;">المغرب</span>
+                                <input type="number" id="numIqamaMaghrib" min="5" max="60" value="10" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                            </div>
+                            <div style="text-align: center;">
+                                <span style="display:block; font-size:0.75rem;">العشاء</span>
+                                <input type="number" id="numIqamaIsha" min="5" max="60" value="15" class="styled-input" style="width:50px; text-align:center; padding:4px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Athkar Timed Reminders -->
+                    <div class="form-group toggle-group">
+                        <div class="toggle-label">
+                            <strong>تنبيهات أذكار الصباح والمساء في وقتها:</strong>
+                            <small>إشعار بعد الفجر لأذكار الصباح وبعد العصر لأذكار المساء</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="chkAthkarReminder" checked>
+                            <span class="slider round"></span>
+                        </label>
                     </div>
 
                     <div class="form-group toggle-group">

@@ -295,6 +295,63 @@ window.PrayerApp = window.PrayerApp || {};
                 }
             });
         }
+
+        // Compact Floating Mode Toggle
+        async function setCompactMode(enable) {
+            state.settings.isCompactMode = enable;
+            if (enable) {
+                document.body.classList.add('compact-mode');
+            } else {
+                document.body.classList.remove('compact-mode');
+            }
+            if (App.IPC) {
+                try {
+                    await App.IPC.toggleCompactMode(enable);
+                } catch (e) {
+                    console.error('[App] toggleCompactMode error:', e);
+                }
+            }
+        }
+
+        if (elements.btnCompactMode) {
+            elements.btnCompactMode.addEventListener('click', () => setCompactMode(true));
+        }
+
+        if (elements.btnExpandFromCompact) {
+            elements.btnExpandFromCompact.addEventListener('click', () => setCompactMode(false));
+        }
+
+        if (elements.btnCompactMute) {
+            elements.btnCompactMute.addEventListener('click', () => {
+                if (App.Audio) App.Audio.stopAdhan();
+            });
+        }
+
+        if (elements.btnCompactClose) {
+            elements.btnCompactClose.addEventListener('click', () => {
+                if (App.IPC) App.IPC.winClose();
+            });
+        }
+
+        // Global Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (App.Tasbeeh) App.Tasbeeh.tap();
+            }
+            if ((e.key === 'm' || e.key === 'M') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                if (App.Audio) App.Audio.stopAdhan();
+            }
+            if (e.key === 'Escape') {
+                if (elements.settingsModal && !elements.settingsModal.classList.contains('hidden')) {
+                    if (App.Settings) App.Settings.close();
+                } else if (document.body.classList.contains('compact-mode')) {
+                    setCompactMode(false);
+                } else if (App.IPC) {
+                    App.IPC.minimizeToTray().catch(console.error);
+                }
+            }
+        });
     }
 
     // Auto-bootstrap on DOM Ready

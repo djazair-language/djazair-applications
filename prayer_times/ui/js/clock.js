@@ -128,6 +128,9 @@ window.PrayerApp = window.PrayerApp || {};
                 elements.imsakTime.textContent = data.timings.Imsak || data.timings.Fajr;
             }
 
+            // Update Iqama Displays
+            this.updateIqamaUI();
+
             this.calculateNextPrayer();
         },
 
@@ -284,9 +287,16 @@ window.PrayerApp = window.PrayerApp || {};
                         App.Ramadan.updateCountdowns();
                     }
                     this.updateTimelineProgress(now);
+                    this.checkPreAdhanReminder(now, diff);
+                    this.checkTrayTooltipUpdate(now, diff);
+                    this.updateCompactModeUI(diff);
                 } else {
                     this.calculateNextPrayer();
                 }
+
+                // Check periodic reminders
+                this.checkIqamaReminder(now);
+                this.checkAthkarTimedReminder(now);
             }, 1000);
         },
 
@@ -303,16 +313,155 @@ window.PrayerApp = window.PrayerApp || {};
             if (state.nextPrayer) {
                 const prayerName = state.nextPrayer.nameAr;
                 const timeStr = state.nextPrayer.timeStr;
+                const prayerKey = state.nextPrayer.key;
 
                 if (state.settings.notificationEnabled && App.IPC) {
                     App.IPC.notifyPrayer(prayerName, timeStr).catch(console.error);
                 }
 
-                if (state.settings.adhanEnabled && state.nextPrayer.key !== 'Sunrise' && App.Audio) {
-                    App.Audio.playAdhan();
+                if (state.settings.adhanEnabled && prayerKey !== 'Sunrise' && App.Audio) {
+                    App.Audio.playAdhan(null, null, prayerKey);
                 }
             }
             setTimeout(() => this.calculateNextPrayer(), 2000);
+        },
+
+        updateIqamaUI() {
+            const state = App.state;
+            if (!state.prayerData || !state.prayerData.timings) return;
+            const timings = state.prayerData.timings;
+            const offsets = state.settings.iqamaOffsets || { Fajr: 20, Dhuhr: 15, Asr: 15, Maghrib: 10, Isha: 15 };
+
+            ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].forEach(key => {
+                const elem = document.getElementById(`iqama-${key}`);
+                if (elem && timings[key]) {
+                    const pTime = this.parseTimeToToday(timings[key]);
+                    if (pTime) {
+                        const offsetMin = offsets[key] || 15;
+                        const iqamaDate = new Date(pTime.getTime() + offsetMin * 60 * 1000);
+                        const h = String(iqamaDate.getHours()).padStart(2, '0');
+                        const m = String(iqamaDate.getMinutes()).padStart(2, '0');
+                        elem.textContent = `الإقامة: ${h}:${m}`;
+                        elem.style.display = state.settings.iqamaEnabled ? 'inline-block' : 'none';
+                    }
+                }
+            });
+        },
+
+        checkPreAdhanReminder(now, diffMs) {
+            const state = App.state;
+            if (!state.settings.preAdhanEnabled || !state.nextPrayer) return;
+
+            const targetMinutes = state.settings.preAdhanMinutes || 10;
+            const targetMs = targetMinutes * 60 * 1000;
+            const windowMs = 60 * 1000;
+
+            if (diffMs > 0 && diffMs <= targetMs && diffMs > (targetMs - windowMs)) {
+                const key = `${state.nextPrayer.key}_${now.toDateString()}`;
+                if (!state.preAdhanFired[key]) {
+                    state.preAdhanFired[key] = true;
+                    if (App.IPC) {
+                        App.IPC.notifyPreAdhan(state.nextPrayer.nameAr, targetMinutes).catch(console.error);
+                    }
+                    if (App.Audio && App.Audio.playSyntheticChime) {
+                        App.Audio.playSyntheticChime(0.4);
+                    }
+                }
+            }
+        },
+
+        checkIqamaReminder(now) {
+            const state = App.state;
+            if (!state.settings.iqamaEnabled || !state.prayerData || !state.prayerData.timings) return;
+            const timings = state.prayerData.timings;
+            const offsets = state.settings.iqamaOffsets || { Fajr: 20, Dhuhr: 15, Asr: 15, Maghrib: 10, Isha: 15 };
+
+            ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].forEach(key => {
+                const pTime = this.parseTimeToToday(timings[key]);
+                if (!pTime) return;
+                const offsetMin = offsets[key] || 15;
+                const iqamaTime = new Date(pTime.getTime() + offsetMin * 60 * 1000);
+                const diff = now.getTime() - iqamaTime.getTime();
+
+                if (diff >= 0 && diff < 60 * 1000) {
+                    const fireKey = `${key}_${now.toDateString()}`;
+                    if (!state.iqamaFired[fireKey]) {
+                        state.iqamaFired[fireKey] = true;
+                        const nameAr = App.PRAYER_NAMES[key] || key;
+                        if (App.IPC) {
+                            App.IPC.notifyIqama(nameAr).catch(console.error);
+                        }
+                        if (App.Audio && App.Audio.playClickTone) {
+                            App.Audio.playClickTone();
+                        }
+                    }
+                }
+            });
+        },
+
+        checkAthkarTimedReminder(now) {
+            const state = App.state;
+            if (!state.settings.athkarReminderEnabled || !state.prayerData || !state.prayerData.timings) return;
+            const timings = state.prayerData.timings;
+            const todayStr = now.toDateString();
+
+            // Morning Athkar: 20 mins after Fajr
+            if (timings.Fajr) {
+                const fajrTime = this.parseTimeToToday(timings.Fajr);
+                if (fajrTime) {
+                    const morningTarget = new Date(fajrTime.getTime() + 20 * 60 * 1000);
+                    const diff = now.getTime() - morningTarget.getTime();
+                    if (diff >= 0 && diff < 60 * 1000 && !state.athkarFired['morning_' + todayStr]) {
+                        state.athkarFired['morning_' + todayStr] = true;
+                        if (App.IPC) App.IPC.notifyAthkarTime('morning').catch(console.error);
+                    }
+                }
+            }
+
+            // Evening Athkar: 20 mins after Asr
+            if (timings.Asr) {
+                const asrTime = this.parseTimeToToday(timings.Asr);
+                if (asrTime) {
+                    const eveningTarget = new Date(asrTime.getTime() + 20 * 60 * 1000);
+                    const diff = now.getTime() - eveningTarget.getTime();
+                    if (diff >= 0 && diff < 60 * 1000 && !state.athkarFired['evening_' + todayStr]) {
+                        state.athkarFired['evening_' + todayStr] = true;
+                        if (App.IPC) App.IPC.notifyAthkarTime('evening').catch(console.error);
+                    }
+                }
+            }
+        },
+
+        checkTrayTooltipUpdate(now, diffMs) {
+            const state = App.state;
+            if (!state.nextPrayer) return;
+            const currentMin = now.getMinutes();
+            if (state.lastTooltipMinute !== currentMin) {
+                state.lastTooltipMinute = currentMin;
+                const hours = Math.floor(diffMs / (3600 * 1000));
+                const mins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
+                const timeStr = hours > 0 ? `${hours}س ${mins}د` : `${mins} دقيقة`;
+                const text = `مواقيت الصلاة | ${state.nextPrayer.nameAr} بعد ${timeStr} (${state.currentCity})`;
+                if (App.IPC) App.IPC.updateTrayTooltip(text).catch(console.error);
+            }
+        },
+
+        updateCompactModeUI(diffMs) {
+            const state = App.state;
+            const elements = App.elements;
+            if (!elements.compactWidget || !state.nextPrayer) return;
+
+            if (elements.compactPrayerName) elements.compactPrayerName.textContent = state.nextPrayer.nameAr;
+            if (elements.compactPrayerTime) elements.compactPrayerTime.textContent = state.nextPrayer.timeStr;
+            if (elements.compactCity) elements.compactCity.textContent = state.currentCity;
+
+            if (diffMs > 0 && elements.compactCountdown) {
+                const totalSeconds = Math.floor(diffMs / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                elements.compactCountdown.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
         }
     };
 

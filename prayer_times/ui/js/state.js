@@ -27,7 +27,27 @@ window.PrayerApp = window.PrayerApp || {};
             ramadanMode: false,
             selectedVoice: 'chime',
             customAudioPath: '',
-            tasbeehCount: 0
+            tasbeehCount: 0,
+            preAdhanEnabled: true,
+            preAdhanMinutes: 10,
+            perPrayerVoicesEnabled: false,
+            prayerVoices: {
+                Fajr: 'algerian',
+                Dhuhr: 'chime',
+                Asr: 'chime',
+                Maghrib: 'chime',
+                Isha: 'chime'
+            },
+            iqamaEnabled: true,
+            iqamaOffsets: {
+                Fajr: 20,
+                Dhuhr: 15,
+                Asr: 15,
+                Maghrib: 10,
+                Isha: 15
+            },
+            athkarReminderEnabled: true,
+            isCompactMode: false
         },
         prayerData: null,
         athkarData: null,
@@ -37,9 +57,14 @@ window.PrayerApp = window.PrayerApp || {};
         tasbeehTotal: 0,
         tasbeehTarget: 33,
         nextPrayer: null,
+        currentPrayerForIqama: null,
         timerId: null,
         isPlayingAdhan: false,
-        audioContext: null
+        audioContext: null,
+        preAdhanFired: {},
+        iqamaFired: {},
+        athkarFired: {},
+        lastTooltipMinute: -1
     };
 
     App.PRAYER_NAMES = {

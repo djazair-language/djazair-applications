@@ -57,6 +57,47 @@ window.PrayerApp = window.PrayerApp || {};
                 if (elements.customAudioGroup) elements.customAudioGroup.style.display = 'none';
             }
 
+            // Pre-Adhan Settings
+            if (elements.chkPreAdhan) {
+                elements.chkPreAdhan.checked = Boolean(state.settings.preAdhanEnabled);
+            }
+            if (elements.selPreAdhanMinutes) {
+                elements.selPreAdhanMinutes.value = String(state.settings.preAdhanMinutes || 10);
+            }
+
+            // Per-Prayer Voice Settings
+            if (elements.chkPerPrayerVoices) {
+                elements.chkPerPrayerVoices.checked = Boolean(state.settings.perPrayerVoicesEnabled);
+            }
+            if (elements.groupPerPrayerVoices) {
+                elements.groupPerPrayerVoices.style.display = elements.chkPerPrayerVoices && elements.chkPerPrayerVoices.checked ? 'block' : 'none';
+            }
+            const pv = state.settings.prayerVoices || {};
+            if (elements.selVoiceFajr) elements.selVoiceFajr.value = pv.Fajr || 'algerian';
+            if (elements.selVoiceDhuhr) elements.selVoiceDhuhr.value = pv.Dhuhr || 'chime';
+            if (elements.selVoiceAsr) elements.selVoiceAsr.value = pv.Asr || 'chime';
+            if (elements.selVoiceMaghrib) elements.selVoiceMaghrib.value = pv.Maghrib || 'chime';
+            if (elements.selVoiceIsha) elements.selVoiceIsha.value = pv.Isha || 'chime';
+
+            // Iqama Settings
+            if (elements.chkIqama) {
+                elements.chkIqama.checked = Boolean(state.settings.iqamaEnabled);
+            }
+            if (elements.groupIqamaOffsets) {
+                elements.groupIqamaOffsets.style.display = elements.chkIqama && elements.chkIqama.checked ? 'block' : 'none';
+            }
+            const iq = state.settings.iqamaOffsets || {};
+            if (elements.numIqamaFajr) elements.numIqamaFajr.value = iq.Fajr !== undefined ? iq.Fajr : 20;
+            if (elements.numIqamaDhuhr) elements.numIqamaDhuhr.value = iq.Dhuhr !== undefined ? iq.Dhuhr : 15;
+            if (elements.numIqamaAsr) elements.numIqamaAsr.value = iq.Asr !== undefined ? iq.Asr : 15;
+            if (elements.numIqamaMaghrib) elements.numIqamaMaghrib.value = iq.Maghrib !== undefined ? iq.Maghrib : 10;
+            if (elements.numIqamaIsha) elements.numIqamaIsha.value = iq.Isha !== undefined ? iq.Isha : 15;
+
+            // Athkar Reminder
+            if (elements.chkAthkarReminder) {
+                elements.chkAthkarReminder.checked = Boolean(state.settings.athkarReminderEnabled);
+            }
+
             elements.settingsModal.classList.remove('hidden');
         },
 
@@ -111,7 +152,45 @@ window.PrayerApp = window.PrayerApp || {};
                 state.settings.customExeName = elements.txtCustomExeName.value.trim();
             }
 
+            // Save new settings
+            if (elements.chkPreAdhan) {
+                state.settings.preAdhanEnabled = elements.chkPreAdhan.checked;
+            }
+            if (elements.selPreAdhanMinutes) {
+                state.settings.preAdhanMinutes = parseInt(elements.selPreAdhanMinutes.value) || 10;
+            }
+
+            if (elements.chkPerPrayerVoices) {
+                state.settings.perPrayerVoicesEnabled = elements.chkPerPrayerVoices.checked;
+            }
+            state.settings.prayerVoices = {
+                Fajr: elements.selVoiceFajr ? elements.selVoiceFajr.value : 'algerian',
+                Dhuhr: elements.selVoiceDhuhr ? elements.selVoiceDhuhr.value : 'chime',
+                Asr: elements.selVoiceAsr ? elements.selVoiceAsr.value : 'chime',
+                Maghrib: elements.selVoiceMaghrib ? elements.selVoiceMaghrib.value : 'chime',
+                Isha: elements.selVoiceIsha ? elements.selVoiceIsha.value : 'chime'
+            };
+
+            if (elements.chkIqama) {
+                state.settings.iqamaEnabled = elements.chkIqama.checked;
+            }
+            state.settings.iqamaOffsets = {
+                Fajr: elements.numIqamaFajr ? parseInt(elements.numIqamaFajr.value) || 20 : 20,
+                Dhuhr: elements.numIqamaDhuhr ? parseInt(elements.numIqamaDhuhr.value) || 15 : 15,
+                Asr: elements.numIqamaAsr ? parseInt(elements.numIqamaAsr.value) || 15 : 15,
+                Maghrib: elements.numIqamaMaghrib ? parseInt(elements.numIqamaMaghrib.value) || 10 : 10,
+                Isha: elements.numIqamaIsha ? parseInt(elements.numIqamaIsha.value) || 15 : 15
+            };
+
+            if (elements.chkAthkarReminder) {
+                state.settings.athkarReminderEnabled = elements.chkAthkarReminder.checked;
+            }
+
             this.close();
+
+            if (App.Clock && App.Clock.updateIqamaUI) {
+                App.Clock.updateIqamaUI();
+            }
 
             if (App.IPC) {
                 try {
@@ -138,6 +217,22 @@ window.PrayerApp = window.PrayerApp || {};
 
             if (elements.btnCancelSettings) {
                 elements.btnCancelSettings.addEventListener('click', () => this.close());
+            }
+
+            if (elements.chkPerPrayerVoices) {
+                elements.chkPerPrayerVoices.addEventListener('change', () => {
+                    if (elements.groupPerPrayerVoices) {
+                        elements.groupPerPrayerVoices.style.display = elements.chkPerPrayerVoices.checked ? 'block' : 'none';
+                    }
+                });
+            }
+
+            if (elements.chkIqama) {
+                elements.chkIqama.addEventListener('change', () => {
+                    if (elements.groupIqamaOffsets) {
+                        elements.groupIqamaOffsets.style.display = elements.chkIqama.checked ? 'block' : 'none';
+                    }
+                });
             }
 
             if (elements.btnSaveSettings) {

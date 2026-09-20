@@ -94,6 +94,30 @@ window.PrayerApp = window.PrayerApp || {};
 
         winClose() {
             return this.invoke('win_close');
+        },
+
+        toggleCompactMode(enable) {
+            return this.invoke('win_toggleCompactMode', { enable });
+        },
+
+        isCompactMode() {
+            return this.invoke('win_isCompactMode');
+        },
+
+        updateTrayTooltip(tooltip) {
+            return this.invoke('updateTrayTooltip', { tooltip });
+        },
+
+        notifyPreAdhan(prayer, minutes) {
+            return this.invoke('notifyPreAdhan', { prayer, minutes });
+        },
+
+        notifyIqama(prayer) {
+            return this.invoke('notifyIqama', { prayer });
+        },
+
+        notifyAthkarTime(type) {
+            return this.invoke('notifyAthkarTime', { type });
         }
     };
 

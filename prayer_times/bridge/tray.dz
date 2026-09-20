@@ -45,3 +45,14 @@ fn performMinimizeToTray(app, tray)
     catch err
     end
 end
+
+# Updates the system tray hover tooltip dynamically
+fn updateTrayTooltip(tray, text)
+    if !isNull(tray) and !isNull(text)
+        try
+            tray.setTooltip(text)
+        catch err
+        end
+    end
+end
+

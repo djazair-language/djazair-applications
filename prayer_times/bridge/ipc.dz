@@ -248,4 +248,83 @@ fn registerIpcHandlers(app, tray, services)
         )
         return True
     end)
+
+    # ── IPC: Compact Mode & Window Pinning ───────────────────────────────────
+    app.bridge.on("win_toggleCompactMode", fn(payload)
+        let isCompact = payload.get("enable", False)
+        if isCompact
+            app.window.setMinimumSize(320, 150)
+            app.window.setSize(340, 160)
+            app.window.setAlwaysOnTop(True)
+        else
+            app.window.setAlwaysOnTop(False)
+            app.window.setSize(1020, 780)
+            app.window.setMinimumSize(820, 600)
+            app.window.center()
+        end
+        return isCompact
+    end)
+
+    app.bridge.on("win_isCompactMode", fn(payload)
+        let sz = app.window.getSize()
+        return sz[0] < 500
+    end)
+
+    # ── IPC: System Tray Dynamic Tooltip ─────────────────────────────────────
+    app.bridge.on("updateTrayTooltip", fn(payload)
+        let tooltip = payload.get("tooltip", "")
+        if tooltip != ""
+            trayModule.updateTrayTooltip(tray, tooltip)
+        end
+        return True
+    end)
+
+    # ── IPC: Pre-Adhan, Iqama & Athkar Timed Notifications ────────────────────
+    app.bridge.on("notifyPreAdhan", fn(payload)
+        let prayer = payload.get("prayer", "")
+        let minutes = payload.get("minutes", 10)
+        let msg = "اقترب موعد صلاة " + prayer + " (باقي " + str(minutes) + " دقيقة)"
+        webview.notificationShow(
+            "تنبيه دخول الصلاة",
+            msg,
+            "حي على الصلاة • حان وقت الاستعداد والوضوء",
+            True,
+            "",
+            6
+        )
+        return True
+    end)
+
+    app.bridge.on("notifyIqama", fn(payload)
+        let prayer = payload.get("prayer", "")
+        let msg = "حان الآن موعد إقامة صلاة " + prayer
+        webview.notificationShow(
+            "موعد إقامة الصلاة",
+            msg,
+            "أقيموا صفوفكم وتراصوا • تقبل الله منا ومنكم",
+            True,
+            "",
+            6
+        )
+        return True
+    end)
+
+    app.bridge.on("notifyAthkarTime", fn(payload)
+        let type = payload.get("type", "morning")
+        let title = "أذكار الصباح"
+        let msg = "أصبحنا وأصبح الملك لله — حان وقت قراءة أذكار الصباح المباركة"
+        if type == "evening"
+            title = "أذكار المساء"
+            msg = "أمسينا وأمسى الملك لله — حان وقت قراءة أذكار المساء المباركة"
+        end
+        webview.notificationShow(
+            title,
+            msg,
+            "ألا بذكر الله تطمئن القلوب",
+            True,
+            "",
+            7
+        )
+        return True
+    end)
 end
