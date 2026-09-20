@@ -98,7 +98,7 @@ fn setWindowsStartup(enabled, customName = Null, customExe = Null, oldName = Nul
         appTarget = getAppExePath()
     end
 
-    appTarget = appTarget.replaceAll("/", "\\")
+    appTarget = appTarget.replace("/", "\\")
     let baseName = getAppBaseName()
 
     # Determine registry value name (user custom name > default "Djazair Prayer Times")
