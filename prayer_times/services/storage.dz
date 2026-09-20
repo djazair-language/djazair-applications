@@ -26,22 +26,131 @@ let DEFAULT_SETTINGS = {
 }
 
 use process
+use env
 
-fn getDataDir()
-    let base = process.scriptDir()
-    let d = path.join(base, "data")
-    if !file.exists(d)
-        dir.createAll(d)
+# Detects base name of the application executable or script
+fn getAppBaseName()
+    # 1. From dpack environment
+    let envName = env.getOr("DPACK_EXE_NAME", "")
+    if envName != ""
+        if envName.endsWith(".exe")
+            return envName.slice(0, envName.length() - 4)
+        end
+        return envName
     end
-    return d
+
+    let envExe = env.getOr("DPACK_EXE", "")
+    if envExe != ""
+        let b = path.basename(envExe)
+        if b.endsWith(".exe")
+            return b.slice(0, b.length() - 4)
+        end
+        return b
+    end
+
+    # 2. Check parent of .dpack_cache_
+    let sDir = process.scriptDir()
+    if path.basename(sDir).startsWith(".dpack_cache_")
+        let parentDir = path.dirname(sDir)
+        let files = dir.list(parentDir)
+        for f in files
+            if f.endsWith(".exe") and !f.startsWith("djazair")
+                return f.slice(0, f.length() - 4)
+            end
+        end
+    end
+
+    # 3. Check current dir / script dir for exe
+    let files = dir.list(sDir)
+    for f in files
+        if f.endsWith(".exe") and !f.startsWith("djazair")
+            return f.slice(0, f.length() - 4)
+        end
+    end
+
+    return "prayer_times"
 end
 
+# Gets persistent data directory outside of temporary dpack extraction cache
+fn getDataDir()
+    let appDir = ""
+    let envDir = env.getOr("DPACK_APP_DIR", "")
+    if envDir != "" and file.exists(envDir)
+        appDir = envDir
+    else
+        let sDir = process.scriptDir()
+        if path.basename(sDir).startsWith(".dpack_cache_")
+            appDir = path.dirname(sDir)
+        else
+            appDir = sDir
+        end
+    end
+
+    # Attempt local portable data directory first (next to exe)
+    let d = path.join(appDir, "data")
+    try
+        if !file.exists(d)
+            dir.createAll(d)
+        end
+        return d
+    catch e
+        # If write-protected, fallback to user AppData
+        let appData = env.getOr("APPDATA", "")
+        let baseName = getAppBaseName()
+        if appData != ""
+            let userDir = path.join(appData, "Djazair_" + baseName, "data")
+            if !file.exists(userDir)
+                dir.createAll(userDir)
+            end
+            return userDir
+        end
+        return d
+    end
+end
+
+# Dynamically resolves settings path based on executable name and existing files
 fn getSettingsPath()
-    return getDataDir() + path.sep + "settings.json"
+    let dataDir = getDataDir()
+    let baseName = getAppBaseName()
+
+    # 1. First priority: specific settings file for this executable (e.g. salat_settings.json)
+    let namedSettings = path.join(dataDir, "${baseName}_settings.json")
+    if file.exists(namedSettings)
+        return namedSettings
+    end
+
+    # 2. Second priority: standard settings.json (ensures existing settings are preserved upon rename)
+    let defaultSettings = path.join(dataDir, "settings.json")
+    if file.exists(defaultSettings)
+        return defaultSettings
+    end
+
+    # 3. New file creation: if custom named, use namedSettings, else settings.json
+    if baseName != "prayer_times" and baseName != "main" and baseName != "__main__"
+        return namedSettings
+    end
+    return defaultSettings
 end
 
+# Dynamically resolves cache path
 fn getCachePath()
-    return getDataDir() + path.sep + "cache.json"
+    let dataDir = getDataDir()
+    let baseName = getAppBaseName()
+
+    let namedCache = path.join(dataDir, "${baseName}_cache.json")
+    if file.exists(namedCache)
+        return namedCache
+    end
+
+    let defaultCache = path.join(dataDir, "cache.json")
+    if file.exists(defaultCache)
+        return defaultCache
+    end
+
+    if baseName != "prayer_times" and baseName != "main" and baseName != "__main__"
+        return namedCache
+    end
+    return defaultCache
 end
 
 # Loads user settings or initializes with defaults

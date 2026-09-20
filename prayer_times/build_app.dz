@@ -10,11 +10,11 @@ print("====================================================")
 print("  Bundling Djazair Prayer Times into Standalone EXE")
 print("====================================================")
 
-dpack.pack("prayer_times/main.dz", "prayer_times/prayer_times.exe", {
+dpack.pack("main.dz", "prayer_times.exe", {
     "extensions": ["webview"],
     "console": False,
     "assets": True,
     "portable": True
 })
 
-print("\n[SUCCESS] Standalone Executable created: prayer_times/prayer_times.exe")
+print("\n[SUCCESS] Standalone Executable created: prayer_times.exe")

@@ -383,7 +383,29 @@ int main(int argc, char *argv[]) {
     chmod(interp_path, 0755);
 #endif
 
-    /* ── Step 7: build command ── */
+    /* ── Step 7: export environment variables for child process ── */
+    char exe_dir[4096] = {0};
+    strncpy(exe_dir, self_path, sizeof(exe_dir) - 1);
+    char *last_sep = strrchr(exe_dir, PATH_SEP[0]);
+    const char *exe_name = "";
+    if (last_sep) {
+        exe_name = last_sep + 1;
+        *last_sep = '\0';
+    } else {
+        exe_name = self_path;
+    }
+
+#ifdef _WIN32
+    SetEnvironmentVariableA("DPACK_EXE", self_path);
+    SetEnvironmentVariableA("DPACK_APP_DIR", exe_dir);
+    SetEnvironmentVariableA("DPACK_EXE_NAME", exe_name);
+#else
+    setenv("DPACK_EXE", self_path, 1);
+    setenv("DPACK_APP_DIR", exe_dir, 1);
+    setenv("DPACK_EXE_NAME", exe_name, 1);
+#endif
+
+    /* ── Step 8: build command ── */
 #ifdef _WIN32
     /* Build command line for CreateProcess */
     char cmd[8192];

@@ -30,57 +30,97 @@ try
 catch err
 end
 
-# Helper to detect actual executable path for startup and shortcuts
+use env
+use dir
+
+# Helper to detect actual executable path dynamically (handles renaming of .exe)
 fn getAppExePath()
+    # 1. Check DPACK_EXE environment variable set by dpack stub
+    let envExe = env.getOr("DPACK_EXE", "")
+    if envExe != "" and file.exists(envExe)
+        return envExe
+    end
+
+    # 2. Check parent directory if running inside a .dpack_cache_ folder
     let scriptDirName = path.basename(SCRIPT_DIR)
     if scriptDirName.startsWith(".dpack_cache_")
         let parentDir = path.dirname(SCRIPT_DIR)
-        let exeInParent = path.join(parentDir, "prayer_times.exe")
-        if file.exists(exeInParent)
-            return exeInParent
+        let files = dir.list(parentDir)
+        for f in files
+            if f.endsWith(".exe") and !f.startsWith("djazair")
+                let p = path.join(parentDir, f)
+                if file.exists(p)
+                    return p
+                end
+            end
         end
     end
 
-    let exeInScript = path.join(SCRIPT_DIR, "prayer_times.exe")
-    if file.exists(exeInScript)
-        return exeInScript
+    # 3. Check current dir / SCRIPT_DIR
+    let files = dir.list(SCRIPT_DIR)
+    for f in files
+        if f.endsWith(".exe") and !f.startsWith("djazair")
+            let p = path.join(SCRIPT_DIR, f)
+            if file.exists(p)
+                return p
+            end
+        end
     end
 
-    let parentDir = path.dirname(SCRIPT_DIR)
-    let exeCandidate = path.join(parentDir, "prayer_times.exe")
-    if file.exists(exeCandidate)
-        return exeCandidate
-    end
-
-    return exeInScript
+    # 4. Fallback
+    return path.join(SCRIPT_DIR, "prayer_times.exe")
 end
 
-# Helper to configure Windows startup registry
+fn getAppBaseName()
+    let exePath = getAppExePath()
+    let base = path.basename(exePath)
+    if base.endsWith(".exe")
+        base = base.slice(0, base.length() - 4)
+    end
+    return base
+end
+
+# Helper to configure Windows startup registry dynamically
 fn setWindowsStartup(enabled)
     let appTarget = getAppExePath()
     appTarget = appTarget.replaceAll("/", "\\")
+    let baseName = getAppBaseName()
+    let regKeyName = "Djazair_" + baseName
 
     try
         if enabled
-            let cmd = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).SetValue('DjazairPrayerTimes', [char]34 + '${appTarget}' + [char]34 + ' --background')\""
+            let cmd = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).SetValue('${regKeyName}', [char]34 + '${appTarget}' + [char]34 + ' --background')\""
             process.exec(cmd)
         else
-            let cmd = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).DeleteValue('DjazairPrayerTimes', `$false)\""
-            process.exec(cmd)
+            let cmd1 = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).DeleteValue('${regKeyName}', `$false)\""
+            process.exec(cmd1)
+            # Also delete legacy key name if present
+            let cmd2 = "powershell -WindowStyle Hidden -Command \"[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\\Microsoft\\Windows\\CurrentVersion\\Run', `$true).DeleteValue('DjazairPrayerTimes', `$false)\""
+            process.exec(cmd2)
         end
     catch err
     end
 end
 
-# Path to application icon
-let iconPath = path.join(SCRIPT_DIR, "assets", "app.ico")
-if !file.exists(iconPath)
+# Path to application icon (supports custom <baseName>.ico or assets/app.ico)
+let appBaseName = getAppBaseName()
+let customExeDir = path.dirname(getAppExePath())
+let customIcon = path.join(customExeDir, "${appBaseName}.ico")
+let iconPath = ""
+if file.exists(customIcon)
+    iconPath = customIcon
+elif file.exists(path.join(SCRIPT_DIR, "assets", "app.ico"))
+    iconPath = path.join(SCRIPT_DIR, "assets", "app.ico")
+elif file.exists(path.join(SCRIPT_DIR, "app.ico"))
     iconPath = path.join(SCRIPT_DIR, "app.ico")
 end
 
+# Dynamic window title
+let winTitle = "مواقيت الصلاة — " + (if appBaseName != "prayer_times" and appBaseName != "djazair_prayer" and appBaseName != "main" ? appBaseName : "Djazair Prayer Times")
+
 # Create native application window
 let app = webview.createWindow({
-    "title": "مواقيت الصلاة — Djazair Prayer Times",
+    "title": winTitle,
     "width": 1020,
     "height": 780,
     "minWidth": 820,
