@@ -116,7 +116,11 @@ elif file.exists(path.join(SCRIPT_DIR, "app.ico"))
 end
 
 # Dynamic window title
-let winTitle = "مواقيت الصلاة — " + (if appBaseName != "prayer_times" and appBaseName != "djazair_prayer" and appBaseName != "main" ? appBaseName : "Djazair Prayer Times")
+let displayAppName = "Djazair Prayer Times"
+if appBaseName != "prayer_times" and appBaseName != "djazair_prayer" and appBaseName != "main"
+    displayAppName = appBaseName
+end
+let winTitle = "مواقيت الصلاة — " + displayAppName
 
 # Create native application window
 let app = webview.createWindow({
@@ -396,10 +400,14 @@ app.onReady(fn()
     app.bridge.on("notifyPrayer", fn(payload)
         let prayer = payload["prayer"]
         let time = payload.get("time", "")
+        let notifMsg = "حان الآن موعد أذان صلاة " + prayer
+        if time != ""
+            notifMsg = notifMsg + " (" + time + ")"
+        end
 
         webview.notificationShow(
             "مواقيت الصلاة",
-            "حان الآن موعد أذان صلاة ${prayer} (${time})",
+            notifMsg,
             "حي على الصلاة • حي على الفلاح",
             True,
             "",
