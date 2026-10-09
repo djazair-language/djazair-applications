@@ -1622,4 +1622,169 @@ body.compact-mode {
     line-height: 1.6;
 }
 
+/* ── Do Not Disturb (DND) Mode ──────────────────────────────────────────────── */
+.action-btn.dnd-active {
+    background: rgba(245, 158, 11, 0.22) !important;
+    color: #f59e0b !important;
+    border-color: rgba(245, 158, 11, 0.65) !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.4) !important;
+    animation: dnd-pulse 2.5s infinite ease-in-out;
+}
+
+@keyframes dnd-pulse {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 16px rgba(245, 158, 11, 0.65);
+    }
+}
+
+/* ── City Quick Search Filter ───────────────────────────────────────────────── */
+.city-search-group {
+    max-width: 220px;
+    min-width: 150px;
+    position: relative;
+}
+
+.pill-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 500;
+    outline: none;
+    padding: 4px 6px;
+    width: 100%;
+}
+
+.pill-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.8rem;
+}
+
+.clear-search-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.clear-search-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+/* ── Subtle Dhikr Ticker Floating Toast ─────────────────────────────────────── */
+.dhikr-ticker {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+    z-index: 9999;
+    background: linear-gradient(135deg, rgba(14, 28, 44, 0.94), rgba(7, 16, 28, 0.98));
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--border-gold);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(230, 195, 100, 0.2);
+    border-radius: var(--radius-full);
+    padding: 8px 18px 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 85%;
+    width: auto;
+    min-width: 320px;
+    animation: dhikrTickerSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.dhikr-ticker.hidden {
+    display: none !important;
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+    pointer-events: none;
+}
+
+@keyframes dhikrTickerSlideUp {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(25px) scale(0.96);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
+.dhikr-ticker-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(230, 195, 100, 0.16);
+    border: 1px solid rgba(230, 195, 100, 0.35);
+    flex-shrink: 0;
+    color: var(--gold-primary);
+}
+
+.dhikr-ticker-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: right;
+    flex: 1;
+    cursor: pointer;
+    user-select: text;
+}
+
+.dhikr-ticker-badge {
+    font-size: 0.68rem;
+    color: var(--gold-primary);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.dhikr-ticker-text {
+    font-family: 'Amiri', serif;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.dhikr-ticker-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-right: -4px;
+}
+
+.dhikr-ticker-close:hover {
+    color: var(--gold-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+
 

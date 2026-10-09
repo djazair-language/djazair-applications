@@ -65,7 +65,31 @@ window.PrayerApp = window.PrayerApp || {};
 
         App.Athkar.initUI();
         App.Tasbeeh.initUI();
+        App.updateDndUI();
     }
+
+    App.updateDndUI = function() {
+        const elements = App.elements;
+        const state = App.state;
+        const isDnd = Boolean(state.settings && state.settings.dndEnabled);
+
+        if (elements.btnDnd) {
+            if (isDnd) {
+                elements.btnDnd.classList.add('dnd-active');
+                if (elements.iconDndOff) elements.iconDndOff.style.display = 'none';
+                if (elements.iconDndOn) elements.iconDndOn.style.display = 'block';
+                elements.btnDnd.title = 'الوضع الهادئ مفعّل (الأذان مكتوم) — انقر لإلغاء الكتم';
+            } else {
+                elements.btnDnd.classList.remove('dnd-active');
+                if (elements.iconDndOff) elements.iconDndOff.style.display = 'block';
+                if (elements.iconDndOn) elements.iconDndOn.style.display = 'none';
+                elements.btnDnd.title = 'الوضع الهادئ (Do Not Disturb) — كتم صوت الأذان أثناء العمل أو الألعاب';
+            }
+        }
+        if (elements.chkDnd) {
+            elements.chkDnd.checked = isDnd;
+        }
+    };
 
     function useDemoData() {
         const state = App.state;
@@ -223,9 +247,52 @@ window.PrayerApp = window.PrayerApp || {};
                     }
                 }
 
+                // Reset search box when country changes
+                if (elements.citySearchInput) {
+                    elements.citySearchInput.value = '';
+                }
+                if (elements.btnClearCitySearch) {
+                    elements.btnClearCitySearch.style.display = 'none';
+                }
+
                 const firstCity = elements.citySelect ? elements.citySelect.value : '';
                 state.currentCity = firstCity;
                 await changeLocation(newCountry, firstCity);
+            });
+        }
+
+        // City Quick Search Filter
+        if (elements.citySearchInput) {
+            elements.citySearchInput.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (elements.btnClearCitySearch) {
+                    elements.btnClearCitySearch.style.display = val.trim() ? 'block' : 'none';
+                }
+                App.Clock.populateCityDropdown(state.currentCountry, val);
+            });
+
+            elements.citySearchInput.addEventListener('keydown', async (e) => {
+                if (e.key === 'Enter') {
+                    if (elements.citySelect && elements.citySelect.value) {
+                        const selectedCity = elements.citySelect.value;
+                        state.currentCity = selectedCity;
+                        await changeLocation(state.currentCountry, selectedCity);
+                        elements.citySearchInput.blur();
+                    }
+                }
+            });
+        }
+
+        // Clear City Search Button
+        if (elements.btnClearCitySearch) {
+            elements.btnClearCitySearch.addEventListener('click', () => {
+                if (elements.citySearchInput) {
+                    elements.citySearchInput.value = '';
+                    elements.citySearchInput.focus();
+                }
+                elements.btnClearCitySearch.style.display = 'none';
+                App.Clock.populateCityDropdown(state.currentCountry, '');
+                if (elements.citySelect) elements.citySelect.value = state.currentCity;
             });
         }
 
@@ -274,6 +341,54 @@ window.PrayerApp = window.PrayerApp || {};
         // Test Adhan Button
         if (elements.btnTestAdhan) {
             elements.btnTestAdhan.addEventListener('click', App.toggleAdhan);
+        }
+
+        // Do Not Disturb (DND) Button
+        if (elements.btnDnd) {
+            elements.btnDnd.addEventListener('click', async () => {
+                state.settings.dndEnabled = !state.settings.dndEnabled;
+                if (state.settings.dndEnabled && App.Audio && App.Audio.stopAdhan) {
+                    App.Audio.stopAdhan();
+                }
+                App.updateDndUI();
+                if (App.IPC) {
+                    try {
+                        await App.IPC.saveSettings(state.settings);
+                    } catch (e) {
+                        console.error('[App] Save settings on DND toggle failed:', e);
+                    }
+                }
+            });
+        }
+
+        // Dhikr Ticker Dismiss & Copy
+        if (elements.btnDismissDhikrTicker) {
+            elements.btnDismissDhikrTicker.addEventListener('click', () => {
+                App.Clock.hideDhikrTicker();
+            });
+        }
+
+        if (elements.dhikrTickerContent) {
+            elements.dhikrTickerContent.addEventListener('click', async () => {
+                if (elements.dhikrTickerText) {
+                    const text = elements.dhikrTickerText.textContent;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        const badge = elements.dhikrTickerContent.querySelector('.dhikr-ticker-badge');
+                        if (badge) {
+                            const originalBadge = badge.textContent;
+                            badge.textContent = '✨ تم النسخ بنجاح';
+                            badge.style.color = '#34d399';
+                            setTimeout(() => {
+                                badge.textContent = originalBadge;
+                                badge.style.color = '';
+                            }, 2000);
+                        }
+                    } catch (e) {
+                        console.error('[App] Failed to copy dhikr:', e);
+                    }
+                }
+            });
         }
 
         // Frameless Custom Titlebar Controls

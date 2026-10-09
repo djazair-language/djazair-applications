@@ -41,7 +41,7 @@ window.PrayerApp = window.PrayerApp || {};
             });
         },
 
-        populateCityDropdown(countryCode) {
+        populateCityDropdown(countryCode, filterText = '') {
             const elements = App.elements;
             const state = App.state;
             if (!elements.citySelect) return;
@@ -49,13 +49,38 @@ window.PrayerApp = window.PrayerApp || {};
             const country = state.countries.find(c => c.code === countryCode);
             if (!country || !country.cities) return;
 
-            country.cities.forEach(city => {
+            const q = (filterText || '').trim().toLowerCase();
+            const filteredCities = country.cities.filter(city => {
+                if (!q) return true;
+                const matchAr = city.ar && city.ar.toLowerCase().includes(q);
+                const matchEn = city.name && city.name.toLowerCase().includes(q);
+                const matchCode = city.code && String(city.code).includes(q);
+                return matchAr || matchEn || matchCode;
+            });
+
+            if (filteredCities.length === 0) {
+                const emptyOpt = document.createElement('option');
+                emptyOpt.value = '';
+                emptyOpt.textContent = 'لا توجد نتائج مطابقة...';
+                emptyOpt.disabled = true;
+                elements.citySelect.appendChild(emptyOpt);
+                return;
+            }
+
+            filteredCities.forEach(city => {
                 const opt = document.createElement('option');
                 opt.value = city.name;
                 const prefix = city.code ? `${city.code} - ` : '';
                 opt.textContent = `${prefix}${city.ar}`;
                 elements.citySelect.appendChild(opt);
             });
+
+            const exists = filteredCities.some(c => c.name === state.currentCity);
+            if (exists) {
+                elements.citySelect.value = state.currentCity;
+            } else if (filteredCities.length > 0) {
+                elements.citySelect.value = filteredCities[0].name;
+            }
         },
 
         updatePrayerUI(data) {
@@ -298,6 +323,8 @@ window.PrayerApp = window.PrayerApp || {};
                 // Check periodic reminders
                 this.checkIqamaReminder(now);
                 this.checkAthkarTimedReminder(now);
+                this.checkSpecialOccasionReminders(now);
+                this.checkDhikrTicker(now);
             }, 1000);
         },
 
@@ -330,7 +357,10 @@ window.PrayerApp = window.PrayerApp || {};
                 App.IPC.notifyPrayer(prayerName, timeStr).catch(console.error);
             }
 
-            if (state.settings.adhanEnabled && prayerKey !== 'Sunrise' && App.Audio) {
+            // Check Do Not Disturb (DND) Mode
+            if (state.settings.dndEnabled) {
+                console.log('[DND] Suppressed Adhan audio playback because Do Not Disturb is active');
+            } else if (state.settings.adhanEnabled && prayerKey !== 'Sunrise' && App.Audio) {
                 const vol = (state.settings && state.settings.adhanVolume != null) ? Number(state.settings.adhanVolume) : 80;
                 App.Audio.playAdhan(null, vol, prayerKey);
             }
@@ -376,7 +406,7 @@ window.PrayerApp = window.PrayerApp || {};
                     if (App.IPC) {
                         App.IPC.notifyPreAdhan(state.nextPrayer.nameAr, targetMinutes).catch(console.error);
                     }
-                    if (App.Audio && App.Audio.playSyntheticChime) {
+                    if (!state.settings.dndEnabled && App.Audio && App.Audio.playSyntheticChime) {
                         App.Audio.playSyntheticChime(0.4);
                     }
                 }
@@ -404,7 +434,7 @@ window.PrayerApp = window.PrayerApp || {};
                         if (App.IPC) {
                             App.IPC.notifyIqama(nameAr).catch(console.error);
                         }
-                        if (App.Audio && App.Audio.playClickTone) {
+                        if (!state.settings.dndEnabled && App.Audio && App.Audio.playClickTone) {
                             App.Audio.playClickTone();
                         }
                     }
@@ -474,6 +504,152 @@ window.PrayerApp = window.PrayerApp || {};
                 const minutes = Math.floor((totalSeconds % 3600) / 60);
                 const seconds = totalSeconds % 60;
                 elements.compactCountdown.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+        },
+
+        checkSpecialOccasionReminders(now) {
+            const state = App.state;
+            const settings = state.settings;
+            if (!state.specialRemindersFired) state.specialRemindersFired = {};
+            const todayStr = now.toDateString();
+
+            // ── 1. Friday Reminders (يوم الجمعة المبارك) ──────────────────────
+            if (settings.fridayRemindersEnabled !== false && now.getDay() === 5) {
+                // (a) Surah Al-Kahf & Salawat reminder (morning 09:00 - 12:00)
+                const kahfKey = 'friday_kahf_' + todayStr;
+                const currentHour = now.getHours();
+                if (currentHour >= 9 && currentHour < 12 && !state.specialRemindersFired[kahfKey]) {
+                    state.specialRemindersFired[kahfKey] = true;
+                    if (App.IPC) {
+                        App.IPC.notifyMessage(
+                            '🕌 جمعة مباركة • سنن الجمعة',
+                            'لا تنسَ قراءة سورة الكهف، والإكثار من الصلاة على النبي ﷺ',
+                            '«من قرأ سورة الكهف في يوم الجمعة أضاء له من النور ما بين الجمعتين»'
+                        ).catch(console.error);
+                    }
+                }
+
+                // (b) Sa'at Al-Istijabah (ساعة الاستجابة) 1 hour before Maghrib
+                if (state.prayerData && state.prayerData.timings && state.prayerData.timings.Maghrib) {
+                    const istijabahKey = 'friday_istijabah_' + todayStr;
+                    const maghribDate = this.parseTimeToToday(state.prayerData.timings.Maghrib);
+                    if (maghribDate) {
+                        const diffMs = maghribDate.getTime() - now.getTime();
+                        if (diffMs > 0 && diffMs <= 60 * 60 * 1000 && diffMs > 50 * 60 * 1000 && !state.specialRemindersFired[istijabahKey]) {
+                            state.specialRemindersFired[istijabahKey] = true;
+                            if (App.IPC) {
+                                App.IPC.notifyMessage(
+                                    '🤲 ساعة الاستجابة يوم الجمعة',
+                                    'بقي نحو ساعة على غروب الشمس (المغرب)، اغتنم هذا الوقت بالدعاء والتضرع',
+                                    '«إن في الجمعة لساعة لا يوافقها عبد مسلم يسأل الله فيها خيراً إلا أعطاه إياه»'
+                                ).catch(console.error);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── 2. Fasting Sunnah Reminders (صيام النوافل) ──────────────────
+            if (settings.fastingRemindersEnabled !== false) {
+                const h = now.getHours();
+                if (h >= 18 && h <= 23) {
+                    // Monday Fasting (Sunday evening)
+                    if (now.getDay() === 0) {
+                        const monKey = 'fasting_mon_' + todayStr;
+                        if (!state.specialRemindersFired[monKey]) {
+                            state.specialRemindersFired[monKey] = true;
+                            if (App.IPC) {
+                                App.IPC.notifyMessage(
+                                    '✨ تذكير بصيام يوم الإثنين',
+                                    'غداً يوم الإثنين، تُعرض فيه الأعمال على الله فكن من الصائمين',
+                                    '«تُعرض الأعمال يوم الإثنين والخميس، فأحب أن يُعرض عملي وأنا صائم»'
+                                ).catch(console.error);
+                            }
+                        }
+                    }
+                    // Thursday Fasting (Wednesday evening)
+                    else if (now.getDay() === 3) {
+                        const thuKey = 'fasting_thu_' + todayStr;
+                        if (!state.specialRemindersFired[thuKey]) {
+                            state.specialRemindersFired[thuKey] = true;
+                            if (App.IPC) {
+                                App.IPC.notifyMessage(
+                                    '✨ تذكير بصيام يوم الخميس',
+                                    'غداً يوم الخميس، تُعرض فيه الأعمال على الله فكن من الصائمين',
+                                    '«تُعرض الأعمال يوم الإثنين والخميس، فأحب أن يُعرض عملي وأنا صائم»'
+                                ).catch(console.error);
+                            }
+                        }
+                    }
+                }
+
+                // Ayyam Al-Beed (الأيام البيض 13، 14، 15)
+                if (state.prayerData && state.prayerData.hijri && state.prayerData.hijri.day) {
+                    const hijriDay = parseInt(state.prayerData.hijri.day);
+                    const hijriMonth = state.prayerData.hijri.month || '';
+                    if (h >= 18 && h <= 23 && (hijriDay === 12 || hijriDay === 13 || hijriDay === 14)) {
+                        const beedKey = 'fasting_beed_' + hijriDay + '_' + todayStr;
+                        if (!state.specialRemindersFired[beedKey]) {
+                            state.specialRemindersFired[beedKey] = true;
+                            const targetDay = hijriDay + 1;
+                            if (App.IPC) {
+                                App.IPC.notifyMessage(
+                                    '🌙 تذكير بصيام الأيام البيض',
+                                    `غداً هو اليوم ${targetDay} من شهر ${hijriMonth} (من الأيام البيض)`,
+                                    '«صيام ثلاثة أيام من كل شهر صيام الدهر وأيام البيض: صبيحة ثلاث عشرة وأربع عشرة وخمس عشرة»'
+                                ).catch(console.error);
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        checkDhikrTicker(now) {
+            const state = App.state;
+            const settings = state.settings;
+            if (settings.dhikrTickerEnabled === false) return;
+
+            const intervalMin = parseInt(settings.dhikrTickerInterval) || 30;
+            const intervalMs = intervalMin * 60 * 1000;
+
+            if (!state.lastDhikrTickerTime) {
+                // Initialize first occurrence for 2 minutes after startup
+                state.lastDhikrTickerTime = now.getTime() - (intervalMs - 2 * 60 * 1000);
+                return;
+            }
+
+            if (now.getTime() - state.lastDhikrTickerTime >= intervalMs) {
+                state.lastDhikrTickerTime = now.getTime();
+                const items = App.DHIKR_TICKER_ITEMS || [];
+                if (items.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * items.length);
+                    this.showDhikrTicker(items[randomIndex]);
+                }
+            }
+        },
+
+        showDhikrTicker(text) {
+            const elements = App.elements;
+            if (!elements.dhikrTicker || !elements.dhikrTickerText) return;
+
+            elements.dhikrTickerText.textContent = text;
+            elements.dhikrTicker.classList.remove('hidden');
+
+            if (this.dhikrDismissTimer) clearTimeout(this.dhikrDismissTimer);
+            this.dhikrDismissTimer = setTimeout(() => {
+                this.hideDhikrTicker();
+            }, 10000);
+        },
+
+        hideDhikrTicker() {
+            const elements = App.elements;
+            if (elements.dhikrTicker) {
+                elements.dhikrTicker.classList.add('hidden');
+            }
+            if (this.dhikrDismissTimer) {
+                clearTimeout(this.dhikrDismissTimer);
+                this.dhikrDismissTimer = null;
             }
         }
     };

@@ -45,7 +45,12 @@ let DEFAULT_SETTINGS = {
         "Isha": 15
     },
     "athkarReminderEnabled": True,
-    "isCompactMode": False
+    "isCompactMode": False,
+    "dndEnabled": False,
+    "fridayRemindersEnabled": True,
+    "fastingRemindersEnabled": True,
+    "dhikrTickerEnabled": True,
+    "dhikrTickerInterval": 30
 }
 
 use process

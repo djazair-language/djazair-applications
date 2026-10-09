@@ -20,6 +20,9 @@ window.PrayerApp = window.PrayerApp || {};
             statusText: document.getElementById('statusText'),
             btnRefresh: document.getElementById('btnRefresh'),
             btnTestAdhan: document.getElementById('btnTestAdhan'),
+            btnDnd: document.getElementById('btnDnd'),
+            iconDndOff: document.getElementById('iconDndOff'),
+            iconDndOn: document.getElementById('iconDndOn'),
             btnSettings: document.getElementById('btnSettings'),
 
             // Navigation Tabs
@@ -29,6 +32,8 @@ window.PrayerApp = window.PrayerApp || {};
             // Tab 1: Prayer Times
             countrySelect: document.getElementById('countrySelect'),
             citySelect: document.getElementById('citySelect'),
+            citySearchInput: document.getElementById('citySearchInput'),
+            btnClearCitySearch: document.getElementById('btnClearCitySearch'),
             btnAutoLoc: document.getElementById('btnAutoLoc'),
             nextPrayerName: document.getElementById('nextPrayerName'),
             countdown: document.getElementById('countdown'),
@@ -109,6 +114,18 @@ window.PrayerApp = window.PrayerApp || {};
             numIqamaMaghrib: document.getElementById('numIqamaMaghrib'),
             numIqamaIsha: document.getElementById('numIqamaIsha'),
             chkAthkarReminder: document.getElementById('chkAthkarReminder'),
+            chkDnd: document.getElementById('chkDnd'),
+            chkFridayReminders: document.getElementById('chkFridayReminders'),
+            chkFastingReminders: document.getElementById('chkFastingReminders'),
+            chkDhikrTicker: document.getElementById('chkDhikrTicker'),
+            selDhikrTickerInterval: document.getElementById('selDhikrTickerInterval'),
+            groupDhikrTickerInterval: document.getElementById('groupDhikrTickerInterval'),
+
+            // Subtle Dhikr Ticker
+            dhikrTicker: document.getElementById('dhikrTicker'),
+            dhikrTickerText: document.getElementById('dhikrTickerText'),
+            dhikrTickerContent: document.getElementById('dhikrTickerContent'),
+            btnDismissDhikrTicker: document.getElementById('btnDismissDhikrTicker'),
 
             // Audio & Tray
             adhanAudio: document.getElementById('adhanAudio'),

@@ -50,6 +50,18 @@
                     <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
                 </svg>
             </button>
+            <button id="btnDnd" class="action-btn" title="الوضع الهادئ (Do Not Disturb) — كتم صوت الأذان أثناء العمل أو الألعاب">
+                <svg id="iconDndOff" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <svg id="iconDndOn" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    <path d="M18.63 13A17.89 17.89 0 0 1 18 8"></path>
+                    <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+            </button>
             <button id="btnSettings" class="action-btn" title="الإعدادات">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
@@ -177,6 +189,17 @@
                     </div>
                     <span class="selector-label">المدينة / الولاية:</span>
                     <select id="citySelect" class="pill-select"></select>
+                </div>
+
+                <div class="pill-selector-group city-search-group" title="بحث سريع في المدن والولايات">
+                    <div class="selector-icon">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
+                    <input type="text" id="citySearchInput" class="pill-search-input" placeholder="🔍 بحث سريع في المدن..." autocomplete="off">
+                    <button id="btnClearCitySearch" class="clear-search-btn" title="مسح البحث" style="display: none;">&times;</button>
                 </div>
 
                 <button id="btnAutoLoc" class="pill-btn" title="تحديد موقعي التلقائي عبر الـ IP">
@@ -720,6 +743,63 @@
                                 <span class="slider round"></span>
                             </label>
                         </div>
+
+                        <!-- Do Not Disturb Mode Toggle -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>الوضع الهادئ أثناء العمل / الألعاب (Do Not Disturb):</strong>
+                                <small>كتم صوت الأذان والتنبيهات الصوتية فوراً مع إبقاء الإشعارات المرئية</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkDnd">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <!-- Friday Virtuous Occasions -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>تنبيهات يوم الجمعة والمناسبات الفضيلة:</strong>
+                                <small>تذكير بقراءة سورة الكهف صباحاً، وساعة الاستجابة قبل غروب الشمس</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkFridayReminders" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <!-- Fasting Sunnah Reminders -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>تنبيهات صيام النوافل (الأيام البيض، الإثنين والخميس):</strong>
+                                <small>تذكير بصيام الأيام البيض (13، 14، 15 هجرياً) وصيام الإثنين والخميس</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkFastingReminders" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <!-- Subtle Dhikr Ticker -->
+                        <div class="form-group toggle-group">
+                            <div class="toggle-label">
+                                <strong>شريط الذكر التلقائي الهادئ (Subtle Dhikr Ticker):</strong>
+                                <small>إظهار بطاقة ذكر نبوي رقيقة ودورية في أسفل الشاشة</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="chkDhikrTicker" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group" id="groupDhikrTickerInterval" style="display: flex; justify-content: space-between; align-items: center;">
+                            <label for="selDhikrTickerInterval">فترة تكرار شريط الذكر الهادئ:</label>
+                            <select id="selDhikrTickerInterval" class="styled-select" style="width: 140px;">
+                                <option value="15">كل 15 دقيقة</option>
+                                <option value="30" selected>كل 30 دقيقة</option>
+                                <option value="60">كل ساعة (60 دقيقة)</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- ── TAB 4: CALCULATION & JSON DATA ──────────────── -->
@@ -908,6 +988,20 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ── Subtle Dhikr Ticker (Floating Gentle Notification) ───────────── -->
+    <div id="dhikrTicker" class="dhikr-ticker hidden">
+        <div class="dhikr-ticker-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="var(--gold-primary)">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.55.06-1.09.17-1.61 1.95 2.15 4.79 3.53 7.95 3.61.08.32.12.65.12 1 0 2.21-1.79 4-4 4-.69 0-1.33-.18-1.89-.48.88 1.48 2.47 2.48 4.31 2.48 2.76 0 5-2.24 5-5 0-.46-.07-.9-.19-1.32 1.44-.94 2.44-2.52 2.52-4.34.01-.11.01-.23.01-.34 1.25 1.54 2 3.5 2 5.66 0 4.41-3.59 8-8 8z"/>
+            </svg>
+        </div>
+        <div class="dhikr-ticker-content" id="dhikrTickerContent" title="انقر لنسخ الذكر">
+            <span class="dhikr-ticker-badge">ذِكْرٌ طَيِّب</span>
+            <div id="dhikrTickerText" class="dhikr-ticker-text">سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ</div>
+        </div>
+        <button id="btnDismissDhikrTicker" class="dhikr-ticker-close" title="إغلاق">&times;</button>
     </div>
 
     <!-- Audio Element for Adhan -->

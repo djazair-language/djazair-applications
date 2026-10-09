@@ -130,6 +130,30 @@ window.PrayerApp = window.PrayerApp || {};
                 elements.chkAthkarReminder.checked = Boolean(state.settings.athkarReminderEnabled);
             }
 
+            // DND Mode
+            if (elements.chkDnd) {
+                elements.chkDnd.checked = Boolean(state.settings.dndEnabled);
+            }
+
+            // Friday & Fasting Reminders
+            if (elements.chkFridayReminders) {
+                elements.chkFridayReminders.checked = state.settings.fridayRemindersEnabled !== false;
+            }
+            if (elements.chkFastingReminders) {
+                elements.chkFastingReminders.checked = state.settings.fastingRemindersEnabled !== false;
+            }
+
+            // Subtle Dhikr Ticker
+            if (elements.chkDhikrTicker) {
+                elements.chkDhikrTicker.checked = state.settings.dhikrTickerEnabled !== false;
+            }
+            if (elements.selDhikrTickerInterval) {
+                elements.selDhikrTickerInterval.value = String(state.settings.dhikrTickerInterval || 30);
+            }
+            if (elements.groupDhikrTickerInterval) {
+                elements.groupDhikrTickerInterval.style.display = elements.chkDhikrTicker && elements.chkDhikrTicker.checked ? 'flex' : 'none';
+            }
+
             elements.settingsModal.classList.remove('hidden');
         },
 
@@ -221,6 +245,26 @@ window.PrayerApp = window.PrayerApp || {};
                 state.settings.athkarReminderEnabled = elements.chkAthkarReminder.checked;
             }
 
+            if (elements.chkDnd) {
+                state.settings.dndEnabled = elements.chkDnd.checked;
+            }
+            if (elements.chkFridayReminders) {
+                state.settings.fridayRemindersEnabled = elements.chkFridayReminders.checked;
+            }
+            if (elements.chkFastingReminders) {
+                state.settings.fastingRemindersEnabled = elements.chkFastingReminders.checked;
+            }
+            if (elements.chkDhikrTicker) {
+                state.settings.dhikrTickerEnabled = elements.chkDhikrTicker.checked;
+            }
+            if (elements.selDhikrTickerInterval) {
+                state.settings.dhikrTickerInterval = parseInt(elements.selDhikrTickerInterval.value) || 30;
+            }
+
+            if (App.updateDndUI) {
+                App.updateDndUI();
+            }
+
             this.close();
 
             if (App.Clock && App.Clock.updateIqamaUI) {
@@ -288,6 +332,14 @@ window.PrayerApp = window.PrayerApp || {};
                 elements.chkIqama.addEventListener('change', () => {
                     if (elements.groupIqamaOffsets) {
                         elements.groupIqamaOffsets.style.display = elements.chkIqama.checked ? 'block' : 'none';
+                    }
+                });
+            }
+
+            if (elements.chkDhikrTicker) {
+                elements.chkDhikrTicker.addEventListener('change', () => {
+                    if (elements.groupDhikrTickerInterval) {
+                        elements.groupDhikrTickerInterval.style.display = elements.chkDhikrTicker.checked ? 'flex' : 'none';
                     }
                 });
             }
