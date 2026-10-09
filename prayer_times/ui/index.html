@@ -727,13 +727,28 @@
                         <div class="form-group">
                             <label for="methodSelect">طريقة حساب المواقيت الفلكية:</label>
                             <select id="methodSelect" class="styled-select full-width">
-                                <option value="13">وزارة الشؤون الدينية والأوقاف الجزائرية (Algeria)</option>
+                                <option value="19" selected>وزارة الشؤون الدينية والأوقاف الجزائرية (Algeria)</option>
                                 <option value="4">جامعة أم القرى - مكة المكرمة (Umm Al-Qura)</option>
                                 <option value="3">رابطة العالم الإسلامي (Muslim World League)</option>
                                 <option value="5">الهيئة المصرية العامة للمساحة (Egyptian Authority)</option>
+                                <option value="13">رئاسة الشؤون الدينية التركية (Diyanet)</option>
                                 <option value="1">جامعة العلوم الإسلامية بكراتشي (Karachi)</option>
                                 <option value="2">الجمعية الإسلامية لأمريكا الشمالية (ISNA)</option>
                             </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="selTimeOffset">تعديل فارق التوقيت / التوقيت الصيفي والشتوي:</label>
+                            <select id="selTimeOffset" class="styled-select full-width">
+                                <option value="-2">-2 ساعة (تأخير ساعتين)</option>
+                                <option value="-1">-1 ساعة (تأخير ساعة واحدة)</option>
+                                <option value="0" selected>0 تلقائي / التوقيت القياسي</option>
+                                <option value="1">+1 ساعة (تقديم ساعة - التوقيت الصيفي)</option>
+                                <option value="2">+2 ساعة (تقديم ساعتين)</option>
+                            </select>
+                            <small style="color: var(--text-secondary); font-size: 0.78rem; display: block; margin-top: 4px;">
+                                يُستخدم لتعديل مواقيت الصلاة فوراً في حال اختلاف التوقيت الصيفي/الشتوي أو توقيت المسجد بساعة.
+                            </small>
                         </div>
 
                         <!-- JSON File Storage Card -->

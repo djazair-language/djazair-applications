@@ -1,0 +1,549 @@
+# =============================================================================
+# client.dz — HTTP Client Implementation
+# =============================================================================
+# Provides high-level request methods (get, post, put, del, patch, head, options)
+# and a general request() function. Uses TCP/TLS sockets for transport.
+#
+# Features:
+#   - HTTP/1.1 persistent connections (keep-alive) with socket pooling.
+#   - Automatic JSON serialization and parsing for Map/Array bodies.
+#   - Redirection transparency (handled by caller if needed).
+#   - Connection pooling separated by scheme (http vs https).
+#
+# Configuration (globally via setClientConfig):
+#   maxBody         — Maximum response body size in bytes (default: 10 MB)
+#   recvBuffer      — TCP receive buffer size in bytes (default: 8192)
+#   connectTimeout  — Timeout in seconds for connections (default: 10)
+#   userAgent       — User-Agent header value (default: "Djazair-HTTP/1.1")
+#   maxPoolSize     — Max idle connections per host:port (default: 5)
+#   keepAlive       — Enable persistent connections (default: False)
+#   followRedirects — Follow 3xx redirects automatically (default: True)
+#   maxRedirects    — Maximum number of redirects to follow (default: 10)
+# =============================================================================
+
+use net::tcpClient as tcp
+use net::tlsClient as tls
+use net::url as url_mod
+use json
+import "parser.dz" as p
+import "utils.dz"  as utils
+import "reader.dz" as rd
+
+# ── Global Client Configuration ───────────────────────────────────────────────
+
+let CLIENT_CONFIG = {
+    "maxBody":         10 * 1024 * 1024, # 10 MB limit for response bodies
+    "recvBuffer":      8192,             # TCP receive buffer chunk size
+    "connectTimeout":  10,               # Seconds to wait for socket connect
+    "userAgent":       "Djazair-HTTP/1.1", # Default User-Agent header
+    "maxPoolSize":     5,                # Max idle sockets per host:port
+    "keepAlive":       False,            # Default connection policy
+    "followRedirects": True,             # Follow 3xx automatically
+    "maxRedirects":    10                # Max redirect hops
+}
+
+# Updates one or more global client defaults. Keys not present in `options`
+# retain their current values.
+fn setClientConfig(options)
+    if isMap(options)
+        for k, v in options
+            CLIENT_CONFIG[k] = v
+        end
+    end
+end
+
+# ── Connection Pool Management ────────────────────────────────────────────────
+#
+# Idle sockets are stored in a map keyed by "scheme://host:port".
+# Separating by scheme prevents plaintext HTTP requests from accidentally
+# being routed over an idle TLS socket (or vice-versa) if both are active.
+
+let SOCKET_POOL = {}
+
+# Generates the pool lookup key.
+fn poolKey(host, port, isHttps)
+    let scheme = if isHttps ? "https" else "http"
+    return "${scheme}://${host}:${port}"
+end
+
+# Retrieves an open, idle socket from the pool, or Null if none are available.
+fn getPooledSocket(host, port, isHttps)
+    let key = poolKey(host, port, isHttps)
+    if SOCKET_POOL.has(key) and isArray(SOCKET_POOL[key])
+        let pool = SOCKET_POOL[key]
+        while pool.length() > 0
+            let client = pool.pop()
+            if !isNull(client) and client.isOpen()
+                return client
+            end
+        end
+    end
+    return Null
+end
+
+# Saves an open socket into the pool for future requests to the same destination.
+# If the pool is at capacity, the socket is gracefully closed.
+fn savePooledSocket(host, port, isHttps, client)
+    if isNull(client) or !client.isOpen()
+        return
+    end
+
+    let key = poolKey(host, port, isHttps)
+    if !SOCKET_POOL.has(key)
+        SOCKET_POOL[key] = []
+    end
+
+    if SOCKET_POOL[key].length() < CLIENT_CONFIG.get("maxPoolSize", 5)
+        SOCKET_POOL[key].append(client)
+    else
+        try
+            client.close()
+        catch err
+            # Socket already closed.
+        end
+    end
+end
+
+# Closes all pooled sockets and empties the pool.
+fn clearPool()
+    for key, pool in SOCKET_POOL
+        if isArray(pool)
+            for client in pool
+                if !isNull(client) and client.isOpen()
+                    try
+                        client.close()
+                    catch err
+                        # Ignore close errors during pool teardown.
+                    end
+                end
+            end
+        end
+    end
+
+    let keys = SOCKET_POOL.keys()
+    for k in keys
+        SOCKET_POOL.pop(k, Null)
+    end
+end
+
+# ── Request Builder ───────────────────────────────────────────────────────────
+
+# Validates that a core request component (method, path, host) is safe.
+fn assertRequestComponent(value, name)
+    if !isString(value) or value == ""
+        throw "http.buildRequest(): ${name} must be a non-empty string"
+    end
+    for char in value
+        if char == "\r" or char == "\n" or char == " " or char == "\t"
+            throw "http.buildRequest(): invalid character in ${name}"
+        end
+    end
+end
+
+# Constructs the raw HTTP/1.1 request string.
+# Validates user inputs to prevent HTTP request smuggling.
+fn buildRequest(method, path, host, port, body = Null, headers = Null, keepAlive = False)
+    assertRequestComponent(method, "method")
+    assertRequestComponent(path, "path")
+    assertRequestComponent(host, "host")
+
+    # Request Line
+    let req = "${method} ${path} HTTP/1.1\r\n"
+
+    # Host Header
+    req += "Host: ${host}"
+    if port != 80 and port != 443
+        req += ":${port}"
+    end
+    req += "\r\n"
+
+    # User-Agent Header
+    let userAgent = CLIENT_CONFIG.get("userAgent", "Djazair-HTTP/1.1")
+    utils.assertHeaderValue(userAgent)
+    req += "User-Agent: ${userAgent}\r\n"
+
+    # Determine if user explicitly set a Connection header.
+    let hasConn = False
+    if isMap(headers)
+        for k in headers.keys()
+            if k.lower() == "connection"
+                hasConn = True
+                break
+            end
+        end
+    end
+
+    # Apply default Connection policy if not overridden.
+    if !hasConn
+        if keepAlive
+            req += "Connection: keep-alive\r\n"
+        else
+            req += "Connection: close\r\n"
+        end
+    end
+
+    # Append user headers, rejecting managed ones.
+    if isMap(headers)
+        for name, value in headers
+            let lowerName = str(name).lower()
+            if lowerName == "host" or lowerName == "content-length" or lowerName == "transfer-encoding"
+                throw "http.buildRequest(): header '${name}' is managed by the HTTP client"
+            end
+            utils.assertHeaderName(str(name))
+            utils.assertHeaderValue(value)
+            req += "${name}: ${value}\r\n"
+        end
+    end
+
+    # Append Body and its Content-Length.
+    if !isNull(body)
+        let bodyStr = ""
+        if isMap(body) or isArray(body)
+            try
+                bodyStr = json.encode(body)
+            catch err
+                bodyStr = str(body)
+            end
+        else
+            bodyStr = str(body)
+        end
+        req += "Content-Length: ${utils.byteLen(bodyStr)}\r\n\r\n${bodyStr}"
+    else
+        # End of headers.
+        req += "\r\n"
+    end
+
+    return req
+end
+
+# ── Connection Management & Execution ─────────────────────────────────────────
+
+# Creates and connects a new TCP or TLS client socket.
+# Throws on failure.
+fn connectSocket(host, port, isHttps)
+    let client = if isHttps ? new tls.tlsClient() else new tcp.tcpClient()
+    try
+        client.setTimeout(CLIENT_CONFIG.get("connectTimeout", 10))
+        let ok = client.connect(host, port)
+        if !ok
+            throw "Connection refused"
+        end
+        return client
+    catch err
+        throw "Connection failed: ${err}"
+    end
+end
+
+# Sends the request and reads the parsed response on a connected socket.
+# `method` is passed explicitly to handle HEAD request semantics (body suppression).
+fn executeOnSocket(client, method, reqStr)
+    client.setTimeout(CLIENT_CONFIG.get("connectTimeout", 10))
+
+    let sent = client.send(reqStr)
+    if isNull(sent) or sent <= 0
+        return Null
+    end
+
+    let initial = client.receive(CLIENT_CONFIG.get("recvBuffer", 8192))
+    if isNull(initial)
+        return Null
+    end
+
+    let reader = new rd.reader()
+    let message = reader.readResponseMessage(client, initial, CLIENT_CONFIG.get("maxBody", 10485760), method)
+
+    if isNull(message)
+        return Null
+    end
+
+    let parserObj = new p.parser()
+    return parserObj.parseResponse(message["raw"])
+end
+
+# Coordinates the connection pool, request execution, and retry logic.
+# Returns the parsed response object or Null on total failure.
+fn sendRequest(method, host, port, reqStr, isHttps = False, keepAlive = False)
+    let client   = Null
+    let isPooled = False
+
+    # Attempt to reuse an existing socket.
+    if keepAlive
+        client = getPooledSocket(host, port, isHttps)
+        if !isNull(client)
+            isPooled = True
+        end
+    end
+
+    # Create a new socket if none was available.
+    if isNull(client)
+        try
+            client = connectSocket(host, port, isHttps)
+        catch err
+            throw "http.sendRequest() to ${host}:${port} failed: ${err}"
+        end
+    end
+
+    let resp      = Null
+    let execError = Null
+
+    # Try executing the request.
+    try
+        resp = executeOnSocket(client, method, reqStr)
+    catch err
+        execError = err
+    end
+
+    # Retry on fresh connection if the pooled socket failed (e.g. server closed it).
+    if isPooled and (isNull(resp) or !isNull(execError))
+        try
+            client.close()
+        catch err
+            # Ignore close errors on dead socket.
+        end
+
+        try
+            client = connectSocket(host, port, isHttps)
+            resp = executeOnSocket(client, method, reqStr)
+            execError = Null
+        catch err
+            execError = err
+        end
+    end
+
+    # Bail out on total failure.
+    if !isNull(execError)
+        try
+            client.close()
+        catch err
+            # Ignore close errors.
+        end
+        throw "http.sendRequest() to ${host}:${port} failed: ${execError}"
+    end
+
+    if isNull(resp)
+        try
+            client.close()
+        catch err
+            # Ignore close errors.
+        end
+        return Null
+    end
+
+    # ── Post-Response Pool Management ──
+    # Check if the server requested a close despite our keep-alive intent.
+    let respConn = ""
+    if isMap(resp) and resp.has("headers") and resp["headers"].has("connection")
+        respConn = resp["headers"]["connection"].lower()
+    end
+    let serverClosed = (respConn == "close")
+
+    if keepAlive and !serverClosed and client.isOpen()
+        savePooledSocket(host, port, isHttps, client)
+    else
+        try
+            client.close()
+        catch err
+            # Ignore close errors.
+        end
+    end
+
+    return resp
+end
+
+# ── Content-Type Detection ────────────────────────────────────────────────────
+
+# Auto-injects Content-Type if the body requires it and the user hasn't set one.
+fn withContentType(headers, body)
+    if !isMap(headers)
+        headers = {}
+    end
+    if isNull(body)
+        return headers
+    end
+
+    let hasCT = False
+    for k in headers.keys()
+        if k.lower() == "content-type"
+            hasCT = True
+            break
+        end
+    end
+
+    if !hasCT
+        if isMap(body) or isArray(body)
+            headers["Content-Type"] = "application/json"
+        else
+            headers["Content-Type"] = "text/plain"
+        end
+    end
+
+    return headers
+end
+
+# ── Core Request Pipeline ─────────────────────────────────────────────────────
+
+# Validates URL, builds headers, serialises the request, and delegates to sendRequest.
+# Internal — does NOT follow redirects. Called by doRequest which handles redirects.
+fn _doRequestOnce(method, url, body, headers, keepAlive)
+    if isNull(keepAlive)
+        keepAlive = CLIENT_CONFIG.get("keepAlive", False)
+    end
+
+    if !isString(url)
+        throw "http.doRequest(): URL must be a string"
+    end
+
+    let parsed = new url_mod.url(url)
+    if parsed.protocol != "http:" and parsed.protocol != "https:"
+        throw "http.doRequest(): Unsupported protocol '${parsed.protocol}' — only http:// and https:// are supported."
+    end
+
+    let isHttps = (parsed.protocol == "https:")
+
+    if parsed.hostname == "" or "\r" in parsed.hostname or "\n" in parsed.hostname
+        throw "http.doRequest(): Invalid hostname in URL"
+    end
+
+    let path = if parsed.pathname != "" ? parsed.pathname else "/"
+    let fullPath = if parsed.search != "" ? "${path}${parsed.search}" else path
+
+    let port = num(parsed.port)
+    let defaultPort = if isHttps ? 443 else 80
+    if isNull(port) or port <= 0
+        port = defaultPort
+    end
+
+    headers = withContentType(headers, body)
+
+    let reqStr = buildRequest(method, fullPath, parsed.hostname, port, body, headers, keepAlive)
+
+    return sendRequest(method, parsed.hostname, port, reqStr, isHttps, keepAlive)
+end
+
+# Executes an HTTP request, automatically following 3xx redirects.
+#
+# Redirect behaviour (matches Python requests / Node.js fetch defaults):
+#   301 Moved Permanently  → GET (body dropped)
+#   302 Found              → GET (body dropped)
+#   303 See Other          → GET (body dropped)
+#   307 Temporary Redirect → original method preserved
+#   308 Permanent Redirect → original method preserved
+#
+# @param method      HTTP verb (GET, POST, …)
+# @param url         Absolute URL (http:// or https://)
+# @param body        Request body (Null, String, Map, or Array)
+# @param headers     Extra request headers map
+# @param keepAlive   Connection keep-alive override
+# @param followRedirects  Bool — follow 3xx automatically (default True)
+# @param maxRedirects     Number — max hops before throwing (default 10)
+fn doRequest(method, url, body = Null, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    # Read defaults from CLIENT_CONFIG
+    if isNull(followRedirects)
+        followRedirects = CLIENT_CONFIG.get("followRedirects", True)
+    end
+    if isNull(maxRedirects)
+        maxRedirects = CLIENT_CONFIG.get("maxRedirects", 10)
+    end
+
+    let currentUrl    = url
+    let currentMethod = method
+    let currentBody   = body
+    let hops          = 0
+
+    while True
+        let resp = _doRequestOnce(currentMethod, currentUrl, currentBody, headers, keepAlive)
+
+        # Not a redirect — return as-is
+        if isNull(resp)
+            return resp
+        end
+
+        let code = resp["statusCode"]
+
+        # Not 3xx, or redirect-following disabled → return immediately
+        if !followRedirects or code < 300 or code > 399
+            return resp
+        end
+
+        # No Location header → cannot follow → return the response
+        let location = Null
+        if resp["headers"].has("location")
+            location = resp["headers"]["location"]
+        end
+        if isNull(location) or location == ""
+            return resp
+        end
+
+        # Guard against infinite redirect loops
+        hops += 1
+        if hops > maxRedirects
+            throw "http.doRequest(): Too many redirects (max=${maxRedirects}) — final URL was ${currentUrl}"
+        end
+
+        # Resolve relative Location to absolute URL
+        if !location.startsWith("http://") and !location.startsWith("https://")
+            let base = new url_mod.url(currentUrl)
+            if location.startsWith("/")
+                # Absolute path — keep scheme + host
+                let basePort = if base.port != "" ? ":${base.port}" else ""
+                location = "${base.protocol}//${base.hostname}${basePort}${location}"
+            else
+                # Relative path — resolve against current path directory
+                let basePath = currentUrl.slice(0, currentUrl.index(base.hostname) + base.hostname.length())
+                location = "${basePath}/${location}"
+            end
+        end
+
+        # RFC 7231 §6.4: 301/302/303 → switch to GET + drop body
+        # RFC 7538:       307/308    → preserve method + body
+        if code == 301 or code == 302 or code == 303
+            currentMethod = "GET"
+            currentBody   = Null
+        end
+        # 307 / 308 → currentMethod and currentBody stay unchanged
+
+        currentUrl = location
+    end
+end
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+# Executes a custom HTTP request.
+fn request(method, url, body = Null, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest(method, url, body, headers, keepAlive, followRedirects, maxRedirects)
+end
+
+# Executes an HTTP GET request.
+fn get(url, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest("GET", url, Null, headers, keepAlive, followRedirects, maxRedirects)
+end
+
+# Executes an HTTP POST request.
+fn post(url, body = Null, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest("POST", url, body, headers, keepAlive, followRedirects, maxRedirects)
+end
+
+# Executes an HTTP PUT request.
+fn put(url, body = Null, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest("PUT", url, body, headers, keepAlive, followRedirects, maxRedirects)
+end
+
+# Executes an HTTP DELETE request.
+fn del(url, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest("DELETE", url, Null, headers, keepAlive, followRedirects, maxRedirects)
+end
+
+# Executes an HTTP PATCH request.
+fn patch(url, body = Null, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest("PATCH", url, body, headers, keepAlive, followRedirects, maxRedirects)
+end
+
+# Executes an HTTP HEAD request. Response body will be empty string.
+fn head(url, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest("HEAD", url, Null, headers, keepAlive, followRedirects, maxRedirects)
+end
+
+# Executes an HTTP OPTIONS request.
+fn options(url, headers = Null, keepAlive = Null, followRedirects = Null, maxRedirects = Null)
+    return doRequest("OPTIONS", url, Null, headers, keepAlive, followRedirects, maxRedirects)
+end

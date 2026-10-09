@@ -11,7 +11,7 @@ print("  Bundling Djazair Prayer Times into Standalone EXE")
 print("====================================================")
 
 dpack.pack("main.dz", "prayer_times.exe", {
-    "extensions": ["webview"],
+    "extensions": ["webview", "net", "http"],
     "console": False,
     "assets": True,
     "portable": True

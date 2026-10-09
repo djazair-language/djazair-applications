@@ -1,0 +1,66 @@
+# =============================================================================
+# http/init.dz — HTTP Module
+# =============================================================================
+# HTTP module entry point. Re-exports the low-level components for building
+# HTTP clients and servers.
+#
+# Server API:
+#   createServer(handler, options) — Starts a TCP server for HTTP/1.1 requests.
+#   setServerConfig(options)       — Overrides default server options.
+#
+# Client API:
+#   get, post, put, del, patch, head, options, request
+#   clearPool()                    — Clears the idle keep-alive socket pool.
+#   setClientConfig(options)       — Overrides default client options.
+#
+# Components:
+#   httpRequest         — Request object passed to server handlers.
+#   httpResponse        — Response object passed to server handlers.
+#   httpResponseBuilder — Standalone tool to serialize HTTP/1.1 responses.
+#   httpParser          — Standalone tool to parse HTTP/1.1 message strings.
+#   reader              — Low-level TCP stream framing reader.
+#   statusText(code)    — Helper returning RFC 9110 reason phrases.
+#   STATUS_TEXTS        — Map of all standard HTTP status codes.
+# =============================================================================
+
+# ── Imports ───────────────────────────────────────────────────────────────────
+
+import "parser.dz"   as p
+import "request.dz"  as req
+import "builder.dz"  as b
+import "response.dz" as res
+import "reader.dz"   as rd
+import "server.dz"   as srv
+import "client.dz"   as cli
+import "utils.dz"    as utils
+
+# ── Components & Classes ──────────────────────────────────────────────────────
+
+let httpParser          = p.parser
+let httpRequest         = req.request
+let httpResponseBuilder = b.builder
+let httpResponse        = res.response
+let reader              = rd.reader
+
+# ── Server API ────────────────────────────────────────────────────────────────
+
+let createServer        = srv.createServer
+let setServerConfig     = srv.setServerConfig
+
+# ── Client API ────────────────────────────────────────────────────────────────
+
+let request             = cli.request
+let get                 = cli.get
+let post                = cli.post
+let put                 = cli.put
+let del                 = cli.del
+let patch               = cli.patch
+let head                = cli.head
+let options             = cli.options
+let clearPool           = cli.clearPool
+let setClientConfig     = cli.setClientConfig
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+
+let STATUS_TEXTS        = utils.STATUS_TEXTS
+let statusText          = utils.statusText

@@ -1,0 +1,30 @@
+# dns.dz — DNS Resolution
+# Provides hostname-to-IP address resolution via the native networking layer.
+
+use assert
+import "socket.dz" as sock
+
+let _net = __dynamic("net")
+
+# Resolves a hostname to an array of IP address strings.
+#
+# @param hostname The domain name to resolve (e.g. "example.com").
+# @param family   (Optional) The address family to return. Defaults to sock.AF_INET (IPv4).
+#                 Use sock.AF_INET6 for IPv6 only, or sock.AF_UNSPEC for both.
+# @return Array   A list of resolved IP strings (e.g. ["93.184.216.34"]).
+# @throws         Throws an error if the hostname cannot be resolved.
+fn resolve(hostname, family = Null)
+    assert.string(hostname, "hostname")
+    
+    if isNull(family)
+        family = sock.AF_INET
+    else
+        assert.number(family, "family")
+    end
+    
+    let ips = _net.dns_resolve(hostname, family)
+    if isNull(ips)
+        throw "net.dns.resolve(): Failed to resolve domain '${hostname}'"
+    end
+    return ips
+end

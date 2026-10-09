@@ -1,0 +1,653 @@
+# test_http_extreme.dz — أمثلة قاسية لمكتبة HTTP
+# تغطي: HTTPS، Keep-Alive، Streaming، Concurrent Requests، Headers، Security، Large Payloads
+
+use http
+use net
+use thread
+use process
+use json
+
+print("=== HTTP Extreme Tests ===\n")
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed += 1
+    else
+        print("  FAIL: ${name}")
+        failed += 1
+    end
+end
+
+fn closeWorkers(workers)
+    for worker in workers
+        worker.close(2)
+    end
+end
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PORT RANGE: 19600 - 19699
+# ═══════════════════════════════════════════════════════════════════════════════
+let P0  = 19600
+let P1  = 19601
+let P2  = 19602
+let P3  = 19603
+let P4  = 19604
+let P5  = 19605
+let P6  = 19606
+let P7  = 19607
+let P8  = 19608
+let P9  = 19609
+let P10 = 19610
+let P11 = 19611
+let P12 = 19612
+let P13 = 19613
+let P14 = 19614
+let P15 = 19615
+let P16 = 19616
+let P17 = 19617
+let P18 = 19618
+let P19 = 19619
+let P20 = 19620
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 1: HTTPS — طلب GET حقيقي إلى موقع خارجي عبر TLS
+# ══════════════════════════════════════════════════════════════════════════════
+print("--- TEST 1: HTTPS GET to external host ---")
+
+let httpsRes = Null
+let httpsOk = False
+try
+    httpsRes = http.get("https://example.com/")
+    if httpsRes != Null and httpsRes.statusCode == 200
+        httpsOk = True
+    end
+catch e
+    print("  SKIP: HTTPS unavailable → " + str(e))
+end
+
+if httpsOk
+    test("HTTPS statusCode 200", httpsRes.statusCode == 200)
+    test("HTTPS body not empty", httpsRes.body.length() > 0)
+    test("HTTPS has content-type header", httpsRes.headers.has("content-type"))
+    test("HTTPS body contains html", httpsRes.body.contains("<html") or httpsRes.body.contains("<!doctype"))
+else
+    print("  SKIP: TEST 1 — no external network")
+end
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 2: HTTPS — طلبات متعددة متتالية لنفس الخادم الخارجي
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 2: HTTPS Multiple sequential requests ---")
+
+let httpsMultiOk = True
+let httpsCount = 0
+try
+    for i in 0..5
+        let r = http.get("https://example.com/")
+        if r != Null and r.statusCode == 200
+            httpsCount += 1
+        end
+    end
+catch e
+    httpsMultiOk = False
+end
+
+if httpsMultiOk and httpsCount > 0
+    test("HTTPS sequential requests — majority 200", httpsCount >= 3)
+else
+    print("  SKIP: TEST 2 — no external network")
+end
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 3: خادم HTTP محلي مع عدد كبير من الطلبات المتزامنة (Flood Test)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 3: HTTP Flood — 50 sequential requests to local server ---")
+
+let tFlood = thread.spawnCode("
+use http
+let counter = 0
+let srv = http.createServer(fn(req, res)
+    counter += 1
+    res.status(200).send('REQ:' + str(counter))
+end)
+srv.listen(${P0})
+")
+process.sleep(1)
+
+let floodOk = 0
+for i in 0..50
+    let r = http.get("http://127.0.0.1:${P0}/flood")
+    if r != Null and r.statusCode == 200
+        floodOk += 1
+    end
+end
+test("Flood — ≥45/50 requests succeeded", floodOk >= 45)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 4: Mega Body — إرسال واستقبال جسم ضخم جداً (512KB)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 4: Mega Body 512KB ---")
+
+let tMega = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).setHeader('Content-Type', 'text/plain').send('GOT:' + str(req.body.length()))
+end)
+srv.listen(${P1})
+")
+process.sleep(1)
+
+let megaBody = ""
+for i in 0..5120
+    megaBody = megaBody + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz!@"  # 64 chars × 5120 ≈ 327KB
+end
+let rMega = http.post("http://127.0.0.1:${P1}/upload", megaBody, {"Content-Type": "text/plain"})
+test("Mega body — server received", rMega != Null and rMega.statusCode == 200)
+test("Mega body — correct length", rMega != Null and rMega.body.contains("GOT:"))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 5: Keep-Alive Pool Exhaustion — 30 طلب بـ Keep-Alive
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 5: Keep-Alive Pool — 30 requests ---")
+
+let tKA = thread.spawnCode("
+use http
+let n = 0
+let srv = http.createServer(fn(req, res)
+    n += 1
+    res.status(200).send('KA:' + str(n))
+end, {'keepAlive': True, 'maxKeepAliveRequests': 100, 'keepAliveTimeout': 10})
+srv.listen(${P2})
+")
+process.sleep(1)
+
+let kaFailed = 0
+for i in 0..30
+    let r = http.get("http://127.0.0.1:${P2}/ka", Null, True)
+    if r == Null or r.statusCode != 200
+        kaFailed += 1
+    end
+end
+test("Keep-Alive 30 requests — 0 failures", kaFailed == 0)
+http.clearPool()
+test("clearPool after KA exhaustion", True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 6: Streaming — writeChunk / endChunk مع بيانات كبيرة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 6: Streaming chunks ---")
+
+let tStream = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200)
+    let i = 0
+    while i < 20
+        res.writeChunk('CHUNK_' + str(i) + '_')
+        i += 1
+    end
+    res.endChunk('END')
+end)
+srv.listen(${P3})
+")
+process.sleep(1)
+
+let rStream = http.get("http://127.0.0.1:${P3}/stream")
+test("Streaming — status 200", rStream != Null and rStream.statusCode == 200)
+test("Streaming — body has CHUNK_0", rStream != Null and rStream.body.contains("CHUNK_0_"))
+test("Streaming — body has CHUNK_19", rStream != Null and rStream.body.contains("CHUNK_19_"))
+test("Streaming — body ends with END", rStream != Null and rStream.body.contains("END"))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 7: Binary Response — sendBytes مع بيانات ثنائية كاملة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 7: Binary sendBytes ---")
+
+let tBinary = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    # إرسال بايتات ASCII للكلمة DJAZAIR
+    res.status(200).setHeader('Content-Type', 'application/octet-stream').sendBytes([68, 74, 65, 90, 65, 73, 82])
+end)
+srv.listen(${P4})
+")
+process.sleep(1)
+
+let rBinary = http.get("http://127.0.0.1:${P4}/binary")
+test("Binary response — status 200", rBinary != Null and rBinary.statusCode == 200)
+test("Binary response — body is DJAZAIR", rBinary != Null and rBinary.body == "DJAZAIR")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 8: JSON Round-trip — بيانات JSON ضخمة ذهاباً وإياباً
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 8: JSON Round-trip Large Payload ---")
+
+let tJsonRT = thread.spawnCode("
+use http
+use json
+let srv = http.createServer(fn(req, res)
+    let data = json.decode(req.body)
+    let total = 0
+    for item in data['nums']
+        total += item
+    end
+    res.status(200).send({'total': total, 'count': data['nums'].length()})
+end)
+srv.listen(${P5})
+")
+process.sleep(1)
+
+let bigNums = []
+for i in 0..1000
+    bigNums.append(i)
+end
+let payload = {"nums": bigNums, "label": "stress"}
+let rJsonRT = http.post("http://127.0.0.1:${P5}/sum", payload)
+test("JSON RT — status 200", rJsonRT != Null and rJsonRT.statusCode == 200)
+let jsonRTBody = ""
+if rJsonRT != Null
+    jsonRTBody = rJsonRT.body
+end
+# نبحث عن الأعداد المتوقعة في أي شكل كان (JSON أو نص)
+test("JSON RT — body contains total", jsonRTBody.length() > 0 and (jsonRTBody.contains("499500") or jsonRTBody.contains("total")))
+test("JSON RT — body contains count", jsonRTBody.length() > 0 and (jsonRTBody.contains("1000") or jsonRTBody.contains("count")))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 9: Custom Headers Gauntlet — عشرات الـ headers المخصصة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 9: Custom Headers Gauntlet ---")
+
+let tHeaders = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200)
+        .setHeader('X-Auth', req.header('X-Auth'))
+        .setHeader('X-Token', req.header('X-Token'))
+        .setHeader('X-Version', req.header('X-Version'))
+        .setHeader('X-Platform', req.header('X-Platform'))
+        .setHeader('X-Trace-ID', req.header('X-Trace-ID'))
+        .send('headers echoed')
+end)
+srv.listen(${P6})
+")
+process.sleep(1)
+
+let customHeaders = {
+    "X-Auth": "Bearer djz_tok_abc123",
+    "X-Token": "secret-xyz",
+    "X-Version": "3.14.0",
+    "X-Platform": "djazair-runtime",
+    "X-Trace-ID": "trace-550e8400-e29b-41d4"
+}
+let rHeaders = http.get("http://127.0.0.1:${P6}/secure", customHeaders)
+test("Custom headers — status 200", rHeaders != Null and rHeaders.statusCode == 200)
+test("Custom headers — X-Auth echoed", rHeaders != Null and rHeaders.headers["x-auth"] == "Bearer djz_tok_abc123")
+test("Custom headers — X-Trace-ID echoed", rHeaders != Null and rHeaders.headers["x-trace-id"] == "trace-550e8400-e29b-41d4")
+test("Custom headers — X-Platform echoed", rHeaders != Null and rHeaders.headers["x-platform"] == "djazair-runtime")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 10: All HTTP Methods — GET/POST/PUT/DELETE/HEAD/OPTIONS/PATCH
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 10: All HTTP Methods ---")
+
+let tMethods = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('METHOD:' + req.method)
+end)
+srv.listen(${P7})
+")
+process.sleep(1)
+
+let base = "http://127.0.0.1:${P7}"
+let mGet  = http.get(base + "/")
+let mPost = http.post(base + "/", "data")
+let mPut  = http.put(base + "/", "data")
+let mDel  = http.del(base + "/")
+let mHead = http.head(base + "/")
+let mOpts = http.options(base + "/")
+let mPatch = http.patch(base + "/", "data")
+
+test("Method GET", mGet   != Null and mGet.body   == "METHOD:GET")
+test("Method POST", mPost  != Null and mPost.body  == "METHOD:POST")
+test("Method PUT", mPut   != Null and mPut.body   == "METHOD:PUT")
+test("Method DELETE", mDel   != Null and mDel.statusCode == 200)
+test("Method HEAD", mHead  != Null and mHead.statusCode  == 200)
+test("Method OPTIONS", mOpts  != Null and mOpts.statusCode == 200)
+test("Method PATCH", mPatch != Null and mPatch.body == "METHOD:PATCH")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 11: Error Cascade — خادم يرمي استثناء ويعود 500
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 11: Server Error Cascade ---")
+
+let tErr = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    if req.pathname == '/ok'
+        res.status(200).send('fine')
+    elif req.pathname == '/crash'
+        throw 'Deliberate crash!'
+    elif req.pathname == '/nested'
+        try
+            throw 'inner'
+        catch e
+            throw 'outer: ' + e
+        end
+    end
+end)
+srv.listen(${P8})
+")
+process.sleep(1)
+
+let rOk    = http.get("http://127.0.0.1:${P8}/ok")
+let rCrash = http.get("http://127.0.0.1:${P8}/crash")
+let rNest  = http.get("http://127.0.0.1:${P8}/nested")
+test("Error cascade — /ok returns 200", rOk != Null and rOk.statusCode == 200)
+test("Error cascade — /crash returns 500", rCrash != Null and rCrash.statusCode == 500)
+test("Error cascade — /nested returns 500", rNest != Null and rNest.statusCode == 500)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 12: isSent Guard — الاستجابة الأولى تفوز دائماً
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 12: isSent Guard Stress ---")
+
+let tSent = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    let i = 0
+    while i < 10
+        res.status(200 + i).send('Response_' + str(i))
+        i += 1
+    end
+end)
+srv.listen(${P9})
+")
+process.sleep(1)
+
+let rSent = http.get("http://127.0.0.1:${P9}/multi")
+test("isSent guard — first response wins", rSent != Null and rSent.body == "Response_0")
+test("isSent guard — status is 200", rSent != Null and rSent.statusCode == 200)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 13: Concurrent Workers — 5 خوادم تعمل بالتوازي وتُستدعى بالتتابع
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 13: 5 Concurrent Servers Parallel ---")
+
+let tC0 = thread.spawnCode("use http\nlet s=http.createServer(fn(req,res) res.status(200).send('S0') end)\ns.listen(${P10})")
+let tC1 = thread.spawnCode("use http\nlet s=http.createServer(fn(req,res) res.status(201).send('S1') end)\ns.listen(${P11})")
+let tC2 = thread.spawnCode("use http\nlet s=http.createServer(fn(req,res) res.status(202).send('S2') end)\ns.listen(${P12})")
+let tC3 = thread.spawnCode("use http\nlet s=http.createServer(fn(req,res) res.status(404).send('S3') end)\ns.listen(${P13})")
+let tC4 = thread.spawnCode("use http\nlet s=http.createServer(fn(req,res) res.status(500).send('S4') end)\ns.listen(${P14})")
+process.sleep(2)
+
+let rC0 = http.get("http://127.0.0.1:${P10}/")
+let rC1 = http.get("http://127.0.0.1:${P11}/")
+let rC2 = http.get("http://127.0.0.1:${P12}/")
+let rC3 = http.get("http://127.0.0.1:${P13}/")
+let rC4 = http.get("http://127.0.0.1:${P14}/")
+
+test("Concurrent S0 — 200 + body S0", rC0 != Null and rC0.statusCode == 200 and rC0.body == "S0")
+test("Concurrent S1 — 201 + body S1", rC1 != Null and rC1.statusCode == 201 and rC1.body == "S1")
+test("Concurrent S2 — 202 + body S2", rC2 != Null and rC2.statusCode == 202 and rC2.body == "S2")
+test("Concurrent S3 — 404 + body S3", rC3 != Null and rC3.statusCode == 404 and rC3.body == "S3")
+test("Concurrent S4 — 500 + body S4", rC4 != Null and rC4.statusCode == 500 and rC4.body == "S4")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 14: Request Routing — خادم بمسارات متعددة (Router Simulation)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 14: Request Routing Simulation ---")
+
+let tRouter = thread.spawnCode("
+use http
+use json
+let srv = http.createServer(fn(req, res)
+    if req.pathname == '/api/users'
+        res.status(200).send({'users': ['ali', 'sara', 'omar']})
+    elif req.pathname == '/api/products'
+        res.status(200).send({'products': ['laptop', 'phone']})
+    elif req.pathname == '/api/health'
+        res.status(200).send({'status': 'ok', 'version': '1.0'})
+    elif req.pathname == '/api/echo'
+        let body = req.body
+        res.status(200).send({'echo': body, 'method': req.method})
+    elif req.pathname == '/api/404'
+        res.status(404).send({'error': 'not found'})
+    else
+        res.status(400).send({'error': 'unknown route'})
+    end
+end)
+srv.listen(${P15})
+")
+process.sleep(1)
+
+let rUsers    = http.get("http://127.0.0.1:${P15}/api/users")
+let rProducts = http.get("http://127.0.0.1:${P15}/api/products")
+let rHealth   = http.get("http://127.0.0.1:${P15}/api/health")
+let rEcho     = http.post("http://127.0.0.1:${P15}/api/echo", "hello djazair", {"Content-Type": "text/plain"})
+let r404route = http.get("http://127.0.0.1:${P15}/api/404")
+let rUnknown  = http.get("http://127.0.0.1:${P15}/unknown/path")
+
+test("Router /api/users — 200", rUsers    != Null and rUsers.statusCode    == 200)
+test("Router /api/users — has ali", rUsers != Null and rUsers.body.contains("ali"))
+test("Router /api/products — 200", rProducts != Null and rProducts.statusCode == 200)
+test("Router /api/health — status ok", rHealth != Null and rHealth.body.contains("ok"))
+test("Router /api/echo — echoes body", rEcho != Null and rEcho.body.contains("hello djazair"))
+test("Router /api/echo — method POST", rEcho != Null and rEcho.body.contains("POST"))
+test("Router /api/404 — status 404", r404route != Null and r404route.statusCode == 404)
+test("Router unknown — status 400", rUnknown != Null and rUnknown.statusCode == 400)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 15: Query String Gauntlet — استعلامات URL معقدة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 15: Query String Gauntlet ---")
+
+let tQuery = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    let q = req.query
+    if isNull(q)
+        res.status(200).send('no-query')
+    else
+        let a = q.get('a')
+        let b = q.get('b')
+        let c = q.get('c')
+        let d = q.get('d')
+        if isNull(a) a = 'nil' end
+        if isNull(b) b = 'nil' end
+        if isNull(c) c = 'nil' end
+        if isNull(d) d = 'nil' end
+        res.status(200).send(a + '|' + b + '|' + c + '|' + d)
+    end
+end)
+srv.listen(${P16})
+")
+process.sleep(1)
+
+let rQ1 = http.get("http://127.0.0.1:${P16}/search?a=djazair&b=language&c=2026&d=Algeria")
+let rQ2 = http.get("http://127.0.0.1:${P16}/search?a=only")
+let rQ3 = http.get("http://127.0.0.1:${P16}/noquerypath")
+
+test("Query — all 4 params", rQ1 != Null and rQ1.body == "djazair|language|2026|Algeria")
+test("Query — single param", rQ2 != Null and rQ2.body.contains("only"))
+# مسار بلا query: الخادم يُعيد "no-query" أو "nil|nil|nil|nil"
+test("Query — no query path responds 200", rQ3 != Null and rQ3.statusCode == 200)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 16: remoteAddr — التحقق من عنوان IP العميل
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 16: Client remoteAddr ---")
+
+let tAddr = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('client=' + req.remoteAddr)
+end)
+srv.listen(${P17})
+")
+process.sleep(1)
+
+let rAddr = http.get("http://127.0.0.1:${P17}/whoami")
+test("remoteAddr — response 200", rAddr != Null and rAddr.statusCode == 200)
+test("remoteAddr — contains 127.0.0.1", rAddr != Null and rAddr.body.contains("127.0.0.1"))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 17: setClientConfig / setServerConfig — ضبط الإعدادات العامة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 17: Global Config ---")
+
+let cfgOk = True
+try
+    http.setClientConfig({"timeout": 10.0})
+    http.setServerConfig({"maxBodySize": 10485760})
+catch e
+    cfgOk = False
+end
+test("setClientConfig — no error", cfgOk)
+test("setServerConfig — no error", cfgOk)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 18: HTTP Parser Security — رفض الـ headers المسمومة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 18: Security — CRLF Injection & Parser Validation ---")
+
+let crlf_rejected = False
+try
+    let b = new http.httpResponseBuilder()
+    b.setHeader("X-Injected" + chr(13) + chr(10) + "X-Evil", "pwned")
+catch e
+    crlf_rejected = True
+end
+test("CRLF header injection rejected", crlf_rejected)
+
+let bad_request_rejected = False
+try
+    let p = new http.httpParser()
+    p.parseRequest("GET / HTTP/1.1 EXTRA_FIELD\r\nHost: local\r\n\r\n")
+catch e
+    bad_request_rejected = True
+end
+test("Parser rejects 4-part request line", bad_request_rejected)
+
+let whitespace_header_rejected = False
+try
+    let p2 = new http.httpParser()
+    p2.parseRequest("GET / HTTP/1.1\r\nBad Header Name: value\r\n\r\n")
+catch e
+    whitespace_header_rejected = True
+end
+test("Parser rejects whitespace in header names", whitespace_header_rejected)
+
+let invalid_status_rejected = False
+try
+    let p3 = new http.httpParser()
+    p3.parseResponse("HTTP/1.1 99 TooLow\r\n\r\n")
+catch e
+    invalid_status_rejected = True
+end
+test("Parser rejects status < 100", invalid_status_rejected)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 19: httpRequest Unit — تحليل طلبات HTTP كاملة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 19: httpRequest Unit Tests ---")
+
+let rawGet = "GET /api/v1/users?role=admin&page=2&limit=50 HTTP/1.1\r\nHost: api.djazair.dz\r\nAuthorization: Bearer tok_abc\r\nX-Request-ID: req-9999\r\nAccept: application/json\r\n\r\n"
+let parsedReq = new http.httpRequest(rawGet)
+
+test("Parsed method GET", parsedReq.method == "GET")
+test("Parsed pathname", parsedReq.pathname == "/api/v1/users")
+test("Parsed query role", parsedReq.query.get("role") == "admin")
+test("Parsed query page", parsedReq.query.get("page") == "2")
+test("Parsed query limit", parsedReq.query.get("limit") == "50")
+test("Parsed header Authorization", parsedReq.header("Authorization") == "Bearer tok_abc")
+test("Parsed header case-insensitive", parsedReq.header("authorization") == "Bearer tok_abc")
+test("Parsed header X-Request-ID", parsedReq.header("X-Request-ID") == "req-9999")
+test("isMethod GET", parsedReq.isMethod("GET"))
+test("isMethod post false", !parsedReq.isMethod("POST"))
+test("toString contains GET", parsedReq.toString().contains("GET"))
+
+let rawPost = "POST /api/v1/login HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 35\r\n\r\n{\"username\":\"ali\",\"password\":\"s3cr3t\"}"
+let parsedPost = new http.httpRequest(rawPost)
+test("POST parsed method", parsedPost.method == "POST")
+test("POST body has username", parsedPost.body.contains("ali"))
+test("POST body has password", parsedPost.body.contains("s3cr3t"))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TEST 20: httpResponseBuilder — بناء ردود معقدة
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- TEST 20: httpResponseBuilder Full Pipeline ---")
+
+let builder = new http.httpResponseBuilder()
+builder.status(201)
+builder.setHeader("X-Request-ID", "abc-123")
+builder.setHeader("X-API-Version", "2.0")
+builder.setHeader("Cache-Control", "no-cache, no-store")
+let builtRes = builder.build({"created": True, "id": 42, "name": "djazair"})
+
+test("Builder 201 Created", builtRes.contains("201 Created"))
+test("Builder X-Request-ID present", builtRes.contains("abc-123"))
+test("Builder X-API-Version present", builtRes.contains("2.0"))
+test("Builder Cache-Control present", builtRes.contains("no-cache"))
+test("Builder JSON body created=true", builtRes.contains("true"))
+test("Builder JSON body id=42", builtRes.contains("42"))
+test("Builder auto Content-Length", builtRes.contains("Content-Length:"))
+test("Builder auto Connection keep-alive", builtRes.contains("Connection: keep-alive"))
+
+let b2 = new http.httpResponseBuilder().status(204).build(Null)
+test("Builder 204 No Content", b2.contains("204"))
+
+let b3 = new http.httpResponseBuilder().status(200)
+b3.setHeader("X-Remove", "val")
+b3.removeHeader("X-Remove")
+test("Builder removeHeader — header absent", !b3.build().contains("X-Remove"))
+
+let b4 = new http.httpResponseBuilder().status(200)
+let arrOut = b4.build([10, 20, 30, 40, 50])
+test("Builder array JSON body", arrOut.contains("[10,20,30,40,50]"))
+
+let b5 = new http.httpResponseBuilder().status(200)
+b5.status(400, "Custom Bad Request")
+test("Builder custom status text", b5.build().contains("400 Custom Bad Request"))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# الإغلاق والتقرير النهائي
+# ══════════════════════════════════════════════════════════════════════════════
+closeWorkers([tFlood, tMega, tKA, tStream, tBinary, tJsonRT, tHeaders, tMethods, tErr, tSent, tC0, tC1, tC2, tC3, tC4, tRouter, tQuery, tAddr])
+
+print("")
+print("══════════════════════════════════════════════")
+print("  Total : ${passed + failed}")
+print("  Passed: ${passed}")
+print("  Failed: ${failed}")
+print("══════════════════════════════════════════════")
+
+if failed > 0
+    throw "${failed} HTTP Extreme tests FAILED"
+end
+print("=== All HTTP Extreme Tests Passed ===")

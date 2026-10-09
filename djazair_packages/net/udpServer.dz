@@ -1,0 +1,149 @@
+# udp_server.dz — UDP Server
+# Listens for UDP datagrams on a given port and dispatches them to a handler.
+
+use assert
+import "socket.dz" as sock
+use net::config as conf
+use net::poller as pollerMod
+
+# A high-performance, non-blocking UDP server that listens for incoming datagrams.
+class udpServer
+    
+    # Initializes the UDP server.
+    # @param handler A callback function `fn(data, ip, port)` called for each datagram.
+    # @param options (Optional) Map of configurations like `{"bufferSize": 4096}`.
+    init(handler, options = {})
+        assert.function(handler, "handler")
+        self.handler = handler
+        self.sock = Null
+        self.timeout = options.get("timeout", options.get("defaultTimeout", Null))
+        self.running = False
+        self.bufferSize = options.get("bufferSize", options.get("defaultBuffer", conf.SERVER_CONFIG["defaultBuffer"]))
+    end
+
+    # Sets the receive and send timeout for the server socket.
+    # @param seconds The timeout in seconds (0 = block forever).
+    setTimeout(seconds)
+        assert.number(seconds, "seconds")
+        self.timeout = seconds
+    end
+
+    # Sets the receive buffer size in bytes.
+    # @param size Buffer size between sock.MIN_BUFFER_SIZE and sock.MAX_BUFFER_SIZE.
+    setBufferSize(size)
+        assert.number(size, "size")
+        if size < sock.MIN_BUFFER_SIZE or size > sock.MAX_BUFFER_SIZE
+            throw "net.udpServer.setBufferSize(): Size must be between ${sock.MIN_BUFFER_SIZE} and ${sock.MAX_BUFFER_SIZE}"
+        end
+        self.bufferSize = size
+    end
+
+    # Binds to the specified port and host, and starts receiving datagrams.
+    # This method blocks the calling thread indefinitely until closed.
+    #
+    # @param port (Optional) Port to listen on. Defaults to config.defaultPort.
+    # @param host (Optional) Host interface to bind to. Defaults to config.defaultHost.
+    listen(port = Null, host = Null)
+        if isNull(port) port = conf.SERVER_CONFIG["defaultPort"] end
+        if isNull(host) host = conf.SERVER_CONFIG["defaultHost"] end
+        
+        assert.number(port, "port")
+        assert.string(host, "host")
+        
+        let family = sock.familyForAddress(host)
+        
+        self.sock = new sock.socket(family, sock.SOCK_DGRAM, 0)
+        
+        if !isNull(self.timeout)
+            self.sock.setTimeout(self.timeout)
+        end
+        
+        self.sock.bind(host, port)
+        
+        # Make the socket non-blocking for Poller
+        self.sock.setBlocking(False)
+        
+        let poller = new pollerMod.poller()
+        poller.register(self.sock, "r")
+        
+        self.running = True
+        
+        while self.running
+            let ready = poller.poll(0.5)
+            
+            if ready["read"].contains(self.sock.handle)
+                let msg = Null
+                try
+                    msg = self.sock.receiveFrom(self.bufferSize)
+                catch e
+                    let errStr = str(e)
+                    if errStr.contains("timeout") or errStr.contains("closed")
+                        # Expected when shutting down
+                    else
+                        if self.running
+                            print("[net.udpServer] receive error: ${errStr}")
+                        end
+                    end
+                end
+                
+                if !isNull(msg)
+                    try
+                        self.handler(msg["data"], msg["ip"], msg["port"])
+                    catch e
+                        print("[net.udpServer] handler error: ${e}")
+                    end
+                end
+            end
+        end
+    end
+
+    # Internal helper to verify the server is running before attempting to reply.
+    _ensureRunning()
+        if isNull(self.sock) or !self.running
+            throw "net.udpServer: Server is not running"
+        end
+    end
+
+    # Replies to a client with a UTF-8 string datagram.
+    # Can be called safely from within the handler callback.
+    #
+    # @param data The string to send.
+    # @param ip The client's IP address.
+    # @param port The client's port number.
+    # @return Number The number of bytes sent.
+    reply(data, ip, port)
+        assert.string(ip, "ip")
+        sock.assertPort(port, "port")
+        self._ensureRunning()
+        return self.sock.sendto(str(data), ip, port)
+    end
+
+    # Replies to a client with a raw byte array datagram.
+    # Can be called safely from within the handler callback.
+    #
+    # @param data The byte array to send (integers 0-255).
+    # @param ip The client's IP address.
+    # @param port The client's port number.
+    # @return Number The number of bytes sent.
+    replyBytes(data, ip, port)
+        bytes.assertByteArray(data, "data")
+        assert.string(ip, "ip")
+        sock.assertPort(port, "port")
+        self._ensureRunning()
+        return self.sock.sendBytesTo(data, ip, port)
+    end
+
+    # Checks if the server is currently bound and listening.
+    # @return Bool True if running.
+    isRunning()
+        return self.running
+    end
+
+    # Stops the server and closes the socket.
+    close()
+        self.running = False
+        if !isNull(self.sock)
+            self.sock.close()
+        end
+    end
+end

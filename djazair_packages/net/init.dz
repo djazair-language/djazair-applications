@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# @module net
+# @description 
+# Comprehensive networking module for the Djazair programming language.
+# Provides APIs for building high-performance network applications.
+#
+# Features:
+# - TCP and UDP client/server classes
+# - Raw BSD Socket wrapper for advanced usage
+# - TLS/SSL secure client support
+# - DNS resolution (IPv4 & IPv6)
+# - URL and URLSearchParams parsing (WHATWG Standard)
+# - Global configuration for timeouts and buffers
+# ─────────────────────────────────────────────────────────────────────────────
+
+use net::tcpServer  as _tcpServer
+use net::tcpClient  as _tcpClient
+use net::udpServer  as _udpServer
+use net::udpClient  as _udpClient
+use net::tlsClient  as _tlsClient
+use net::socket     as _socket
+use net::dns        as _dns
+use net::url        as _url
+use net::config     as _config
+use net::poller     as _poller
+
+# ── Global Configuration ─────────────────────────────────────────────────────
+
+let setClientConfig = _config.setClientConfig
+let setServerConfig = _config.setServerConfig
+
+# ── High-Level Classes ───────────────────────────────────────────────────────
+
+let tcpServer  = _tcpServer.tcpServer
+let tcpClient  = _tcpClient.tcpClient
+let udpServer  = _udpServer.udpServer
+let udpClient  = _udpClient.udpClient
+let tlsClient  = _tlsClient.tlsClient
+
+# ── Raw Sockets & Networking Utilities ───────────────────────────────────────
+
+let socket     = _socket.socket
+let resolveDNS = _dns.resolve
+let poller     = _poller.poller
+
+# ── URL Parsing & Encoding ───────────────────────────────────────────────────
+
+let url             = _url.url
+let parseURL        = _url.parseURL
+let urlDecode       = _url.urlDecode
+let urlEncode       = _url.urlEncode
+let urlSearchParams = _url.urlSearchParams
+
+# ── Protocol & Socket Constants ──────────────────────────────────────────────
+
+let AF_INET      = _socket.AF_INET
+let AF_INET6     = _socket.AF_INET6
+let AF_UNSPEC    = _socket.AF_UNSPEC
+let SOCK_STREAM  = _socket.SOCK_STREAM
+let SOCK_DGRAM   = _socket.SOCK_DGRAM
+let IPPROTO_TCP  = _socket.IPPROTO_TCP
+let IPPROTO_UDP  = _socket.IPPROTO_UDP
+let SD_RECEIVE   = _socket.SD_RECEIVE
+let SD_SEND      = _socket.SD_SEND
+let SD_BOTH      = _socket.SD_BOTH
+let MAX_SEND     = _socket.MAX_SEND
+let DEFAULT_HOST = _socket.DEFAULT_HOST
+let DEFAULT_PORT = _socket.DEFAULT_PORT

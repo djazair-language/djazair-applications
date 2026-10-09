@@ -1,0 +1,432 @@
+# =============================================================================
+# reader.dz — HTTP/1.1 Stream Framing Reader
+# =============================================================================
+# Reads and frames complete HTTP messages from a raw TCP stream.
+#
+# Three body-framing modes are supported (RFC 9112 §6):
+#   1. Content-Length  — exact byte count declared in headers.
+#   2. Chunked         — Transfer-Encoding: chunked, decoded chunk-by-chunk.
+#   3. Read-until-close — no framing header; body ends when peer closes socket.
+#
+# Framed reads return BOTH the current message and any unread bytes (remainder)
+# so that callers can correctly support HTTP/1.1 keep-alive and pipelining.
+#
+# Public API (via the `reader` class):
+#   readMessage(client, initial, maxSize)
+#       Full response read — returns raw message string.
+#   readRequestHeaders(client, initial, maxSize)
+#       Reads only headers; returns {raw, hdrEnd, info}.
+#   readRequestBody(client, raw, hdrEnd, info, maxSize)  [backward-compat]
+#       Legacy wrapper — delegates to readRequestMessage.
+#   readRequestMessage(client, initial, maxSize)
+#       Full request read (no connection-close framing for body-less requests).
+#   readResponseMessage(client, initial, maxSize, requestMethod)
+#       Full response read, skipping 1xx informational responses automatically.
+# =============================================================================
+
+import "utils.dz" as utils
+use bytes
+
+# ── Module-level Constants ─────────────────────────────────────────────────────
+
+# The four-byte sequence that separates HTTP headers from the message body.
+let HEADER_SEPARATOR = "\r\n\r\n"
+let HEADER_SEP_LEN   = 4           # byte length of HEADER_SEPARATOR
+
+# CRLF used as line terminator inside header blocks and chunked frames.
+let CRLF     = "\r\n"
+let CRLF_LEN = 2
+
+# Default TCP receive buffer size (bytes). Balances memory with read calls.
+let RECV_BUF_SIZE = 4096
+
+# ── Internal Helpers ───────────────────────────────────────────────────────────
+
+# Returns the first `count` bytes of `text` as a string.
+# All slicing is done at the byte level to handle multi-byte UTF-8 correctly.
+fn takeBytes(text, count)
+    return bytes.toString(bytes.fromString(text).slice(0, count))
+end
+
+# Drops the first `count` bytes of `text` and returns the remainder.
+# The byte array is computed once to avoid redundant encoding.
+fn dropBytes(text, count)
+    let arr = bytes.fromString(text)
+    return bytes.toString(arr.slice(count, arr.length()))
+end
+
+# Appends one receive buffer worth of data from `client` into `buffer`.
+# Returns the updated buffer, or Null on error / connection close.
+fn recvChunk(client, buffer, maxSize)
+    let more = ""
+    try
+        more = client.receive(RECV_BUF_SIZE)
+    catch err
+        # Socket error or closed connection — signal caller to abort.
+        return Null
+    end
+    if !isString(more) or more == ""
+        # Peer closed the connection gracefully.
+        return Null
+    end
+    buffer += more
+    if utils.byteLen(buffer) > maxSize
+        # Enforce the caller-supplied size limit before storing more data.
+        return Null
+    end
+    return buffer
+end
+
+# Reads from `client` into `buffer` until a CRLF line terminator is found.
+# Returns { buffer, position } where position is the index of the CRLF,
+# or Null if the connection was lost before a line was completed.
+fn waitForLine(client, buffer, maxSize)
+    while True
+        let position = buffer.index(CRLF)
+        if position != -1
+            return {"buffer": buffer, "position": position}
+        end
+        buffer = recvChunk(client, buffer, maxSize)
+        if isNull(buffer)
+            return Null
+        end
+    end
+end
+
+# Returns True if `value` is a non-empty string of valid hexadecimal digits.
+# Used to validate chunked transfer encoding chunk-size fields.
+fn isHex(value)
+    if value == ""
+        return False
+    end
+    for char in value
+        if "0123456789abcdefABCDEF".index(char) == -1
+            return False
+        end
+    end
+    return True
+end
+
+# ── Reader Class ───────────────────────────────────────────────────────────────
+
+class reader
+
+    # ── Header Reading ─────────────────────────────────────────────────────────
+
+    # Reads bytes from `client` until the header/body separator (\r\n\r\n) is found.
+    # `initial` may contain bytes already read from the socket (e.g. from a
+    # previous keep-alive receive).
+    # Returns { raw, hdrEnd }, or Null on failure / size limit exceeded.
+    readHeaders(client, initial = "", maxSize = 65536)
+        let raw       = if isString(initial) ? initial else ""
+        let headerEnd = raw.index(HEADER_SEPARATOR)
+        while headerEnd == -1
+            raw = recvChunk(client, raw, maxSize)
+            if isNull(raw)
+                return Null
+            end
+            headerEnd = raw.index(HEADER_SEPARATOR)
+        end
+        return {"raw": raw, "hdrEnd": headerEnd}
+    end
+
+    # ── Body Reading ───────────────────────────────────────────────────────────
+
+    # Reads exactly `contentLength` bytes of body after the header separator.
+    # Any bytes beyond the body boundary are returned as `remainder` so that
+    # pipelined / keep-alive requests are not discarded.
+    # Returns { raw, remainder }, or Null on size violation or connection loss.
+    readByLengthParts(client, raw, hdrEnd, contentLength, maxSize)
+        if contentLength < 0 or contentLength > maxSize
+            return Null
+        end
+
+        let head       = raw.slice(0, hdrEnd + HEADER_SEP_LEN)
+        let bodyBuffer = raw.slice(hdrEnd + HEADER_SEP_LEN)
+
+        while utils.byteLen(bodyBuffer) < contentLength
+            bodyBuffer = recvChunk(client, bodyBuffer, maxSize)
+            if isNull(bodyBuffer)
+                return Null
+            end
+        end
+
+        let body = takeBytes(bodyBuffer, contentLength)
+        return {
+            "raw":       head + body,
+            "remainder": dropBytes(bodyBuffer, contentLength)
+        }
+    end
+
+    # Decodes a strict HTTP/1.1 chunked body (RFC 9112 §7.1).
+    # Each chunk is: <hex-size>[;extension]\r\n<data>\r\n
+    # Terminated by a zero-size chunk: 0\r\n[trailers]\r\n
+    # Returns { body, remainder }, or Null on any framing violation.
+    readChunkedParts(client, raw, hdrEnd, maxSize)
+        let buffer = raw.slice(hdrEnd + HEADER_SEP_LEN)
+        let parts  = []
+        let total  = 0
+
+        while True
+            # Read the chunk-size line.
+            let line = waitForLine(client, buffer, maxSize)
+            if isNull(line)
+                return Null
+            end
+            buffer = line["buffer"]
+
+            # Strip optional chunk extensions ("; ext=value") before parsing.
+            let sizeText  = buffer.slice(0, line["position"])
+            let extension = sizeText.index(";")
+            if extension != -1
+                sizeText = sizeText.slice(0, extension)
+            end
+            sizeText = sizeText.strip()
+
+            if !isHex(sizeText)
+                return Null
+            end
+
+            let chunkSize = int(num("0x" + sizeText))
+            if isNull(chunkSize) or chunkSize < 0 or total + chunkSize > maxSize
+                return Null
+            end
+
+            # Advance past the chunk-size line (including its CRLF).
+            buffer = buffer.slice(line["position"] + CRLF_LEN)
+
+            if chunkSize == 0
+                # Zero-size chunk signals the end of the chunked body.
+                # Consume any trailing headers (trailers) until the empty line.
+                while True
+                    let trailer = waitForLine(client, buffer, maxSize)
+                    if isNull(trailer)
+                        return Null
+                    end
+                    buffer = trailer["buffer"]
+                    if trailer["position"] == 0
+                        # Empty line — end of trailers. Return assembled body.
+                        return {
+                            "body":      parts.join(""),
+                            "remainder": buffer.slice(CRLF_LEN)
+                        }
+                    end
+                    # Validate trailer field syntax (must contain a colon).
+                    let colon = buffer.slice(0, trailer["position"]).index(":")
+                    if colon <= 0
+                        return Null
+                    end
+                    buffer = buffer.slice(trailer["position"] + CRLF_LEN)
+                end
+            end
+
+            # Read until we have the full chunk data plus its trailing CRLF.
+            while utils.byteLen(buffer) < chunkSize + CRLF_LEN
+                buffer = recvChunk(client, buffer, maxSize)
+                if isNull(buffer)
+                    return Null
+                end
+            end
+
+            # Verify the CRLF terminator at the end of chunk data (bytes 13, 10).
+            let bufferBytes = bytes.fromString(buffer)
+            if bufferBytes[chunkSize] != 13 or bufferBytes[chunkSize + 1] != 10
+                return Null
+            end
+
+            parts.append(bytes.toString(bufferBytes.slice(0, chunkSize)))
+            total  += chunkSize
+            buffer  = bytes.toString(bufferBytes.slice(chunkSize + CRLF_LEN))
+        end
+    end
+
+    # ── Generic Message Reader ─────────────────────────────────────────────────
+
+    # Reads a complete HTTP message, choosing the correct framing strategy.
+    # When `skipBody` is True (e.g. for HEAD responses), only the header block
+    # is returned and no body bytes are consumed from the stream.
+    # Returns { raw, remainder }, or Null on failure.
+    readMessageParts(client, initial, maxSize, skipBody = False)
+        let header = self.readHeaders(client, initial, maxSize)
+        if isNull(header)
+            return Null
+        end
+
+        let raw       = header["raw"]
+        let hdrEnd    = header["hdrEnd"]
+        let bodyStart = hdrEnd + HEADER_SEP_LEN
+
+        if skipBody
+            # Body is forbidden by protocol (e.g. HEAD, 204, 304) — do not read.
+            return {
+                "raw":       raw.slice(0, bodyStart),
+                "remainder": raw.slice(bodyStart)
+            }
+        end
+
+        let info = utils.parseTransferInfo(raw, hdrEnd)
+        if info["invalid"]
+            return Null
+        end
+
+        if info["isChunked"]
+            let decoded = self.readChunkedParts(client, raw, hdrEnd, maxSize)
+            if isNull(decoded)
+                return Null
+            end
+            return {
+                "raw":       utils.reconstructChunked(raw, hdrEnd, decoded["body"]),
+                "remainder": decoded["remainder"]
+            }
+        end
+
+        if !isNull(info["contentLength"])
+            return self.readByLengthParts(client, raw, hdrEnd, info["contentLength"], maxSize)
+        end
+
+        # Fallback: no framing header — read until connection close (responses only).
+        # RFC 9112 §6.3 rule 7: request bodies without framing have zero length.
+        let complete = raw
+        while utils.byteLen(complete) < maxSize
+            let next = recvChunk(client, complete, maxSize)
+            if isNull(next)
+                break
+            end
+            complete = next
+        end
+        return {"raw": complete, "remainder": ""}
+    end
+
+    # ── Specialised Request Reader ─────────────────────────────────────────────
+
+    # Reads a complete HTTP request message.
+    # Unlike responses, a request with no Content-Length or Transfer-Encoding
+    # has a zero-length body (RFC 9112 §6.3 rule 7) — it MUST NOT consume
+    # subsequent pipelined request bytes by waiting for connection close.
+    # Returns { raw, remainder }, or Null on failure.
+    readRequestMessage(client, initial, maxSize)
+        let header = self.readHeaders(client, initial, maxSize)
+        if isNull(header)
+            return Null
+        end
+
+        let raw    = header["raw"]
+        let hdrEnd = header["hdrEnd"]
+        let info   = utils.parseTransferInfo(raw, hdrEnd)
+
+        if info["invalid"]
+            return Null
+        end
+
+        if info["isChunked"]
+            let decoded = self.readChunkedParts(client, raw, hdrEnd, maxSize)
+            if isNull(decoded)
+                return Null
+            end
+            return {
+                "raw":       utils.reconstructChunked(raw, hdrEnd, decoded["body"]),
+                "remainder": decoded["remainder"]
+            }
+        end
+
+        if !isNull(info["contentLength"])
+            return self.readByLengthParts(client, raw, hdrEnd, info["contentLength"], maxSize)
+        end
+
+        # No body framing — body is empty; everything after headers is remainder.
+        let bodyStart = hdrEnd + HEADER_SEP_LEN
+        return {
+            "raw":       raw.slice(0, bodyStart),
+            "remainder": raw.slice(bodyStart)
+        }
+    end
+
+    # ── Specialised Response Reader ────────────────────────────────────────────
+
+    # Reads a final HTTP response, automatically skipping RFC 9110 §15.2
+    # informational (1xx) responses that precede the final status line.
+    # `requestMethod` is used to detect HEAD responses (body must be suppressed).
+    # Returns { raw, remainder }, or Null on failure.
+    readResponseMessage(client, initial, maxSize, requestMethod = "")
+        let pending = initial
+
+        while True
+            let header = self.readHeaders(client, pending, maxSize)
+            if isNull(header)
+                return Null
+            end
+
+            # Extract the numeric status code from the first response line.
+            let firstLine = header["raw"].slice(0, header["raw"].index(CRLF))
+            let words     = firstLine.split(" ")
+            let status    = if words.length() >= 2 ? num(words[1]) else Null
+
+            # Determine whether the body should be suppressed for this response.
+            let bodyless = requestMethod.upper() == "HEAD" or
+                (!isNull(status) and ((status >= 100 and status < 200) or status == 204 or status == 304))
+
+            let result = self.readMessageParts(client, header["raw"], maxSize, bodyless)
+            if isNull(result)
+                return Null
+            end
+
+            # RFC 9110 §15.2: 1xx responses (except 101 Switching Protocols) are
+            # informational and are followed by the real final response.
+            if !isNull(status) and status >= 100 and status < 200 and status != 101
+                pending = result["remainder"]
+                if pending == ""
+                    try
+                        # Fetch more data for the next response start.
+                        pending = client.receive(RECV_BUF_SIZE)
+                    catch err
+                        return Null
+                    end
+                end
+                continue
+            end
+
+            return result
+        end
+    end
+
+    # ── Compatibility Helpers ──────────────────────────────────────────────────
+
+    # Convenience wrapper that discards the remainder and returns only the raw
+    # message string. Suitable for callers that do not need leftover bytes.
+    readMessage(client, initial, maxSize)
+        let result = self.readMessageParts(client, initial, maxSize)
+        if isNull(result)
+            return Null
+        end
+        return result["raw"]
+    end
+
+    # Reads only the header block and returns transfer-framing metadata.
+    # Used by the server to inspect Content-Length before committing to
+    # reading a potentially oversized body.
+    # Returns { raw, hdrEnd, info }, or Null on failure.
+    readRequestHeaders(client, initial, maxSize)
+        let header = self.readHeaders(client, initial, maxSize)
+        if isNull(header)
+            return Null
+        end
+        return {
+            "raw":    header["raw"],
+            "hdrEnd": header["hdrEnd"],
+            "info":   utils.parseTransferInfo(header["raw"], header["hdrEnd"])
+        }
+    end
+
+    # Backward-compatible body reader.
+    # Delegates to readRequestMessage, which re-reads the headers from `raw`.
+    # The `hdrEnd` and `info` parameters are accepted for API compatibility but
+    # are not used — readRequestMessage derives them internally.
+    # Returns the raw message string (headers + body), or Null on failure.
+    readRequestBody(client, raw, hdrEnd, info, maxSize)
+        let result = self.readRequestMessage(client, raw, maxSize)
+        if isNull(result)
+            return Null
+        end
+        return result["raw"]
+    end
+end

@@ -1,0 +1,562 @@
+# test_net.dz — Comprehensive Net Library Tests
+# Covers: TCP client/server, UDP client/server, URL, URLSearchParams, DNS, encoding
+
+use net
+use thread
+use process
+use bytes
+use json
+
+print("=== Net Library — Comprehensive Tests ===\n")
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed += 1
+    else
+        print("  FAIL: ${name}")
+        failed += 1
+    end
+end
+
+let P0 = 19200
+let P1 = 19201
+let P2 = 19202
+let P3 = 19203
+let P4 = 19204
+let P5 = 19205
+let P6 = 19206
+let P7 = 19207
+let P8 = 19208
+let P9 = 19209
+let P10 = 19210
+let P11 = 19211
+let P12 = 19212
+let P13 = 19213
+let P14 = 19214
+let P15 = 19215
+let P16 = 19216
+let P17 = 19217
+let P18 = 19218
+let P19 = 19219
+let P20 = 19220
+let P21 = 19221
+let P22 = 19222
+let P23 = 19223
+let P24 = 19224
+let P25 = 19225
+let P26 = 19226
+let P27 = 19227
+let P28 = 19228
+let P29 = 19229
+let P30 = 19230
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 1: URL Parsing (unit tests, no network)
+# ══════════════════════════════════════════════════════════════════════════════
+print("--- PART 1: URL Parsing ---")
+
+let u1 = new net.url("https://example.com:8080/path/to/page?q=search&lang=en#top")
+test("url protocol", u1.protocol == "https:")
+test("url hostname", u1.hostname == "example.com")
+test("url port", u1.port == 8080)
+test("url pathname", u1.pathname == "/path/to/page")
+test("url hash", u1.hash == "#top")
+test("url search", u1.search == "?q=search&lang=en")
+test("url searchParams has q", u1.searchParams.has("q"))
+test("url searchParams get q", u1.searchParams.get("q") == "search")
+test("url searchParams get lang", u1.searchParams.get("lang") == "en")
+test("url toString", u1.toString().contains("example.com"))
+test("url href", u1.href().contains("example.com"))
+test("url origin", u1.origin() == "https://example.com:8080")
+
+let u2 = new net.url("http://example.com/api")
+test("url default port", u2.port == "" or u2.port == 80)
+test("url default pathname", u2.pathname == "/api")
+
+let u3 = new net.url("https://user:pass@example.com/auth")
+test("url username", u3.username == "user")
+test("url password", u3.password == "pass")
+
+let u4 = new net.url("http://example.com/path#section1")
+test("url hash only", u4.hash == "#section1")
+test("url no query", isNull(u4.search) or u4.search == "")
+
+let u5 = new net.url("http://example.com?q=hello")
+test("url query no pathname", u5.searchParams.get("q") == "hello")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 2: URLSearchParams (unit tests)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 2: URLSearchParams ---")
+
+let sp = new net.urlSearchParams("a=1&b=2&c=3")
+test("searchParams get a", sp.get("a") == "1")
+test("searchParams get b", sp.get("b") == "2")
+test("searchParams get missing", isNull(sp.get("z")))
+test("searchParams has a", sp.has("a"))
+test("searchParams has z", !sp.has("z"))
+test("searchParams keys", sp.keys().length() == 3)
+test("searchParams values", sp.values().length() == 3)
+test("searchParams entries", sp.entries().length() == 3)
+
+sp.set("b", "20")
+test("searchParams set replaces", sp.get("b") == "20")
+
+sp.append("d", "4")
+test("searchParams append", sp.has("d"))
+test("searchParams append value", sp.get("d") == "4")
+
+sp.delete("c")
+test("searchParams delete", !sp.has("c"))
+
+let sp2 = new net.urlSearchParams("")
+test("searchParams empty get", isNull(sp2.get("a")))
+test("searchParams empty has", !sp2.has("a"))
+test("searchParams empty keys", sp2.keys().length() == 0)
+
+let sp3 = new net.urlSearchParams("?q=test&page=1")
+test("searchParams strip ?", sp3.get("q") == "test")
+test("searchParams strip ? page", sp3.get("page") == "1")
+
+let sp4 = new net.urlSearchParams("key=")
+test("searchParams empty value", sp4.get("key") == "")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 3: URL Encoding/Decoding
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 3: URL Encoding ---")
+
+test("urlEncode simple", net.urlEncode("hello") == "hello")
+test("urlEncode spaces", net.urlEncode("hello world") == "hello+world")
+test("urlEncode special", net.urlEncode("a&b=c") == "a%26b%3Dc")
+test("urlEncode empty", net.urlEncode("") == "")
+
+test("urlDecode simple", net.urlDecode("hello") == "hello")
+test("urlDecode spaces", net.urlDecode("hello+world") == "hello world")
+test("urlDecode special", net.urlDecode("a%26b%3Dc") == "a&b=c")
+test("urlDecode empty", net.urlDecode("") == "")
+
+test("urlEncode roundtrip", net.urlDecode(net.urlEncode("Djazair is great! & fun")) == "Djazair is great! & fun")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 4: TCP Echo Server
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 4: TCP Echo Server ---")
+
+let t1 = thread.spawnCode("
+use net
+let srv = new net.tcpServer(fn(client, ip, port)
+    let data = client.receive(4096)
+    if !isNull(data)
+        client.send('ECHO:' + data)
+    end
+    client.close()
+end)
+srv.listen(${P0})
+")
+process.sleep(0.5)
+
+let cl1 = new net.tcpClient()
+cl1.connect("127.0.0.1", P0)
+test("tcp connect", cl1.isOpen())
+cl1.send("hello")
+let resp1 = cl1.receive(4096)
+cl1.close()
+test("tcp echo response", resp1 == "ECHO:hello")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 5: TCP Multiple Messages
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 5: TCP Multiple Messages ---")
+
+let t2 = thread.spawnCode("
+use net
+let srv = new net.tcpServer(fn(client, ip, port)
+    let data = client.receive(4096)
+    if !isNull(data)
+        client.send('GOT:' + data)
+    end
+    let data2 = client.receive(4096)
+    if !isNull(data2)
+        client.send('GOT:' + data2)
+    end
+    client.close()
+end)
+srv.listen(${P1})
+")
+process.sleep(0.5)
+
+let cl2 = new net.tcpClient()
+cl2.connect("127.0.0.1", P1)
+cl2.send("msg1")
+let r2a = cl2.receive(4096)
+cl2.send("msg2")
+let r2b = cl2.receive(4096)
+cl2.close()
+test("tcp multi msg 1", r2a == "GOT:msg1")
+test("tcp multi msg 2", r2b == "GOT:msg2")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 6: TCP Client/Server with json
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 6: TCP JSON Messages ---")
+
+let t3 = thread.spawnCode("
+use net
+use json
+let srv = new net.tcpServer(fn(client, ip, port)
+    let data = client.receive(4096)
+    if isNull(data)
+        client.close()
+        return
+    end
+    let obj = json.decode(data)
+    client.send(json.encode({'echo': obj['msg'], 'num': obj['num'] * 2}))
+    client.close()
+end)
+srv.listen(${P2})
+")
+process.sleep(0.5)
+
+let cl3 = new net.tcpClient()
+cl3.connect("127.0.0.1", P2)
+cl3.send(json.encode({'msg': 'test', 'num': 21}))
+let r3 = cl3.receive(4096)
+cl3.close()
+let r3obj = if !isNull(r3) ? json.decode(r3) else {}
+test("tcp json echo msg", r3obj["echo"] == "test")
+test("tcp json computed", r3obj["num"] == 42)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 7: TCP Bytes
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 7: TCP Bytes ---")
+
+let t4 = thread.spawnCode("
+use net
+let srv = new net.tcpServer(fn(client, ip, port)
+    let data = client.receiveBytes(4096)
+    if !isNull(data)
+        client.sendBytes(data)
+    end
+    client.close()
+end)
+srv.listen(${P3})
+")
+process.sleep(0.5)
+
+let cl4 = new net.tcpClient()
+cl4.connect("127.0.0.1", P3)
+cl4.sendBytes([65, 66, 67, 68])
+let r4 = cl4.receiveBytes(4096)
+cl4.close()
+test("tcp bytes roundtrip", !isNull(r4) and r4[0] == 65 and r4[1] == 66 and r4[2] == 67 and r4[3] == 68)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 8: TCP Multiple Clients
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 8: TCP Multiple Clients ---")
+
+let t5 = thread.spawnCode("
+use net
+let srv = new net.tcpServer(fn(client, ip, port)
+    let data = client.receive(4096)
+    client.send('Reply from server')
+    client.close()
+end)
+srv.listen(${P4})
+")
+process.sleep(0.5)
+
+let cl5a = new net.tcpClient()
+cl5a.connect("127.0.0.1", P4)
+cl5a.send("client A")
+let r5a = cl5a.receive(4096)
+cl5a.close()
+test("tcp multi client A", r5a == "Reply from server")
+
+let cl5b = new net.tcpClient()
+cl5b.connect("127.0.0.1", P4)
+cl5b.send("client B")
+let r5b = cl5b.receive(4096)
+cl5b.close()
+test("tcp multi client B", r5b == "Reply from server")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 9: TCP Large Data Transfer
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 9: TCP Large Data ---")
+
+let t6 = thread.spawnCode("
+use net
+let srv = new net.tcpServer(fn(client, ip, port)
+    let data = client.receiveAll()
+    client.send('LEN:' + str(data.length()))
+    client.close()
+end)
+srv.listen(${P5})
+")
+process.sleep(0.5)
+
+let bigStr = ''
+for i in 0..100
+    bigStr = bigStr + 'ABCDEFGHIJ'
+end
+let cl6 = new net.tcpClient()
+cl6.connect("127.0.0.1", P5)
+cl6.send(bigStr)
+# Signal end-of-request so the server's receiveAll() can finish before we
+# wait for its reply. Without this half-close both peers block indefinitely.
+cl6.shutdown(net.SD_SEND)
+let r6 = cl6.receive(4096)
+cl6.close()
+test("tcp large data length", r6 == "LEN:1010")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 10: TCP Connection Failure
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 10: TCP Edge Cases ---")
+
+let clBad = new net.tcpClient()
+let connResult = clBad.connect("127.0.0.1", 19998)
+test("tcp connect failure returns False", connResult == False)
+clBad.close()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 11: TCP Shutdown (half-close)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 11: TCP Shutdown ---")
+
+let t7 = thread.spawnCode("
+use net
+let srv = new net.tcpServer(fn(client, ip, port)
+    client.send('before shutdown')
+    client.shutdown(net.SD_SEND)
+    client.close()
+end)
+srv.listen(${P6})
+")
+process.sleep(0.5)
+
+let cl7 = new net.tcpClient()
+cl7.connect("127.0.0.1", P6)
+let r7 = cl7.receiveAll()
+cl7.close()
+test("tcp shutdown — data received", r7 == "before shutdown")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 12: UDP Echo
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 12: UDP Echo ---")
+
+let t8 = thread.spawnCode("
+use net
+let srv = new net.udpServer(fn(data, ip, port)
+    srv.reply('ECHO:' + data, ip, port)
+end)
+srv.listen(${P7})
+srv.setTimeout(0.1)
+")
+process.sleep(0.5)
+
+let ucl1 = new net.udpClient()
+ucl1.send("udp hello", "127.0.0.1", P7)
+ucl1.setTimeout(2)
+let ur1 = ucl1.receive()
+ucl1.close()
+test("udp echo response", ur1 == "ECHO:udp hello")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 13: UDP receiveFrom
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 13: UDP receiveFrom ---")
+
+let t9 = thread.spawnCode("
+use net
+let srv = new net.udpServer(fn(data, ip, port)
+    srv.reply('from ' + ip + ':' + str(port), ip, port)
+end)
+srv.listen(${P8})
+srv.setTimeout(0.1)
+")
+process.sleep(0.5)
+
+let ucl2 = new net.udpClient()
+ucl2.send("test", "127.0.0.1", P8)
+ucl2.setTimeout(2)
+let ur2 = ucl2.receiveFrom()
+ucl2.close()
+test("udp receiveFrom has data", !isNull(ur2) and ur2["data"].contains("from"))
+test("udp receiveFrom has ip", !isNull(ur2) and ur2["ip"] == "127.0.0.1")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 14: UDP Bytes
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 14: UDP Bytes ---")
+
+let t10 = thread.spawnCode("
+use net
+let srv = new net.udpServer(fn(data, ip, port)
+    srv.reply(data, ip, port)
+end)
+srv.listen(${P9})
+srv.setTimeout(0.1)
+")
+process.sleep(0.5)
+
+let ucl3 = new net.udpClient()
+ucl3.sendBytesTo([65, 66, 67], "127.0.0.1", P9)
+ucl3.setTimeout(2)
+let ur3 = ucl3.receiveFrom()
+ucl3.close()
+test("udp sendBytesTo response received", !isNull(ur3) and ur3["data"].length() > 0)
+test("udp sendBytesTo data echoed", !isNull(ur3) and ur3["data"] == "ABC")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 15: TCP Server Close
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 15: TCP Server Lifecycle ---")
+
+let t11 = thread.spawnCode("
+use net
+use process
+let srv = new net.tcpServer(fn(client, ip, port)
+    client.send('alive')
+    client.close()
+end)
+srv.listen(${P10})
+")
+process.sleep(0.5)
+
+let cl11 = new net.tcpClient()
+cl11.connect("127.0.0.1", P10)
+let r11 = cl11.receive(4096)
+cl11.close()
+test("tcp server lifecycle", r11 == "alive")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 16: Raw Socket Operations
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 16: Raw Socket ---")
+
+let sock1 = new net.socket(net.AF_INET, net.SOCK_STREAM, net.IPPROTO_TCP)
+test("raw socket create", sock1.isOpen())
+sock1.close()
+test("raw socket close", !sock1.isOpen())
+
+let sock2 = new net.socket(net.AF_INET, net.SOCK_DGRAM, net.IPPROTO_UDP)
+test("raw UDP socket create", sock2.isOpen())
+sock2.close()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 17: TCP Server with client info
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 17: TCP Client Info ---")
+
+let t12 = thread.spawnCode("
+use net
+let srv = new net.tcpServer(fn(client, ip, port)
+    client.send('ip=' + ip + '|port=' + str(port))
+    client.close()
+end)
+srv.listen(${P11})
+")
+process.sleep(0.5)
+
+let cl12 = new net.tcpClient()
+cl12.connect("127.0.0.1", P11)
+let r12 = cl12.receive(4096)
+cl12.close()
+test("tcp client info — ip", !isNull(r12) and r12.contains("ip=127.0.0.1"))
+test("tcp client info — port", !isNull(r12) and r12.contains("port="))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 18: All Module Constants
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 18: All Net Module Constants ---")
+
+test("constant AF_INET", net.AF_INET == 2)
+test("constant AF_INET6", net.AF_INET6 > 0)
+test("constant AF_UNSPEC", net.AF_UNSPEC == 0)
+test("constant SOCK_STREAM", net.SOCK_STREAM == 1)
+test("constant SOCK_DGRAM", net.SOCK_DGRAM == 2)
+test("constant SD_RECEIVE", net.SD_RECEIVE == 0)
+test("constant SD_SEND", net.SD_SEND == 1)
+test("constant SD_BOTH", net.SD_BOTH == 2)
+test("constant MAX_SEND", net.MAX_SEND > 0)
+test("constant DEFAULT_HOST", net.DEFAULT_HOST == "0.0.0.0")
+test("constant DEFAULT_PORT", net.DEFAULT_PORT == 3000)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 19: Global Configuration
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 19: Global Configuration ---")
+
+net.setServerConfig({"defaultPort": 9999, "defaultTimeout": 42})
+let srvConf = new net.tcpServer(fn(c, ip, p) end)
+test("server config override", srvConf.timeout == 42)
+
+# Pass options
+let srvConfOpts = new net.tcpServer(fn(c, ip, p) end, {"defaultTimeout": 50})
+test("server config explicit options", srvConfOpts.timeout == 50)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 20: TLS Client (HTTPS)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 20: TLS Client ---")
+
+let tls = new net.tlsClient()
+try
+    let success = tls.connect("example.com", 443)
+    if success
+        test("tls connect to example.com", True)
+        tls.send("GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n")
+        let response = tls.receiveAll()
+        test("tls received data over HTTPS", response.length() > 0 and response.contains("HTTP/"))
+    else
+        print("  SKIP: tls connect to example.com (external network unavailable)")
+    end
+catch e
+    print("TLS error (maybe no internet connection): " + str(e))
+    print("  SKIP: TLS external connectivity check")
+finally
+    tls.close()
+end
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 21: PARSE URL, DNS, POLLER & CLIENT CONFIG
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 21: Parse URL, DNS, Poller & Client Config ---")
+
+let parsedU = net.parseURL("http://localhost:8080/api/users?active=true")
+test("parseURL returns parsed URL object", !isNull(parsedU) and parsedU.protocol == "http:" and parsedU.hostname == "localhost")
+
+let dnsRes = net.resolveDNS("127.0.0.1")
+test("resolveDNS resolves IPv4 loopback", isArray(dnsRes) or isString(dnsRes) or !isNull(dnsRes))
+
+let p = new net.poller()
+test("poller instance created successfully", !isNull(p))
+
+let clientCfgResult = True
+try
+    net.setClientConfig({"timeout": 5.0})
+catch e
+    clientCfgResult = False
+end
+test("setClientConfig executes successfully", clientCfgResult)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SUMMARY
+# ══════════════════════════════════════════════════════════════════════════════
+print("")
+print("Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}")
+print("")
+
+if failed > 0
+    throw "${failed} tests failed"
+end
+print("=== All Net Tests Passed ===")

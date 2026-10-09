@@ -105,8 +105,8 @@ fn formatTime(hours)
 end
 
 # Calculates offline prayer times for a specific location and date
-# method: 13 (Algeria), 4 (Umm Al-Qura), 3 (Muslim World League), 5 (Egypt), etc.
-fn calculatePrayerTimes(year, month, day, lat, lng, timezone = 1, method = 13)
+# method: 19 (Algeria), 4 (Umm Al-Qura), 3 (Muslim World League), 5 (Egypt), 13 (Turkey), etc.
+fn calculatePrayerTimes(year, month, day, lat, lng, timezone = 1, method = 19)
     let jd = julianDay(year, month, day)
     let sun = sunCoordinates(jd)
     let decl = sun["declination"]
@@ -120,7 +120,7 @@ fn calculatePrayerTimes(year, month, day, lat, lng, timezone = 1, method = 13)
     let ishaAngle = 17.0
     let ishaInterval = Null
 
-    if method == 13 # Algeria
+    if method == 19 or method == 13 # Algeria / Turkey
         fajrAngle = 18.0
         ishaAngle = 17.0
     elif method == 4 # Umm Al-Qura

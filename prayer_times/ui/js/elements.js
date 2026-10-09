@@ -73,6 +73,7 @@ window.PrayerApp = window.PrayerApp || {};
             lblSettingsJsonPath: document.getElementById('lblSettingsJsonPath'),
             btnOpenSettingsFolder: document.getElementById('btnOpenSettingsFolder'),
             methodSelect: document.getElementById('methodSelect'),
+            selTimeOffset: document.getElementById('selTimeOffset'),
             voiceSelect: document.getElementById('voiceSelect'),
             btnPreviewVoice: document.getElementById('btnPreviewVoice'),
             iconPreviewVoice: document.getElementById('iconPreviewVoice'),

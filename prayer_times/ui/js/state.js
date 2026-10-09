@@ -16,7 +16,8 @@ window.PrayerApp = window.PrayerApp || {};
         settings: {
             country: 'DZ',
             city: 'Algiers',
-            method: 13,
+            method: 19,
+            timeOffset: 0,
             adhanEnabled: true,
             adhanVolume: 80,
             notificationEnabled: true,

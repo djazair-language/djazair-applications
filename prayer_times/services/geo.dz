@@ -67,13 +67,14 @@ let ALGERIA_WILAYAS = [
     {"code": 58, "name": "El Menia", "ar": "المنيعة", "lat": 30.584, "lng": 2.877}
 ]
 
-# Supported Countries list with their default calculation method & key cities
+# Supported Countries list with their default calculation method, timezone & key cities
 let COUNTRIES = [
     {
         "code": "DZ",
         "name": "Algeria",
         "ar": "الجزائر",
-        "defaultMethod": 13,
+        "defaultMethod": 19,
+        "timezone": 1.0,
         "cities": ALGERIA_WILAYAS
     },
     {
@@ -81,6 +82,7 @@ let COUNTRIES = [
         "name": "Saudi Arabia",
         "ar": "المملكة العربية السعودية",
         "defaultMethod": 4,
+        "timezone": 3.0,
         "cities": [
             {"name": "Makkah", "ar": "مكة المكرمة", "lat": 21.389, "lng": 39.857},
             {"name": "Madinah", "ar": "المدينة المنورة", "lat": 24.524, "lng": 39.569},
@@ -93,6 +95,7 @@ let COUNTRIES = [
         "name": "Palestine",
         "ar": "فلسطين",
         "defaultMethod": 3,
+        "timezone": 2.0,
         "cities": [
             {"name": "Jerusalem", "ar": "القدس الشريف", "lat": 31.768, "lng": 35.213},
             {"name": "Gaza", "ar": "غزة", "lat": 31.501, "lng": 34.466}
@@ -103,6 +106,7 @@ let COUNTRIES = [
         "name": "Egypt",
         "ar": "مصر",
         "defaultMethod": 5,
+        "timezone": 2.0,
         "cities": [
             {"name": "Cairo", "ar": "القاهرة", "lat": 30.044, "lng": 31.235},
             {"name": "Alexandria", "ar": "الإسكندرية", "lat": 31.200, "lng": 29.918}
@@ -113,6 +117,7 @@ let COUNTRIES = [
         "name": "Morocco",
         "ar": "المغرب",
         "defaultMethod": 3,
+        "timezone": 1.0,
         "cities": [
             {"name": "Rabat", "ar": "الرباط", "lat": 34.020, "lng": -6.841},
             {"name": "Casablanca", "ar": "الدار البيضاء", "lat": 33.573, "lng": -7.589}
@@ -123,6 +128,7 @@ let COUNTRIES = [
         "name": "Tunisia",
         "ar": "تونس",
         "defaultMethod": 3,
+        "timezone": 1.0,
         "cities": [
             {"name": "Tunis", "ar": "تونس", "lat": 36.806, "lng": 10.181},
             {"name": "Sfax", "ar": "صفاقس", "lat": 34.740, "lng": 10.760}
@@ -133,6 +139,7 @@ let COUNTRIES = [
         "name": "United Arab Emirates",
         "ar": "الإمارات العربية المتحدة",
         "defaultMethod": 4,
+        "timezone": 4.0,
         "cities": [
             {"name": "Abu Dhabi", "ar": "أبو ظبي", "lat": 24.453, "lng": 54.377},
             {"name": "Dubai", "ar": "دبي", "lat": 25.204, "lng": 55.270}
@@ -143,6 +150,7 @@ let COUNTRIES = [
         "name": "Qatar",
         "ar": "قطر",
         "defaultMethod": 4,
+        "timezone": 3.0,
         "cities": [
             {"name": "Doha", "ar": "الدوحة", "lat": 25.285, "lng": 51.531}
         ]
@@ -152,6 +160,7 @@ let COUNTRIES = [
         "name": "Kuwait",
         "ar": "الكويت",
         "defaultMethod": 4,
+        "timezone": 3.0,
         "cities": [
             {"name": "Kuwait City", "ar": "مدينة الكويت", "lat": 29.375, "lng": 47.977}
         ]
@@ -161,6 +170,7 @@ let COUNTRIES = [
         "name": "Turkey",
         "ar": "تركيا",
         "defaultMethod": 13,
+        "timezone": 3.0,
         "cities": [
             {"name": "Istanbul", "ar": "إسطنبول", "lat": 41.008, "lng": 28.978},
             {"name": "Ankara", "ar": "أنقرة", "lat": 39.933, "lng": 32.859}
@@ -171,6 +181,7 @@ let COUNTRIES = [
         "name": "United Kingdom",
         "ar": "المملكة المتحدة",
         "defaultMethod": 3,
+        "timezone": 0.0,
         "cities": [
             {"name": "London", "ar": "لندن", "lat": 51.507, "lng": -0.127}
         ]
@@ -180,6 +191,7 @@ let COUNTRIES = [
         "name": "France",
         "ar": "فرنسا",
         "defaultMethod": 3,
+        "timezone": 1.0,
         "cities": [
             {"name": "Paris", "ar": "باريس", "lat": 48.856, "lng": 2.352}
         ]
@@ -188,13 +200,26 @@ let COUNTRIES = [
 
 # Calculation Methods
 let CALCULATION_METHODS = [
-    {"id": 13, "name": "وزارة الشؤون الدينية والأوقاف الجزائرية (Algeria)", "fajrAngle": 18.0, "ishaAngle": 17.0},
+    {"id": 19, "name": "وزارة الشؤون الدينية والأوقاف (الجزائر)", "fajrAngle": 18.0, "ishaAngle": 17.0},
     {"id": 4,  "name": "جامعة أم القرى - مكة المكرمة (Umm Al-Qura)", "fajrAngle": 18.5, "ishaInterval": 90},
     {"id": 3,  "name": "رابطة العالم الإسلامي (Muslim World League)", "fajrAngle": 18.0, "ishaAngle": 17.0},
     {"id": 5,  "name": "الهيئة المصرية العامة للمساحة (Egyptian General)", "fajrAngle": 19.5, "ishaAngle": 17.5},
+    {"id": 13, "name": "رئاسة الشؤون الدينية التركية (Diyanet)", "fajrAngle": 18.0, "ishaAngle": 17.0},
     {"id": 1,  "name": "جامعة العلوم الإسلامية بكراتشي (Karachi)", "fajrAngle": 18.0, "ishaAngle": 18.0},
     {"id": 2,  "name": "الجمعية الإسلامية لأمريكا الشمالية (ISNA)", "fajrAngle": 15.0, "ishaAngle": 15.0}
 ]
+
+fn getCountryTimezone(countryCode)
+    for c in COUNTRIES
+        if c["code"] == countryCode or c["name"] == countryCode
+            if c.has("timezone")
+                return c["timezone"]
+            end
+            return 1.0
+        end
+    end
+    return 1.0
+end
 
 fn getCountriesList()
     let list = []

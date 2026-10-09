@@ -45,7 +45,10 @@ window.PrayerApp = window.PrayerApp || {};
             }
 
             if (elements.methodSelect) {
-                elements.methodSelect.value = String(state.settings.method || 13);
+                elements.methodSelect.value = String(state.settings.method || 19);
+            }
+            if (elements.selTimeOffset) {
+                elements.selTimeOffset.value = String(state.settings.timeOffset !== undefined ? state.settings.timeOffset : 0);
             }
             if (elements.voiceSelect) {
                 elements.voiceSelect.value = state.settings.selectedVoice || 'chime';
@@ -166,7 +169,10 @@ window.PrayerApp = window.PrayerApp || {};
                 App.Audio.stopAdhan();
             }
 
-            state.settings.method = parseInt(elements.methodSelect.value) || 13;
+            state.settings.method = parseInt(elements.methodSelect.value) || 19;
+            if (elements.selTimeOffset) {
+                state.settings.timeOffset = parseInt(elements.selTimeOffset.value) || 0;
+            }
             state.settings.selectedVoice = elements.voiceSelect.value;
             state.settings.adhanEnabled = elements.chkAdhan.checked;
             state.settings.adhanVolume = parseInt(elements.rngVolume.value) || 80;

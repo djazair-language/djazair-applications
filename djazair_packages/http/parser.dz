@@ -1,0 +1,195 @@
+# =============================================================================
+# parser.dz — HTTP/1.1 Message Parser
+# =============================================================================
+# Splits raw HTTP messages at the \r\n\r\n boundary and parses:
+#   - Request lines  : METHOD SP request-target SP HTTP-version
+#   - Status lines   : HTTP-version SP status-code SP reason-phrase
+#   - Header blocks  : name: value pairs (RFC 9110 §5.1)
+#
+# Header names are always normalised to lowercase for case-insensitive lookup.
+# Duplicate headers are merged with ", " except Set-Cookie, which accumulates
+# into an array (one element per Set-Cookie line).
+#
+# Folded headers (obs-fold) are rejected — they were removed in RFC 7230.
+# =============================================================================
+
+class parser
+
+    # ── Internal Validation ────────────────────────────────────────────────────
+
+    # Returns True if `name` is a syntactically valid header field-name.
+    # A field-name must be a non-empty token with no whitespace, colon, CR, or LF.
+    # (RFC 9110 §5.1 — token = 1*tchar)
+    isHeaderName(name)
+        if name == ""
+            return False
+        end
+        for c in name
+            if c == " " or c == "\t" or c == ":" or c == "\r" or c == "\n"
+                return False
+            end
+        end
+        return True
+    end
+
+    # ── Message Splitting ──────────────────────────────────────────────────────
+
+    # Splits a raw HTTP message into head and body at the \r\n\r\n separator.
+    # If the separator is absent (truncated message), body is returned as "".
+    # Returns { head, body }.
+    split(raw)
+        if !isString(raw)
+            throw "http.parser.split(): expected a string argument"
+        end
+        let sep = raw.index("\r\n\r\n")
+        if sep == -1
+            return {"head": raw, "body": ""}
+        end
+        return {"head": raw.slice(0, sep), "body": raw.slice(sep + 4)}
+    end
+
+    # ── Header Parsing ─────────────────────────────────────────────────────────
+
+    # Parses HTTP header lines from `lines` (an array of raw header strings).
+    # Line 0 (the request/status line) is always skipped.
+    # Returns a map of lowercase header names to their values.
+    # Duplicate headers:
+    #   - Set-Cookie → accumulated as an array (preserves order, RFC 6265 §5.2)
+    #   - All others → joined with ", " (RFC 9110 §5.2)
+    parseHeaders(lines)
+        if !isArray(lines) or lines.length() < 2
+            return {}
+        end
+
+        let headers = {}
+        for line in lines.slice(1)
+            if line == ""
+                continue
+            end
+
+            # RFC 7230 §3.2.6 removed obsolete line folding (obs-fold).
+            if line[0] == " " or line[0] == "\t"
+                throw "http.parser.parseHeaders(): folded headers (obs-fold) are not supported"
+            end
+
+            let sep = line.index(":")
+            if sep == -1 or sep == 0
+                throw "http.parser.parseHeaders(): malformed header line: '${line}'"
+            end
+
+            let name = line.slice(0, sep).lower()
+            if !self.isHeaderName(name)
+                throw "http.parser.parseHeaders(): invalid header field-name: '${name}'"
+            end
+
+            let value = line.slice(sep + 1).strip()
+
+            if headers.has(name)
+                if name == "set-cookie"
+                    # Preserve each Set-Cookie value as a separate array element.
+                    if isArray(headers[name])
+                        headers[name].append(value)
+                    else
+                        headers[name] = [headers[name], value]
+                    end
+                else
+                    # Combine duplicate header values with ", " separator (RFC 9110 §5.2).
+                    headers[name] = "${headers[name]}, ${value}"
+                end
+            else
+                headers[name] = value
+            end
+        end
+
+        return headers
+    end
+
+    # ── Whitespace Tokeniser ───────────────────────────────────────────────────
+
+    # Splits `line` on runs of whitespace (spaces and tabs), collapsing
+    # consecutive separators. Returns an array of non-empty word tokens.
+    # Used to parse the request-line and status-line.
+    splitWords(line)
+        let words = []
+        let word  = ""
+        for c in line
+            if c == " " or c == "\t"
+                if word != ""
+                    words.append(word)
+                    word = ""
+                end
+            else
+                word += c
+            end
+        end
+        if word != ""
+            words.append(word)
+        end
+        return words
+    end
+
+    # ── Request Parsing ────────────────────────────────────────────────────────
+
+    # Parses a raw HTTP request string.
+    # The request-line must be exactly three tokens: METHOD SP target SP HTTP-version.
+    # Only HTTP/1.0 and HTTP/1.1 are accepted.
+    # Returns { method, path, httpVersion, headers, body }.
+    parseRequest(raw)
+        let parts = self.split(raw)
+        let lines = parts.head.split("\r\n")
+
+        if lines.length() == 0 or lines[0] == ""
+            throw "http.parser.parseRequest(): empty or missing request line"
+        end
+
+        let words = self.splitWords(lines[0])
+        if words.length() != 3 or (words[2] != "HTTP/1.0" and words[2] != "HTTP/1.1")
+            throw "http.parser.parseRequest(): invalid request line '${lines[0]}'"
+        end
+
+        return {
+            "method":      words[0],
+            "path":        words[1],
+            "httpVersion": words[2],
+            "headers":     self.parseHeaders(lines),
+            "body":        parts.body
+        }
+    end
+
+    # ── Response Parsing ───────────────────────────────────────────────────────
+
+    # Parses a raw HTTP response string.
+    # The status-line must start with HTTP/1.0 or HTTP/1.1 followed by a
+    # 3-digit status code in the range 100–599.
+    # Returns { httpVersion, statusCode, statusText, headers, body }.
+    parseResponse(raw)
+        let parts = self.split(raw)
+        let lines = parts.head.split("\r\n")
+
+        if lines.length() == 0 or lines[0] == ""
+            throw "http.parser.parseResponse(): empty or missing status line"
+        end
+
+        let words = self.splitWords(lines[0])
+        if words.length() < 2
+            throw "http.parser.parseResponse(): invalid status line '${lines[0]}'"
+        end
+
+        let code = num(words[1])
+        if (words[0] != "HTTP/1.0" and words[0] != "HTTP/1.1") or
+                isNull(code) or int(code) != code or code < 100 or code > 599
+            throw "http.parser.parseResponse(): invalid status code '${words[1]}'"
+        end
+
+        # The reason phrase is optional (RFC 7230 §3.1.2); default to "".
+        let statusTxt = if words.length() >= 3 ? words.slice(2).join(" ") else ""
+
+        return {
+            "httpVersion": words[0],
+            "statusCode":  code,
+            "statusText":  statusTxt,
+            "headers":     self.parseHeaders(lines),
+            "body":        parts.body
+        }
+    end
+end

@@ -63,16 +63,63 @@ fn getTodayDateStr()
     return "${dStr}-${mStr}-${y}"
 end
 
-# Generates cache key
-fn getCacheKey(country, city, dateStr, method)
-    return "${country}_${city}_${dateStr}_${method}"
+# Adjusts a "HH:MM" time string by offsetHours (e.g. +1, -1, +2, -2)
+fn adjustTimeStr(timeStr, offsetHours)
+    if offsetHours == 0 or isNull(timeStr) or timeStr == ""
+        return timeStr
+    end
+    let parts = timeStr.split(":")
+    if parts.length() < 2
+        return timeStr
+    end
+    let h = 0
+    let m = 0
+    try
+        h = int(parts[0])
+        m = int(parts[1])
+    catch err
+        return timeStr
+    end
+    h = h + offsetHours
+    while h < 0
+        h = h + 24
+    end
+    while h >= 24
+        h = h - 24
+    end
+    let hStr = if h < 10 ? "0" + str(h) else str(h)
+    let mStr = if m < 10 ? "0" + str(m) else str(m)
+    return "${hStr}:${mStr}"
+end
+
+# Applies hour offset across all prayer timings
+fn applyTimeOffset(timings, offsetHours)
+    if offsetHours == 0
+        return timings
+    end
+    let res = {}
+    for k, v in timings
+        res[k] = adjustTimeStr(v, offsetHours)
+    end
+    return res
+end
+
+# Generates cache key including offset
+fn getCacheKey(country, city, dateStr, method, timeOffset = 0)
+    return "${country}_${city}_${dateStr}_${method}_${timeOffset}"
 end
 
 # Main function to get prayer times for a city and country
-fn getPrayerTimes(country, city, method = 13)
+fn getPrayerTimes(country, city, method = 19, timeOffset = Null)
     let now = datetime.now()
     let dateStr = getTodayDateStr()
-    let cacheKey = getCacheKey(country, city, dateStr, method)
+
+    if isNull(timeOffset)
+        let curSettings = storage.loadSettings()
+        timeOffset = curSettings.get("timeOffset", 0)
+    end
+
+    let cacheKey = getCacheKey(country, city, dateStr, method, timeOffset)
 
     # 1. Check local cache first
     let cached = storage.getCachedTimings(cacheKey)
@@ -80,8 +127,27 @@ fn getPrayerTimes(country, city, method = 13)
         return cached
     end
 
-    # 2. Try online API
-    let apiUrl = "https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=${city}&country=${country}&method=${method}"
+    # Resolve accurate geographic coordinates from local database
+    let cityData = geo.findCity(country, city)
+    let lat = 36.753
+    let lng = 3.058
+    let cityNameAr = city
+    if !isNull(cityData)
+        lat = cityData["lat"]
+        lng = cityData["lng"]
+        if cityData.has("ar")
+            cityNameAr = cityData["ar"]
+        end
+    end
+
+    # 2. Try online API (using exact coordinates to avoid geocoder bugs)
+    let apiUrl = ""
+    if !isNull(cityData) and cityData.has("lat") and cityData.has("lng")
+        apiUrl = "https://api.aladhan.com/v1/timings/${dateStr}?latitude=${lat}&longitude=${lng}&method=${method}"
+    else
+        apiUrl = "https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=${city}&country=${country}&method=${method}"
+    end
+
     let res = smartGet(apiUrl)
 
     if !isNull(res) and res.statusCode == 200
@@ -100,14 +166,21 @@ fn getPrayerTimes(country, city, method = 13)
                     timings[k] = cleanTime
                 end
 
+                # Apply Daylight Saving Time / Hour Offset if selected
+                if timeOffset != 0
+                    timings = applyTimeOffset(timings, timeOffset)
+                end
+
                 let result = {
                     "success": True,
                     "source": "online",
                     "country": country,
                     "city": city,
                     "method": method,
+                    "timeOffset": timeOffset,
                     "dateStr": dateStr,
                     "timings": timings,
+                    "qibla": calculateQibla(lat, lng),
                     "hijri": {
                         "date": hijri["date"],
                         "day": hijri["day"],
@@ -126,15 +199,6 @@ fn getPrayerTimes(country, city, method = 13)
                     }
                 }
 
-                let cityData = geo.findCity(country, city)
-                let lat = 36.753
-                let lng = 3.058
-                if !isNull(cityData)
-                    lat = cityData["lat"]
-                    lng = cityData["lng"]
-                end
-                result["qibla"] = calculateQibla(lat, lng)
-
                 # Save to cache
                 storage.setCachedTimings(cacheKey, result)
                 return result
@@ -145,17 +209,8 @@ fn getPrayerTimes(country, city, method = 13)
     end
 
     # 3. Fallback: Offline Astronomical Calculation
-    let cityData = geo.findCity(country, city)
-    let lat = 36.753
-    let lng = 3.058
-    let cityNameAr = city
-    if !isNull(cityData)
-        lat = cityData["lat"]
-        lng = cityData["lng"]
-        cityNameAr = cityData["ar"]
-    end
-
-    let offTimings = calc.calculatePrayerTimes(now.year(), now.month(), now.day(), lat, lng, 1, method)
+    let tz = geo.getCountryTimezone(country) + timeOffset
+    let offTimings = calc.calculatePrayerTimes(now.year(), now.month(), now.day(), lat, lng, tz, method)
 
     let fallbackResult = {
         "success": True,
@@ -164,6 +219,7 @@ fn getPrayerTimes(country, city, method = 13)
         "city": city,
         "cityNameAr": cityNameAr,
         "method": method,
+        "timeOffset": timeOffset,
         "dateStr": dateStr,
         "timings": offTimings,
         "qibla": calculateQibla(lat, lng),

@@ -95,7 +95,8 @@ fn registerIpcHandlers(app, tray, services)
         let prayerData = api.getPrayerTimes(
             settings["country"],
             settings["city"],
-            settings["method"]
+            settings.get("method", 19),
+            settings.get("timeOffset", 0)
         )
         let athkarData = athkar.getAllAthkarData()
 
@@ -112,14 +113,14 @@ fn registerIpcHandlers(app, tray, services)
     app.bridge.on("changeLocation", fn(payload)
         let country = payload["country"]
         let city = payload["city"]
-        let method = payload.get("method", 13)
+        let method = payload.get("method", 19)
 
         let settings = storage.loadSettings()
         settings["country"] = country
         settings["city"] = city
         storage.saveSettings(settings)
 
-        return api.getPrayerTimes(country, city, method)
+        return api.getPrayerTimes(country, city, method, settings.get("timeOffset", 0))
     end)
 
     app.bridge.on("autoDetectLocation", fn(payload)
@@ -131,7 +132,7 @@ fn registerIpcHandlers(app, tray, services)
             settings["cityAr"] = detected["cityAr"]
             storage.saveSettings(settings)
 
-            let prayerData = api.getPrayerTimes(detected["country"], detected["city"], settings["method"])
+            let prayerData = api.getPrayerTimes(detected["country"], detected["city"], settings.get("method", 19), settings.get("timeOffset", 0))
             return {
                 "success": True,
                 "detected": detected,
@@ -144,8 +145,9 @@ fn registerIpcHandlers(app, tray, services)
     app.bridge.on("refreshPrayerTimes", fn(payload)
         let country = payload["country"]
         let city = payload["city"]
-        let method = payload.get("method", 13)
-        return api.getPrayerTimes(country, city, method)
+        let method = payload.get("method", 19)
+        let s = storage.loadSettings()
+        return api.getPrayerTimes(country, city, method, s.get("timeOffset", 0))
     end)
 
     # ── IPC: Settings Management ─────────────────────────────────────────────
@@ -167,7 +169,8 @@ fn registerIpcHandlers(app, tray, services)
         let prayerData = api.getPrayerTimes(
             payload["country"],
             payload["city"],
-            payload["method"]
+            payload.get("method", 19),
+            payload.get("timeOffset", 0)
         )
 
         return {

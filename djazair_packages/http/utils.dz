@@ -1,0 +1,318 @@
+# =============================================================================
+# utils.dz — HTTP Shared Utilities
+# =============================================================================
+# Provides foundational helpers used across the entire HTTP module:
+#   - HTTP status code registry (STATUS_TEXTS) and lookup (statusText)
+#   - UTF-8 byte counting (byteLen) for accurate Content-Length computation
+#   - String/byte conversion helpers (toBytes, fromBytes)
+#   - Hex encoding for chunked transfer encoding chunk sizes (toHex)
+#   - Header name/value validation to prevent injection attacks
+#   - Header block serialization (buildHeaders)
+#   - Transfer-Info framing parser (parseTransferInfo) — RFC 9112 §6
+#   - Chunked message reconstruction (reconstructChunked)
+# =============================================================================
+
+use bytes
+
+# ── Status Code Registry ───────────────────────────────────────────────────────
+#
+# Complete map of HTTP status codes to their standard reason phrases.
+# Source: RFC 9110 §15 and IANA HTTP Status Code Registry.
+
+let STATUS_TEXTS = {
+    # 1xx — Informational
+    100: "Continue",
+    101: "Switching Protocols",
+    102: "Processing",
+    103: "Early Hints",
+
+    # 2xx — Successful
+    200: "OK",
+    201: "Created",
+    202: "Accepted",
+    203: "Non-Authoritative Information",
+    204: "No Content",
+    205: "Reset Content",
+    206: "Partial Content",
+    207: "Multi-Status",
+    208: "Already Reported",
+    226: "IM Used",
+
+    # 3xx — Redirection
+    300: "Multiple Choices",
+    301: "Moved Permanently",
+    302: "Found",
+    303: "See Other",
+    304: "Not Modified",
+    305: "Use Proxy",
+    307: "Temporary Redirect",
+    308: "Permanent Redirect",
+
+    # 4xx — Client Errors
+    400: "Bad Request",
+    401: "Unauthorized",
+    402: "Payment Required",
+    403: "Forbidden",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    406: "Not Acceptable",
+    407: "Proxy Authentication Required",
+    408: "Request Timeout",
+    409: "Conflict",
+    410: "Gone",
+    411: "Length Required",
+    412: "Precondition Failed",
+    413: "Content Too Large",
+    414: "URI Too Long",
+    415: "Unsupported Media Type",
+    416: "Range Not Satisfiable",
+    417: "Expectation Failed",
+    418: "I'm a Teapot",
+    421: "Misdirected Request",
+    422: "Unprocessable Content",
+    423: "Locked",
+    424: "Failed Dependency",
+    425: "Too Early",
+    426: "Upgrade Required",
+    428: "Precondition Required",
+    429: "Too Many Requests",
+    431: "Request Header Fields Too Large",
+    451: "Unavailable For Legal Reasons",
+
+    # 5xx — Server Errors
+    500: "Internal Server Error",
+    501: "Not Implemented",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+    504: "Gateway Timeout",
+    505: "HTTP Version Not Supported",
+    506: "Variant Also Negotiates",
+    507: "Insufficient Storage",
+    508: "Loop Detected",
+    510: "Not Extended",
+    511: "Network Authentication Required"
+}
+
+# Returns the standard HTTP reason phrase for a status code.
+# Returns "Unknown" for unrecognised codes.
+fn statusText(code)
+    return STATUS_TEXTS.get(code, "Unknown")
+end
+
+# ── Byte Helpers ───────────────────────────────────────────────────────────────
+
+# Returns the actual UTF-8 byte count of a string (not codepoint count).
+# Always use this for Content-Length and chunked-size headers — a multi-byte
+# character occupies more than one byte on the wire.
+fn byteLen(s)
+    if isNull(s)
+        return 0
+    end
+    return bytes.fromString(s).length()
+end
+
+# Converts a string to its raw UTF-8 byte array.
+fn toBytes(s)
+    if isNull(s)
+        return []
+    end
+    return bytes.fromString(s)
+end
+
+# Converts a raw UTF-8 byte array back to a string.
+fn fromBytes(arr)
+    return bytes.toString(arr)
+end
+
+# ── Hex Encoding ───────────────────────────────────────────────────────────────
+
+# Converts a non-negative integer to a lowercase hexadecimal string.
+# Used to write HTTP/1.1 chunked transfer encoding chunk-size fields (RFC 9112 §7.1).
+fn toHex(n)
+    if n == 0
+        return "0"
+    end
+    let hexChars = "0123456789abcdef"
+    let result   = ""
+    let val      = n
+    while val > 0
+        let idx = val % 16
+        result  = hexChars.slice(idx, idx + 1) + result
+        val     = val // 16
+    end
+    return result
+end
+
+# ── Header Validation ──────────────────────────────────────────────────────────
+#
+# Silently stripping CR/LF is not sufficient: doing so can hide request-smuggling
+# or response-splitting bugs in application code. We reject invalid input loudly
+# so that problems are caught at the point of origin.
+
+# Strips CR, LF, and null bytes from a value (used only for status-line text).
+# Do NOT use this as a substitute for assertHeaderValue — it masks bad input.
+fn sanitize(val)
+    let s   = str(val)
+    let out = ""
+    for c in s
+        if c != "\r" and c != "\n"
+            out += c
+        end
+    end
+    return out
+end
+
+# Asserts that a header name is a valid RFC 9110 token:
+# non-empty, no whitespace, no colon, no CR or LF.
+# Throws on violation instead of silently modifying the name.
+fn assertHeaderName(name)
+    if !isString(name) or name == ""
+        throw "http: header name must be a non-empty string"
+    end
+    for c in name
+        if c == "\r" or c == "\n" or c == ":" or c == " " or c == "\t"
+            throw "http: invalid header name '${name}' — contains forbidden character"
+        end
+    end
+end
+
+# Asserts that a header value contains no bare CR or LF characters.
+# Such characters would allow response-splitting / header injection.
+fn assertHeaderValue(value)
+    let text = str(value)
+    for c in text
+        if c == "\r" or c == "\n"
+            throw "http: invalid header value — contains CR or LF"
+        end
+    end
+end
+
+# ── Header Serialization ───────────────────────────────────────────────────────
+
+# Builds a raw CRLF-delimited header block from a map of name → value pairs.
+# Arrays are expanded into multiple header lines, e.g. for Set-Cookie.
+# Both name and value are validated before serialization.
+fn buildHeaders(headers)
+    let block = ""
+    for name, val in headers
+        assertHeaderName(name)
+        let safeName = str(name)
+        if isArray(val)
+            # Multi-value header (e.g. Set-Cookie) — emit one line per value.
+            for v in val
+                assertHeaderValue(v)
+                block += "${safeName}: ${v}\r\n"
+            end
+        else
+            assertHeaderValue(val)
+            block += "${safeName}: ${val}\r\n"
+        end
+    end
+    return block
+end
+
+# ── Transfer Framing Parser ────────────────────────────────────────────────────
+#
+# RFC 9112 §6 defines three body framing modes: chunked, Content-Length, and
+# read-until-close. Ambiguous combinations (both CL and TE, multiple CL values,
+# non-chunked TE) are rejected to prevent request-smuggling (CL/TE variant).
+
+# Returns True if `value` is a non-empty string of ASCII decimal digits only.
+fn isDecimal(value)
+    if value == ""
+        return False
+    end
+    for c in value
+        if c < "0" or c > "9"
+            return False
+        end
+    end
+    return True
+end
+
+# Parses the framing-relevant headers from a raw HTTP message head.
+# Returns a map: { contentLength, isChunked, invalid }.
+#   contentLength — numeric byte count, or Null when not present.
+#   isChunked     — True when Transfer-Encoding: chunked is the sole TE field.
+#   invalid       — True when the framing is ambiguous or malformed; callers
+#                   MUST reject such messages (RFC 9112 §6.3 rule 3).
+fn parseTransferInfo(raw, hdrEnd)
+    let contentLength        = Null
+    let isChunked            = False
+    let sawContentLength     = False
+    let sawTransferEncoding  = False
+
+    # Only inspect header lines (skip the request/status line at index 0).
+    let lines = raw.slice(0, hdrEnd).split("\r\n")
+    for line in lines.slice(1)
+        if line == ""
+            continue
+        end
+
+        let colon = line.index(":")
+        if colon <= 0
+            # A header line without a colon (or colon at position 0) is malformed.
+            return {"contentLength": Null, "isChunked": False, "invalid": True}
+        end
+
+        let name  = line.slice(0, colon).strip().lower()
+        let value = line.slice(colon + 1).strip()
+
+        if name == "content-length"
+            # RFC 9112 §6.3: duplicate Content-Length is invalid.
+            if sawContentLength or !isDecimal(value)
+                return {"contentLength": Null, "isChunked": False, "invalid": True}
+            end
+            sawContentLength = True
+            contentLength    = num(value)
+
+        elif name == "transfer-encoding"
+            # Only "chunked" is supported; chained codings are rejected as unsafe
+            # (parsing an ambiguous chain is a known request-smuggling vector).
+            if sawTransferEncoding or value.lower().strip() != "chunked"
+                return {"contentLength": Null, "isChunked": False, "invalid": True}
+            end
+            sawTransferEncoding = True
+            isChunked           = True
+        end
+    end
+
+    # RFC 9112 §6.3: if both CL and TE are present the message is invalid.
+    if sawContentLength and sawTransferEncoding
+        return {"contentLength": Null, "isChunked": False, "invalid": True}
+    end
+
+    return {"contentLength": contentLength, "isChunked": isChunked, "invalid": False}
+end
+
+# ── Chunked Message Reconstruction ────────────────────────────────────────────
+
+# Rebuilds a complete raw HTTP message after decoding a chunked body.
+# Steps:
+#   1. Copies the original status/request line unchanged.
+#   2. Strips Transfer-Encoding and Content-Length from the header lines.
+#   3. Appends a fresh Content-Length computed from the actual decoded body.
+#   4. Appends the decoded body.
+# This allows downstream parsers to treat the message as a plain CL-framed one.
+fn reconstructChunked(raw, hdrEnd, body)
+    let headLines = raw.slice(0, hdrEnd).split("\r\n")
+
+    # headLines[0] is the request/status line — preserve it verbatim.
+    let newHead = headLines[0]
+
+    # Re-emit all headers except Transfer-Encoding and Content-Length.
+    for line in headLines.slice(1)
+        let colonIdx = line.index(":")
+        if colonIdx != -1
+            let hdrName = line.slice(0, colonIdx).strip().lower()
+            if hdrName == "transfer-encoding" or hdrName == "content-length"
+                continue
+            end
+        end
+        newHead += "\r\n" + line
+    end
+
+    # Append corrected Content-Length based on decoded body byte count.
+    newHead += "\r\nContent-Length: " + byteLen(body)
+    return newHead + "\r\n\r\n" + body
+end

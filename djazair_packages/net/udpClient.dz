@@ -1,0 +1,156 @@
+# udp_client.dz — Datagram Client
+# Provides a connectionless UDP client for sending and receiving datagrams.
+
+use assert
+use bytes
+import "socket.dz" as sock
+import "dns.dz" as dns
+use net::config as conf
+
+# A UDP client that manages its own socket lifecycle and timeouts.
+class udpClient
+    
+    # Initializes the UDP client.
+    init()
+        self.closed = False
+        self.timeout = conf.CLIENT_CONFIG.get("defaultTimeout", 0)
+        self.family = sock.AF_INET
+        self.sock = new sock.socket(self.family, sock.SOCK_DGRAM, 0)
+        self._applyTimeout()
+    end
+
+    # Internal helper to verify the client is active.
+    ensureOpen(caller)
+        if self.closed
+            throw "net.udpClient.${caller}(): socket is closed"
+        end
+    end
+
+    # Internal helper to apply the currently configured timeout to the socket.
+    _applyTimeout()
+        if isNumber(self.timeout) and self.timeout > 0
+            self.sock.setTimeout(self.timeout)
+        end
+    end
+
+    # Recreates the underlying socket to match the address family of a target host.
+    # Essential when mixing IPv4 and IPv6 communication on the same client instance.
+    _recreateSocket(family)
+        if self.sock.isOpen()
+            self.sock.close()
+        end
+        self.family = family
+        self.sock = new sock.socket(family, sock.SOCK_DGRAM, 0)
+        self._applyTimeout()
+    end
+
+    # Sets the receive and send timeout for the socket.
+    # @param seconds The timeout in seconds (0 = block forever).
+    # @return Bool True on success.
+    setTimeout(seconds)
+        assert.number(seconds, "seconds")
+        if seconds < 0
+            throw "net.udpClient.setTimeout(): seconds must not be negative"
+        end
+        self.ensureOpen("setTimeout")
+        self.timeout = seconds
+        self.sock.setTimeout(seconds)
+        return True
+    end
+
+    # Internal helper to send a datagram to an unresolved address string.
+    _sendToAddress(data, host, port, binary = False)
+        let addresses = dns.resolve(host, sock.AF_UNSPEC)
+        let lastError = Null
+        for address in addresses
+            self._recreateSocket(sock.familyForAddress(address))
+            try
+                if binary
+                    return self.sock.sendBytesTo(data, address, port)
+                end
+                return self.sock.sendto(data, address, port)
+            catch err
+                lastError = err
+            end
+        end
+        throw "net.udpClient.send(): failed to send to ${host}:${port}: ${lastError}"
+    end
+
+    # Sends a UTF-8 string datagram to the specified host and port.
+    # @param data The string to send.
+    # @param host The destination host IP or domain.
+    # @param port The destination port.
+    # @return Number The number of bytes sent.
+    send(data, host, port)
+        assert.string(host, "host")
+        sock.assertPort(port, "port")
+        self.ensureOpen("send")
+        return self._sendToAddress(data, host, port)
+    end
+
+    # Receives a UTF-8 string datagram.
+    # Returns Null if the socket timed out or no data arrived.
+    # @param maxLen (Optional) Maximum bytes to receive.
+    # @return String | Null  The received data, or Null on timeout.
+    receive(maxLen = Null)
+        if isNull(maxLen)
+            maxLen = conf.CLIENT_CONFIG.get("defaultBuffer", 4096)
+        end
+        self.ensureOpen("receive")
+        let result = self.sock.receiveFrom(maxLen)
+        # receiveFrom() returns Null on timeout — propagate instead of crashing
+        if isNull(result)
+            return Null
+        end
+        return result["data"]
+    end
+
+    # Receives a UTF-8 string datagram and the sender's origin information.
+    # @param maxLen (Optional) Maximum bytes to receive.
+    # @return Map {"data": String, "ip": String, "port": Number}
+    receiveFrom(maxLen = Null)
+        if isNull(maxLen)
+            maxLen = conf.CLIENT_CONFIG.get("defaultBuffer", 4096)
+        end
+        self.ensureOpen("receiveFrom")
+        return self.sock.receiveFrom(maxLen)
+    end
+
+    # Sends a raw byte array datagram to the specified host and port.
+    # @param data The byte array to send (integers 0-255).
+    # @param host The destination host IP or domain.
+    # @param port The destination port.
+    # @return Number The number of bytes sent.
+    sendBytesTo(data, host, port)
+        bytes.assertByteArray(data, "data")
+        assert.string(host, "host")
+        sock.assertPort(port, "port")
+        self.ensureOpen("sendBytesTo")
+        return self._sendToAddress(data, host, port, True)
+    end
+
+    # Receives a byte array datagram and the sender's origin information.
+    # @param length (Optional) Maximum bytes to receive.
+    # @return Map {"data": Array, "ip": String, "port": Number}
+    receiveBytesFrom(length = Null)
+        if isNull(length)
+            length = conf.CLIENT_CONFIG.get("defaultBuffer", 4096)
+        end
+        self.ensureOpen("receiveBytesFrom")
+        return self.sock.receiveBytesFrom(length)
+    end
+
+    # Checks if the client socket is active.
+    # @return Bool True if open.
+    isOpen()
+        return !self.closed and self.sock.isOpen()
+    end
+
+    # Closes the UDP socket.
+    close()
+        if !self.closed
+            self.closed = True
+            self.sock.close()
+        end
+    end
+end

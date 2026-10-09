@@ -13,7 +13,8 @@ let DEFAULT_SETTINGS = {
     "country": "DZ",
     "city": "Algiers",
     "cityAr": "الجزائر العاصمة",
-    "method": 13,
+    "method": 19,
+    "timeOffset": 0,
     "adhanEnabled": True,
     "adhanVolume": 80,
     "notificationEnabled": True,
@@ -189,6 +190,13 @@ fn loadSettings()
                         if !s.has(k)
                             s[k] = v
                         end
+                    end
+                    # Auto-migrate method 13 to 19 for Algeria
+                    if s.has("country") and s["country"] == "DZ" and s.has("method") and s["method"] == 13
+                        s["method"] = 19
+                    end
+                    if !s.has("timeOffset")
+                        s["timeOffset"] = 0
                     end
                     return s
                 end

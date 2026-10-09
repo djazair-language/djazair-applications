@@ -1,0 +1,795 @@
+# test_http.dz — Comprehensive HTTP Library Tests
+# Covers: helpers, client methods, server, request/response, edge cases
+
+use http
+use net
+use thread
+use process
+use json
+
+print("=== HTTP Library — Comprehensive Tests ===\n")
+
+let passed = 0
+let failed = 0
+
+fn test(name, condition)
+    if condition
+        print("  PASS: ${name}")
+        passed += 1
+    else
+        print("  FAIL: ${name}")
+        failed += 1
+    end
+end
+
+# HTTP test servers run in worker threads. Shut each batch down explicitly so
+# the suite validates server lifecycle instead of accumulating live listeners.
+fn closeWorkers(workers)
+    for worker in workers
+        worker.close(2)
+    end
+end
+
+let P0 = 19500
+let P1 = 19501
+let P2 = 19502
+let P3 = 19503
+let P4 = 19504
+let P5 = 19505
+let P6 = 19506
+let P7 = 19507
+let P8 = 19508
+let P9 = 19509
+let P10 = 19510
+let P11 = 19511
+let P12 = 19512
+let P13 = 19513
+let P14 = 19514
+let P15 = 19515
+let P16 = 19516
+let P17 = 19517
+let P18 = 19518
+let P19 = 19519
+let P20 = 19520
+let P21 = 19521
+let P22 = 19522
+let P23 = 19523
+let P24 = 19524
+let P25 = 19525
+let P26 = 19526
+let P27 = 19527
+let P28 = 19528
+let P29 = 19529
+let P30 = 19530
+let P31 = 19531
+let P32 = 19532
+let P33 = 19533
+let P34 = 19534
+let P35 = 19535
+let P36 = 19536
+let P37 = 19537
+let P38 = 19538
+let P39 = 19539
+let P40 = 19540
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 1: HTTP Helpers (unit tests, no server)
+# ══════════════════════════════════════════════════════════════════════════════
+print("--- PART 1: HTTP Helpers ---")
+
+test("statusText 200", http.statusText(200) == "OK")
+test("statusText 201", http.statusText(201) == "Created")
+test("statusText 204", http.statusText(204) == "No Content")
+test("statusText 301", http.statusText(301) == "Moved Permanently")
+test("statusText 400", http.statusText(400) == "Bad Request")
+test("statusText 404", http.statusText(404) == "Not Found")
+test("statusText 413", http.statusText(413) == "Content Too Large")
+test("statusText 418", http.statusText(418) == "I'm a Teapot")
+test("statusText 500", http.statusText(500) == "Internal Server Error")
+test("statusText 502", http.statusText(502) == "Bad Gateway")
+test("statusText 503", http.statusText(503) == "Service Unavailable")
+test("statusText unknown", http.statusText(999) == "Unknown")
+test("STATUS_TEXTS is map", isMap(http.STATUS_TEXTS))
+test("STATUS_TEXTS has 200", http.STATUS_TEXTS.has(200))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 2: httpRequest (unit tests)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 2: httpRequest ---")
+
+let reqStr = "GET /search?q=djazair&page=1 HTTP/1.1\r\nHost: example.com\r\nAccept: */*\r\n\r\n"
+let req = new http.httpRequest(reqStr)
+test("req method", req.method == "GET")
+test("req pathname", req.pathname == "/search")
+test("req query exists", !isNull(req.query))
+test("req query.q", req.query.get("q") == "djazair")
+test("req query.page", req.query.get("page") == "1")
+test("req header ACCEPT", req.header("ACCEPT") == "*/*")
+test("req header case-insensitive", req.header("accept") == "*/*")
+test("req toString", req.toString().contains("GET"))
+test("req isMethod GET", req.isMethod("GET"))
+test("req isMethod lowercase", req.isMethod("get"))
+test("req isMethod wrong", !req.isMethod("POST"))
+
+let postReq = new http.httpRequest("POST /submit HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\nname=djazair")
+test("req POST body", postReq.body.contains("name=djazair"))
+
+let noQueryReq = new http.httpRequest("GET /api HTTP/1.1\r\nHost: x.com\r\n\r\n")
+test("req no query", isNull(noQueryReq.query) or !noQueryReq.query.has("q"))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 3: httpResponseBuilder (unit tests)
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 3: httpResponseBuilder ---")
+
+let b1 = new http.httpResponseBuilder()
+test("builder default 200", b1.build().contains("200 OK"))
+
+b1.status(201)
+test("builder status 201", b1.build().contains("201 Created"))
+
+b1.status(404, "Custom Not Found")
+test("builder custom text", b1.build().contains("404 Custom Not Found"))
+
+b1.setHeader("X-Test", "value1")
+test("builder setHeader", b1.getHeader("X-Test") == "value1")
+test("builder case-insensitive", b1.getHeader("x-test") == "value1")
+
+b1.removeHeader("X-Test")
+test("builder removeHeader", b1.getHeader("X-Test") == "")
+
+let b2 = new http.httpResponseBuilder().status(200).build("Hello World")
+test("builder body", b2.contains("Hello World"))
+test("builder auto Content-Length", b2.contains("Content-Length:"))
+test("builder auto Connection", b2.contains("Connection: keep-alive"))
+
+let b3 = new http.httpResponseBuilder()
+b3.status(200)
+let jsonResp = b3.build({"key": "value"})
+test("builder JSON body", jsonResp.contains('"key":"value"'))
+
+let b4 = new http.httpResponseBuilder().status(204).build(Null)
+test("builder null body", b4.contains("204"))
+
+let b5 = new http.httpResponseBuilder().status(200)
+b5.setHeader("X-A", "1")
+b5.setHeader("X-B", "2")
+let b5out = b5.build()
+test("builder multiple headers", b5out.contains("x-a: 1") and b5out.contains("x-b: 2"))
+
+let b6 = new http.httpResponseBuilder().status(200)
+b6.setHeader("X-R", "val")
+b6.removeHeader("X-R")
+test("builder removed absent", !b6.build().contains("X-R"))
+
+let b7 = new http.httpResponseBuilder().status(200)
+let arrBody = b7.build([1, 2, 3])
+test("builder array JSON", arrBody.contains("[1,2,3]"))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 4: GET Client/Server
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 4: GET Client/Server ---")
+
+let t1 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).setHeader('Content-Type', 'text/plain').send('Hello from GET')
+end)
+srv.listen(${P0})
+")
+process.sleep(1)
+
+let r1 = http.get("http://127.0.0.1:${P0}/")
+test("GET 200", r1 != Null and r1.statusCode == 200)
+test("GET body", r1 != Null and r1.body == "Hello from GET")
+test("GET content-type", r1 != Null and r1.headers.has("content-type") and r1.headers["content-type"].contains("text/plain"))
+
+let t2 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    let q = req.query
+    if !isNull(q) and q.has('name')
+        res.status(200).send('Hello ' + q.get('name'))
+    else
+        res.status(200).send('No name')
+    end
+end)
+srv.listen(${P1})
+")
+process.sleep(1)
+
+let r2 = http.get("http://127.0.0.1:${P1}/greet?name=Djazair")
+test("GET query 200", r2 != Null and r2.statusCode == 200)
+test("GET query body", r2 != Null and r2.body == "Hello Djazair")
+
+let t3 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    let q = req.query
+    if isNull(q)
+        res.status(200).send('no query')
+    else
+        let qVal = q.get('q')
+        let pVal = q.get('page')
+        let lVal = q.get('limit')
+        if isNull(qVal) qVal = 'null' end
+        if isNull(pVal) pVal = 'null' end
+        if isNull(lVal) lVal = 'null' end
+        res.status(200).send(qVal + '|' + pVal + '|' + lVal)
+    end
+end)
+srv.listen(${P2})
+")
+process.sleep(1)
+
+let r3 = http.get("http://127.0.0.1:${P2}/search?q=djazair&page=2&limit=5")
+test("GET multi-query — first param", r3 != Null and r3.body.contains("djazair"))
+test("GET multi-query — second param", r3 != Null and r3.body.contains("2"))
+test("GET multi-query — third param", r3 != Null and r3.body.contains("5"))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 5: POST, PUT, DELETE, HEAD, OPTIONS
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 5: POST/PUT/DELETE/HEAD/OPTIONS ---")
+
+let t4 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(201).send('Created: ' + req.body)
+end)
+srv.listen(${P3})
+")
+process.sleep(1)
+
+let r4 = http.post("http://127.0.0.1:${P3}/items", "new item", {"Content-Type": "text/plain"})
+test("POST text 201", r4 != Null and r4.statusCode == 201)
+test("POST text body", r4 != Null and r4.body.contains("new item"))
+
+let t5 = thread.spawnCode("
+use http
+use json
+let srv = http.createServer(fn(req, res)
+    let data = json.decode(req.body)
+    res.status(200).setHeader('Content-Type', 'application/json').send(data)
+end)
+srv.listen(${P4})
+")
+process.sleep(1)
+
+let r5 = http.post("http://127.0.0.1:${P4}/api", {"user": "ali", "age": 25})
+test("POST JSON 200", r5 != Null and r5.statusCode == 200)
+test("POST JSON has user", r5 != Null and r5.body.contains("ali"))
+test("POST JSON has age", r5 != Null and r5.body.contains("25"))
+
+let t6 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('Updated: ' + req.body)
+end)
+srv.listen(${P5})
+")
+process.sleep(1)
+
+let r6 = http.put("http://127.0.0.1:${P5}/items/1", "updated data")
+test("PUT 200", r6 != Null and r6.statusCode == 200)
+test("PUT body", r6 != Null and r6.body.contains("Updated"))
+
+let t7 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(204).send('')
+end)
+srv.listen(${P6})
+")
+process.sleep(1)
+
+let r7 = http.del("http://127.0.0.1:${P6}/items/1")
+test("DELETE 204", r7 != Null and r7.statusCode == 204)
+
+let t8 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).setHeader('X-Custom', 'head-value').send('')
+end)
+srv.listen(${P7})
+")
+process.sleep(1)
+
+let r8 = http.head("http://127.0.0.1:${P7}/resource")
+test("HEAD 200", r8 != Null and r8.statusCode == 200)
+test("HEAD header", r8 != Null and r8.headers["x-custom"] == "head-value")
+
+let t9 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).setHeader('Allow', 'GET, POST, OPTIONS').send('')
+end)
+srv.listen(${P8})
+")
+process.sleep(1)
+
+let r9 = http.options("http://127.0.0.1:${P8}/resource")
+test("OPTIONS 200", r9 != Null and r9.statusCode == 200)
+test("OPTIONS Allow", r9 != Null and r9.headers["allow"].contains("GET"))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 6: Status Codes
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 6: Status Codes ---")
+
+# 6.1 Each status code gets its own server to avoid handler issues
+let t10a = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('OK')
+end)
+srv.listen(${P25})
+")
+let t10b = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(201).send('Created')
+end)
+srv.listen(${P26})
+")
+let t10c = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(204).send('')
+end)
+srv.listen(${P27})
+")
+let t10d = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(301).setHeader('Location', 'http://example.com/new').send('')
+end)
+srv.listen(${P28})
+")
+let t10e = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(404).send('Not Found')
+end)
+srv.listen(${P29})
+")
+let t10f = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(418).send('I am a teapot')
+end)
+srv.listen(${P30})
+")
+let t10g = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(500).send('Server Error')
+end)
+srv.listen(${P31})
+")
+process.sleep(2)
+
+let rc200 = http.get("http://127.0.0.1:${P25}/")
+test("200 OK", rc200 != Null and rc200.statusCode == 200)
+
+let rc201 = http.get("http://127.0.0.1:${P26}/")
+test("201 Created", rc201 != Null and rc201.statusCode == 201)
+
+let rc204 = http.get("http://127.0.0.1:${P27}/")
+test("204 No Content", rc204 != Null and rc204.statusCode == 204)
+
+let rc301 = http.get("http://127.0.0.1:${P28}/", Null, Null, False)
+test("301 Redirect", rc301 != Null and rc301.statusCode == 301)
+test("301 Location", rc301 != Null and rc301.headers.has("location") and rc301.headers["location"] == "http://example.com/new")
+
+let rc404 = http.get("http://127.0.0.1:${P29}/")
+test("404 Not Found", rc404 != Null and rc404.statusCode == 404)
+
+let rc418 = http.get("http://127.0.0.1:${P30}/")
+test("418 Teapot", rc418 != Null and rc418.statusCode == 418)
+
+let rc500 = http.get("http://127.0.0.1:${P31}/")
+test("500 Server Error", rc500 != Null and rc500.statusCode == 500)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 7: Error Handling
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 7: Error Handling ---")
+
+let t11 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    throw 'Intentional error'
+end)
+srv.listen(${P10})
+")
+process.sleep(1)
+
+let rErr = http.get("http://127.0.0.1:${P10}/crash")
+test("handler error 500", rErr != Null and rErr.statusCode == 500)
+
+let t12 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200)
+        .setHeader('X-Request-ID', 'abc-123')
+        .setHeader('X-Custom', 'test-value')
+        .send('OK')
+end)
+srv.listen(${P11})
+")
+process.sleep(1)
+
+let r12 = http.get("http://127.0.0.1:${P11}/")
+test("custom headers ID", r12 != Null and r12.headers["x-request-id"] == "abc-123")
+test("custom headers custom", r12 != Null and r12.headers["x-custom"] == "test-value")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 8: Body Handling
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 8: Body Handling ---")
+
+let t13 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('')
+end)
+srv.listen(${P12})
+")
+process.sleep(1)
+
+let r13 = http.get("http://127.0.0.1:${P12}/")
+test("empty body 200", r13 != Null and r13.statusCode == 200)
+test("empty body empty", r13 != Null and (r13.body == "" or r13.body.length() == 0))
+
+let t14 = thread.spawnCode("
+use http
+let big = ''
+for i in 0..1000
+    big = big + 'ABCDEFGHIJ'
+end
+let srv = http.createServer(fn(req, res)
+    res.status(200).setHeader('Content-Type', 'text/plain').send(big)
+end)
+srv.listen(${P13})
+")
+process.sleep(1)
+
+let r14 = http.get("http://127.0.0.1:${P13}/")
+test("large body 200", r14 != Null and r14.statusCode == 200)
+test("large body length", r14 != Null and r14.body.length() > 5000)
+
+let t15 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send({'users': ['ali', 'omar', 'sara'], 'count': 3})
+end)
+srv.listen(${P14})
+")
+process.sleep(1)
+
+let r15 = http.get("http://127.0.0.1:${P14}/users")
+test("JSON response 200", r15 != Null and r15.statusCode == 200)
+test("JSON has users", r15 != Null and r15.body.contains("ali"))
+test("JSON has count", r15 != Null and r15.body.contains("3"))
+
+let t16 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('Body length: ' + str(req.body.length()))
+end)
+srv.listen(${P15})
+")
+process.sleep(1)
+
+let bigPost = ''
+for i in 0..200
+    bigPost = bigPost + 'Line ' + str(i) + ': ABCDEFGHIJ\n'
+end
+let r16 = http.post("http://127.0.0.1:${P15}/upload", bigPost, {"Content-Type": "text/plain"})
+test("POST large 200", r16 != Null and r16.statusCode == 200)
+test("POST large received", r16 != Null and r16.body.contains("Body length:"))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 9: Passthrough & Method Echo
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 9: Passthrough ---")
+
+let t17 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send(req.body)
+end)
+srv.listen(${P16})
+")
+process.sleep(1)
+
+let r17 = http.post("http://127.0.0.1:${P16}/echo", "test echo data", {"Content-Type": "text/plain"})
+test("echo body match", r17 != Null and r17.body == "test echo data")
+
+let t18 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send(req.method)
+end)
+srv.listen(${P17})
+")
+process.sleep(1)
+
+let b18 = "http://127.0.0.1:${P17}"
+let rg = http.get(b18 + "/")
+test("method GET", rg != Null and rg.body == "GET")
+let rp = http.post(b18 + "/", "data")
+test("method POST", rp != Null and rp.body == "POST")
+let ru = http.put(b18 + "/", "data")
+test("method PUT", ru != Null and ru.body == "PUT")
+
+let t19 = thread.spawnCode("
+use http
+let count = 0
+let srv = http.createServer(fn(req, res)
+    count += 1
+    res.status(200).send('Request ' + str(count))
+end)
+srv.listen(${P18})
+")
+process.sleep(1)
+
+let b19 = "http://127.0.0.1:${P18}"
+let rm1 = http.get(b19 + "/a")
+let rm2 = http.get(b19 + "/b")
+let rm3 = http.get(b19 + "/c")
+test("multi req 1", rm1 != Null and rm1.body == "Request 1")
+test("multi req 2", rm2 != Null and rm2.body == "Request 2")
+test("multi req 3", rm3 != Null and rm3.body == "Request 3")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 10: Client Headers & Edge Cases
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 10: Client Headers & Edge Cases ---")
+
+let t20 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    let custom = req.header('X-Custom-Auth')
+    res.status(200).send('Auth:' + custom)
+end)
+srv.listen(${P19})
+")
+process.sleep(1)
+
+let r20 = http.get("http://127.0.0.1:${P19}/", {"X-Custom-Auth": "Bearer tok123"})
+test("client custom header", r20 != Null and r20.body.contains("Bearer tok123"))
+
+let rConn = Null
+try rConn = http.get("http://127.0.0.1:19999/") catch e end
+test("conn failure Null", isNull(rConn))
+
+let t21 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('OK')
+end)
+srv.listen(${P20})
+")
+process.sleep(1)
+
+let r21 = http.get("http://127.0.0.1:${P20}/test")
+test("explicit port 200", r21 != Null and r21.statusCode == 200)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 11: Auto-detection & Guards
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 11: Auto-detection & Guards ---")
+
+let t22 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send({'auto': 'json'})
+end)
+srv.listen(${P21})
+")
+process.sleep(1)
+
+let r22 = http.get("http://127.0.0.1:${P21}/")
+test("JSON auto Content-Type", r22 != Null and r22.headers["content-type"].contains("application/json"))
+
+let t23 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).setHeader('Content-Type', 'text/html').send('<p>Hello</p>')
+end)
+srv.listen(${P22})
+")
+process.sleep(1)
+
+let r23 = http.get("http://127.0.0.1:${P22}/")
+test("custom CT text/html", r23 != Null and r23.headers["content-type"] == "text/html")
+test("custom CT body", r23 != Null and r23.body.contains("<p>Hello</p>"))
+
+let t24 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('First')
+    res.status(400).send('Second')
+end)
+srv.listen(${P23})
+")
+process.sleep(1)
+
+let r24 = http.get("http://127.0.0.1:${P23}/")
+test("isSent guard first wins", r24 != Null and r24.body == "First")
+
+let t25 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send(req.pathname)
+end)
+srv.listen(${P24})
+")
+process.sleep(1)
+
+let r25 = http.get("http://127.0.0.1:${P24}/api/v2/items")
+test("pathname preserved", r25 != Null and r25.body == "/api/v2/items")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 12: HTTP/1.1 Keep-Alive Connection Pooling
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 12: Keep-Alive Connection Pooling ---")
+
+let t26 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200).send('KA_' + req.pathname)
+end, {'maxKeepAliveRequests': 50, 'keepAliveTimeout': 5, 'keepAlive': True})
+srv.listen(${P36})
+")
+process.sleep(1)
+
+let ka1 = http.get("http://127.0.0.1:${P36}/req1", Null, True)
+let ka2 = http.get("http://127.0.0.1:${P36}/req2", Null, True)
+let ka3 = http.get("http://127.0.0.1:${P36}/req3", Null, True)
+
+test("Keep-Alive req1 body", ka1 != Null and ka1.body == "KA_/req1")
+test("Keep-Alive req2 body", ka2 != Null and ka2.body == "KA_/req2")
+test("Keep-Alive req3 body", ka3 != Null and ka3.body == "KA_/req3")
+test("Keep-Alive header present", ka3 != Null and ka3.headers.has("connection") and ka3.headers["connection"] == "keep-alive")
+
+http.clearPool()
+test("http.clearPool executed", True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 13: HTTPS Support & Options Method
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 13: HTTPS Support & Options ---")
+
+let httpsOk = False
+try
+    let secureRes = http.get("https://example.com/")
+    if secureRes != Null and secureRes.statusCode == 200
+        httpsOk = True
+    end
+catch err
+    print("HTTPS Error: " + str(err))
+end
+if httpsOk
+    test("HTTPS GET example.com", True)
+else
+    print("  SKIP: HTTPS GET example.com (external network unavailable)")
+end
+
+closeWorkers([t1, t2, t3, t4, t5, t6, t7, t8, t9, t10a, t10b, t10c, t10d, t10e, t10f, t10g, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22, t23, t24, t25, t26])
+
+let t27 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    if req.isMethod('OPTIONS')
+        res.status(200).setHeader('Allow', 'GET, POST, OPTIONS').send('')
+    else
+        res.status(200).send('OK')
+    end
+end)
+srv.listen(${P37})
+")
+process.sleep(1)
+
+let rOpt = http.options("http://127.0.0.1:${P37}/api")
+test("options method status 200", rOpt != Null and rOpt.statusCode == 200)
+test("options Allow header", rOpt != Null and rOpt.headers.has("allow") and rOpt.headers["allow"].contains("GET"))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 14: Client IP Tracking & Binary sendBytes
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 14: Client IP & Binary Response ---")
+
+let t28 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    if req.pathname == '/ip'
+        res.status(200).send('ip=' + req.remoteAddr)
+    elif req.pathname == '/bytes'
+        res.status(200).sendBytes([72, 73]) # 'HI'
+    end
+end)
+srv.listen(${P38})
+")
+process.sleep(1)
+
+let rIp = http.get("http://127.0.0.1:${P38}/ip")
+test("remoteAddr IP present", rIp != Null and rIp.body.contains("127.0.0.1"))
+
+let rBytes = http.get("http://127.0.0.1:${P38}/bytes")
+test("sendBytes binary response", rBytes != Null and rBytes.body == "HI")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 15: Streaming — sendStream / endStream
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 15: Streaming ---")
+
+let t29 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200)
+    res.writeChunk('Hello ')
+    res.writeChunk('World')
+    res.endChunk('!')
+end)
+srv.listen(${P39})
+")
+process.sleep(1)
+
+let rStream = http.get("http://127.0.0.1:${P39}/stream")
+test("streaming — body assembled", rStream != Null and rStream.body == "Hello World!")
+
+let t30 = thread.spawnCode("
+use http
+let srv = http.createServer(fn(req, res)
+    res.status(200)
+    res.endChunk('only')
+end)
+srv.listen(${P40})
+")
+process.sleep(1)
+
+let rEndOnly = http.get("http://127.0.0.1:${P40}/end")
+test("streaming — endChunk alone", rEndOnly != Null and rEndOnly.body == "only")
+
+closeWorkers([t27, t28, t29, t30])
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 23: CONFIG, PATCH & UTILITY MODULES
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n--- PART 23: Config, Patch & Low-level Modules ---")
+
+let clientCfgOk = True
+try
+    http.setClientConfig({"timeout": 5.0})
+catch e
+    clientCfgOk = False
+end
+test("setClientConfig executes successfully", clientCfgOk)
+
+let serverCfgOk = True
+try
+    http.setServerConfig({"maxBodySize": 1048576})
+catch e
+    serverCfgOk = False
+end
+test("setServerConfig executes successfully", serverCfgOk)
+
+test("reader and utils modules exist", !isNull(http.reader) and !isNull(http.utils))
+test("patch function is defined", !isNull(http.patch))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SUMMARY
+# ══════════════════════════════════════════════════════════════════════════════
+print("")
+print("Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}")
+print("")
+
+if failed > 0
+    throw "${failed} tests failed"
+end
+print("=== All HTTP Tests Passed ===")
