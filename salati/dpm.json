@@ -1,0 +1,14 @@
+{
+  "description": "",
+  "entry": "main.dz",
+  "require": {
+    "net": "^1.0.0",
+    "webview": "^0.4.1",
+    "http": "^1.0.0",
+    "dpack": "^1.0.2",
+    "zip": "^0.1.0"
+  },
+  "type": "pure",
+  "name": "salati",
+  "version": "1.0.0"
+}

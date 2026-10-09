@@ -1,0 +1,10 @@
+{
+  "description": "",
+  "entry": "arkanoid.dz",
+  "require": {
+    "raylib": "^0.1.0"
+  },
+  "type": "pure",
+  "name": "arkanoid",
+  "version": "1.0.0"
+}

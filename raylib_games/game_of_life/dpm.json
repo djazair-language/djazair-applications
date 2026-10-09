@@ -1,0 +1,9 @@
+{
+  "name": "game_of_life",
+  "version": "1.0.0",
+  "type": "pure",
+  "entry": "game_of_life.dz",
+  "require": {
+    "raylib": "*"
+  }
+}

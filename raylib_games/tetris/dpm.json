@@ -1,0 +1,9 @@
+{
+  "name": "tetris",
+  "version": "1.0.0",
+  "type": "pure",
+  "entry": "tetris.dz",
+  "require": {
+    "raylib": "*"
+  }
+}

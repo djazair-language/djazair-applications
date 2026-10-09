@@ -1,0 +1,9 @@
+{
+  "name": "minesweeper",
+  "version": "1.0.0",
+  "type": "pure",
+  "entry": "minesweeper.dz",
+  "require": {
+    "raylib": "*"
+  }
+}
