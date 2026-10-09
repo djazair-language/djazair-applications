@@ -3,6 +3,10 @@ title Djazair Prayer Times
 cd /d "%~dp0"
 
 :: 1. Check for known executable names in current or parent directory
+if exist "salati.exe" (
+    start "" "salati.exe" %*
+    exit /b 0
+)
 if exist "prayer_times.exe" (
     start "" "prayer_times.exe" %*
     exit /b 0

@@ -18,10 +18,4 @@ dpack.pack("main.dz", "salati.exe", {
     "portable": True
 })
 
-# Maintain prayer_times.exe copy for backwards compatibility
-try
-    file.copy("salati.exe", "prayer_times.exe")
-catch err
-end
-
-print("\n[SUCCESS] Standalone Executable created: salati.exe & prayer_times.exe")
+print("\n[SUCCESS] Standalone Executable created: salati.exe")
