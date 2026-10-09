@@ -214,6 +214,15 @@ window.PrayerApp = window.PrayerApp || {};
                 state.currentCountry = newCountry;
                 App.Clock.populateCityDropdown(newCountry);
 
+                // Auto-adapt calculation method to country's official default method
+                const cObj = state.countries.find(c => c.code === newCountry);
+                if (cObj && cObj.defaultMethod) {
+                    state.settings.method = cObj.defaultMethod;
+                    if (elements.methodSelect) {
+                        elements.methodSelect.value = String(cObj.defaultMethod);
+                    }
+                }
+
                 const firstCity = elements.citySelect ? elements.citySelect.value : '';
                 state.currentCity = firstCity;
                 await changeLocation(newCountry, firstCity);

@@ -113,11 +113,15 @@ fn registerIpcHandlers(app, tray, services)
     app.bridge.on("changeLocation", fn(payload)
         let country = payload["country"]
         let city = payload["city"]
-        let method = payload.get("method", 19)
-
         let settings = storage.loadSettings()
+        let method = payload.get("method", Null)
+        if isNull(method)
+            method = geo.getCountryDefaultMethod(country)
+        end
+
         settings["country"] = country
         settings["city"] = city
+        settings["method"] = method
         storage.saveSettings(settings)
 
         return api.getPrayerTimes(country, city, method, settings.get("timeOffset", 0))

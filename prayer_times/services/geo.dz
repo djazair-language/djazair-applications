@@ -69,6 +69,7 @@ let ALGERIA_WILAYAS = [
 
 # Supported Countries list with their default calculation method, timezone & key cities
 let COUNTRIES = [
+    # ── 1. الجزائر (Algeria) ──────────────────────────────────────────────────
     {
         "code": "DZ",
         "name": "Algeria",
@@ -77,6 +78,8 @@ let COUNTRIES = [
         "timezone": 1.0,
         "cities": ALGERIA_WILAYAS
     },
+
+    # ── 2. المملكة العربية السعودية (Saudi Arabia) ───────────────────────────
     {
         "code": "SA",
         "name": "Saudi Arabia",
@@ -87,9 +90,22 @@ let COUNTRIES = [
             {"name": "Makkah", "ar": "مكة المكرمة", "lat": 21.389, "lng": 39.857},
             {"name": "Madinah", "ar": "المدينة المنورة", "lat": 24.524, "lng": 39.569},
             {"name": "Riyadh", "ar": "الرياض", "lat": 24.713, "lng": 46.675},
-            {"name": "Jeddah", "ar": "جدة", "lat": 21.485, "lng": 39.192}
+            {"name": "Jeddah", "ar": "جدة", "lat": 21.485, "lng": 39.192},
+            {"name": "Dammam", "ar": "الدمام", "lat": 26.420, "lng": 50.088},
+            {"name": "Taif", "ar": "الطائف", "lat": 21.285, "lng": 40.422},
+            {"name": "Tabuk", "ar": "تبوك", "lat": 28.383, "lng": 36.566},
+            {"name": "Buraidah", "ar": "بريدة", "lat": 26.326, "lng": 43.975},
+            {"name": "Abha", "ar": "أبها", "lat": 18.216, "lng": 42.505},
+            {"name": "Khobar", "ar": "الخبر", "lat": 26.217, "lng": 50.197},
+            {"name": "Najran", "ar": "نجران", "lat": 17.493, "lng": 44.132},
+            {"name": "Jizan", "ar": "جازان", "lat": 16.889, "lng": 42.570},
+            {"name": "Hail", "ar": "حائل", "lat": 27.521, "lng": 41.690},
+            {"name": "Yanbu", "ar": "ينبع", "lat": 24.089, "lng": 38.063},
+            {"name": "Al-Ahsa", "ar": "الأحساء", "lat": 25.383, "lng": 49.586}
         ]
     },
+
+    # ── 3. فلسطين (Palestine) ────────────────────────────────────────────────
     {
         "code": "PS",
         "name": "Palestine",
@@ -98,9 +114,21 @@ let COUNTRIES = [
         "timezone": 2.0,
         "cities": [
             {"name": "Jerusalem", "ar": "القدس الشريف", "lat": 31.768, "lng": 35.213},
-            {"name": "Gaza", "ar": "غزة", "lat": 31.501, "lng": 34.466}
+            {"name": "Gaza", "ar": "غزة", "lat": 31.501, "lng": 34.466},
+            {"name": "Ramallah", "ar": "رام الله", "lat": 31.903, "lng": 35.203},
+            {"name": "Nablus", "ar": "نابلس", "lat": 32.221, "lng": 35.262},
+            {"name": "Hebron", "ar": "الخليل", "lat": 31.532, "lng": 35.099},
+            {"name": "Jenin", "ar": "جنين", "lat": 32.464, "lng": 35.295},
+            {"name": "Bethlehem", "ar": "بيت لحم", "lat": 31.705, "lng": 35.202},
+            {"name": "Tulkarm", "ar": "طولكرم", "lat": 32.312, "lng": 35.028},
+            {"name": "Qalqilya", "ar": "قلقيلية", "lat": 32.196, "lng": 34.981},
+            {"name": "Jericho", "ar": "أريحا", "lat": 31.861, "lng": 35.460},
+            {"name": "Khan Yunis", "ar": "خان يونس", "lat": 31.346, "lng": 34.306},
+            {"name": "Rafah", "ar": "رفح", "lat": 31.282, "lng": 34.245}
         ]
     },
+
+    # ── 4. مصر (Egypt) ───────────────────────────────────────────────────────
     {
         "code": "EG",
         "name": "Egypt",
@@ -109,9 +137,24 @@ let COUNTRIES = [
         "timezone": 2.0,
         "cities": [
             {"name": "Cairo", "ar": "القاهرة", "lat": 30.044, "lng": 31.235},
-            {"name": "Alexandria", "ar": "الإسكندرية", "lat": 31.200, "lng": 29.918}
+            {"name": "Alexandria", "ar": "الإسكندرية", "lat": 31.200, "lng": 29.918},
+            {"name": "Giza", "ar": "الجيزة", "lat": 30.013, "lng": 31.208},
+            {"name": "Port Said", "ar": "بورسعيد", "lat": 31.265, "lng": 32.301},
+            {"name": "Suez", "ar": "السويس", "lat": 29.966, "lng": 32.549},
+            {"name": "Mansoura", "ar": "المنصورة", "lat": 31.040, "lng": 31.378},
+            {"name": "Tanta", "ar": "طنطا", "lat": 30.786, "lng": 31.000},
+            {"name": "Asyut", "ar": "أسيوط", "lat": 27.178, "lng": 31.185},
+            {"name": "Ismailia", "ar": "الإسماعيلية", "lat": 30.604, "lng": 32.272},
+            {"name": "Faiyum", "ar": "الفيوم", "lat": 29.308, "lng": 30.842},
+            {"name": "Zagazig", "ar": "الزقازيق", "lat": 30.587, "lng": 31.502},
+            {"name": "Aswan", "ar": "أسوان", "lat": 24.088, "lng": 32.899},
+            {"name": "Luxor", "ar": "الأقصر", "lat": 25.687, "lng": 32.639},
+            {"name": "Hurghada", "ar": "الغردقة", "lat": 27.257, "lng": 33.812},
+            {"name": "Sharm El Sheikh", "ar": "شرم الشيخ", "lat": 27.915, "lng": 34.329}
         ]
     },
+
+    # ── 5. المغرب (Morocco) ──────────────────────────────────────────────────
     {
         "code": "MA",
         "name": "Morocco",
@@ -120,9 +163,24 @@ let COUNTRIES = [
         "timezone": 1.0,
         "cities": [
             {"name": "Rabat", "ar": "الرباط", "lat": 34.020, "lng": -6.841},
-            {"name": "Casablanca", "ar": "الدار البيضاء", "lat": 33.573, "lng": -7.589}
+            {"name": "Casablanca", "ar": "الدار البيضاء", "lat": 33.573, "lng": -7.589},
+            {"name": "Marrakech", "ar": "مراكش", "lat": 31.629, "lng": -7.981},
+            {"name": "Fes", "ar": "فاس", "lat": 34.018, "lng": -5.007},
+            {"name": "Tangier", "ar": "طنجة", "lat": 35.759, "lng": -5.833},
+            {"name": "Agadir", "ar": "أكادير", "lat": 30.427, "lng": -9.598},
+            {"name": "Meknes", "ar": "مكناس", "lat": 33.893, "lng": -5.547},
+            {"name": "Oujda", "ar": "وجدة", "lat": 34.686, "lng": -1.911},
+            {"name": "Kenitra", "ar": "القنيطرة", "lat": 34.261, "lng": -6.580},
+            {"name": "Tetouan", "ar": "تطوان", "lat": 35.588, "lng": -5.362},
+            {"name": "Safi", "ar": "آسفي", "lat": 32.299, "lng": -9.237},
+            {"name": "Nador", "ar": "الناظور", "lat": 35.168, "lng": -2.933},
+            {"name": "Beni Mellal", "ar": "بني ملال", "lat": 32.337, "lng": -6.349},
+            {"name": "Laayoune", "ar": "العيون", "lat": 27.125, "lng": -13.162},
+            {"name": "Dakhla", "ar": "الداخلة", "lat": 23.684, "lng": -15.957}
         ]
     },
+
+    # ── 6. تونس (Tunisia) ────────────────────────────────────────────────────
     {
         "code": "TN",
         "name": "Tunisia",
@@ -131,9 +189,23 @@ let COUNTRIES = [
         "timezone": 1.0,
         "cities": [
             {"name": "Tunis", "ar": "تونس", "lat": 36.806, "lng": 10.181},
-            {"name": "Sfax", "ar": "صفاقس", "lat": 34.740, "lng": 10.760}
+            {"name": "Sfax", "ar": "صفاقس", "lat": 34.740, "lng": 10.760},
+            {"name": "Sousse", "ar": "سوسة", "lat": 35.825, "lng": 10.636},
+            {"name": "Kairouan", "ar": "القيروان", "lat": 35.678, "lng": 10.096},
+            {"name": "Bizerte", "ar": "بنزرت", "lat": 37.274, "lng": 9.873},
+            {"name": "Gabes", "ar": "قابس", "lat": 33.881, "lng": 10.098},
+            {"name": "Ariana", "ar": "أريانة", "lat": 36.866, "lng": 10.195},
+            {"name": "Gafsa", "ar": "قفصة", "lat": 34.425, "lng": 8.784},
+            {"name": "Monastir", "ar": "المنستير", "lat": 35.777, "lng": 10.826},
+            {"name": "Nabeul", "ar": "نابل", "lat": 36.456, "lng": 10.737},
+            {"name": "Medenine", "ar": "مدنين", "lat": 33.354, "lng": 10.505},
+            {"name": "Beja", "ar": "باجة", "lat": 36.725, "lng": 9.181},
+            {"name": "Jendouba", "ar": "جندوبة", "lat": 36.501, "lng": 8.780},
+            {"name": "Tozeur", "ar": "توزر", "lat": 33.919, "lng": 8.133}
         ]
     },
+
+    # ── 7. الإمارات العربية المتحدة (United Arab Emirates) ─────────────────────
     {
         "code": "AE",
         "name": "United Arab Emirates",
@@ -142,9 +214,17 @@ let COUNTRIES = [
         "timezone": 4.0,
         "cities": [
             {"name": "Abu Dhabi", "ar": "أبو ظبي", "lat": 24.453, "lng": 54.377},
-            {"name": "Dubai", "ar": "دبي", "lat": 25.204, "lng": 55.270}
+            {"name": "Dubai", "ar": "دبي", "lat": 25.204, "lng": 55.270},
+            {"name": "Sharjah", "ar": "الشارقة", "lat": 25.357, "lng": 55.403},
+            {"name": "Ajman", "ar": "عجمان", "lat": 25.405, "lng": 55.513},
+            {"name": "Ras Al Khaimah", "ar": "رأس الخيمة", "lat": 25.789, "lng": 55.943},
+            {"name": "Fujairah", "ar": "الفجيرة", "lat": 25.128, "lng": 56.326},
+            {"name": "Umm Al Quwain", "ar": "أم القيوين", "lat": 25.564, "lng": 55.555},
+            {"name": "Al Ain", "ar": "العين", "lat": 24.207, "lng": 55.744}
         ]
     },
+
+    # ── 8. قطر (Qatar) ───────────────────────────────────────────────────────
     {
         "code": "QA",
         "name": "Qatar",
@@ -152,9 +232,16 @@ let COUNTRIES = [
         "defaultMethod": 4,
         "timezone": 3.0,
         "cities": [
-            {"name": "Doha", "ar": "الدوحة", "lat": 25.285, "lng": 51.531}
+            {"name": "Doha", "ar": "الدوحة", "lat": 25.285, "lng": 51.531},
+            {"name": "Al Rayyan", "ar": "الريان", "lat": 25.291, "lng": 51.424},
+            {"name": "Al Wakrah", "ar": "الوكرة", "lat": 25.176, "lng": 51.603},
+            {"name": "Al Khor", "ar": "الخور", "lat": 25.683, "lng": 51.505},
+            {"name": "Lusail", "ar": "لوسيل", "lat": 25.420, "lng": 51.490},
+            {"name": "Umm Salal", "ar": "أم صلال", "lat": 25.413, "lng": 51.405}
         ]
     },
+
+    # ── 9. الكويت (Kuwait) ───────────────────────────────────────────────────
     {
         "code": "KW",
         "name": "Kuwait",
@@ -162,9 +249,278 @@ let COUNTRIES = [
         "defaultMethod": 4,
         "timezone": 3.0,
         "cities": [
-            {"name": "Kuwait City", "ar": "مدينة الكويت", "lat": 29.375, "lng": 47.977}
+            {"name": "Kuwait City", "ar": "مدينة الكويت", "lat": 29.375, "lng": 47.977},
+            {"name": "Hawally", "ar": "حولي", "lat": 29.332, "lng": 48.028},
+            {"name": "Salmiya", "ar": "السالمية", "lat": 29.334, "lng": 48.076},
+            {"name": "Al Ahmadi", "ar": "الأحمدي", "lat": 29.076, "lng": 48.083},
+            {"name": "Al Jahra", "ar": "الجهراء", "lat": 29.337, "lng": 47.658},
+            {"name": "Al Farwaniyah", "ar": "الفروانية", "lat": 29.277, "lng": 47.958}
         ]
     },
+
+    # ── 10. سلطنة عمان (Oman) ────────────────────────────────────────────────
+    {
+        "code": "OM",
+        "name": "Oman",
+        "ar": "سلطنة عمان",
+        "defaultMethod": 4,
+        "timezone": 4.0,
+        "cities": [
+            {"name": "Muscat", "ar": "مسقط", "lat": 23.588, "lng": 58.382},
+            {"name": "Salalah", "ar": "صلالة", "lat": 17.015, "lng": 54.092},
+            {"name": "Sohar", "ar": "صحار", "lat": 24.346, "lng": 56.707},
+            {"name": "Nizwa", "ar": "نزوى", "lat": 22.933, "lng": 57.533},
+            {"name": "Sur", "ar": "صور", "lat": 22.566, "lng": 59.528},
+            {"name": "Seeb", "ar": "السيب", "lat": 23.670, "lng": 58.189},
+            {"name": "Ibri", "ar": "عبري", "lat": 23.225, "lng": 56.515},
+            {"name": "Rustaq", "ar": "الرستاق", "lat": 23.390, "lng": 57.424},
+            {"name": "Buraimi", "ar": "البريمي", "lat": 24.250, "lng": 55.793}
+        ]
+    },
+
+    # ── 11. البحرين (Bahrain) ────────────────────────────────────────────────
+    {
+        "code": "BH",
+        "name": "Bahrain",
+        "ar": "البحرين",
+        "defaultMethod": 4,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Manama", "ar": "المنامة", "lat": 26.228, "lng": 50.586},
+            {"name": "Muharraq", "ar": "المحرق", "lat": 26.257, "lng": 50.611},
+            {"name": "Riffa", "ar": "الرفاع", "lat": 26.130, "lng": 50.555},
+            {"name": "Hamad Town", "ar": "مدينة حمد", "lat": 26.115, "lng": 50.506},
+            {"name": "Isa Town", "ar": "مدينة عيسى", "lat": 26.173, "lng": 50.547},
+            {"name": "Sitra", "ar": "سترة", "lat": 26.155, "lng": 50.620}
+        ]
+    },
+
+    # ── 12. الأردن (Jordan) ──────────────────────────────────────────────────
+    {
+        "code": "JO",
+        "name": "Jordan",
+        "ar": "الأردن",
+        "defaultMethod": 3,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Amman", "ar": "عمّان", "lat": 31.945, "lng": 35.928},
+            {"name": "Zarqa", "ar": "الزرقاء", "lat": 32.072, "lng": 36.087},
+            {"name": "Irbid", "ar": "إربد", "lat": 32.556, "lng": 35.850},
+            {"name": "Aqaba", "ar": "العقبة", "lat": 29.532, "lng": 35.006},
+            {"name": "Salt", "ar": "السلط", "lat": 32.039, "lng": 35.727},
+            {"name": "Madaba", "ar": "مادبا", "lat": 31.719, "lng": 35.793},
+            {"name": "Jerash", "ar": "جرش", "lat": 32.274, "lng": 35.896},
+            {"name": "Ajloun", "ar": "عجلون", "lat": 32.332, "lng": 35.751},
+            {"name": "Karak", "ar": "الكرك", "lat": 31.185, "lng": 35.704},
+            {"name": "Mafraq", "ar": "المفرق", "lat": 32.343, "lng": 36.208},
+            {"name": "Ma'an", "ar": "معان", "lat": 30.192, "lng": 35.733},
+            {"name": "Tafilah", "ar": "الطفيلة", "lat": 30.837, "lng": 35.604}
+        ]
+    },
+
+    # ── 13. العراق (Iraq) ────────────────────────────────────────────────────
+    {
+        "code": "IQ",
+        "name": "Iraq",
+        "ar": "العراق",
+        "defaultMethod": 3,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Baghdad", "ar": "بغداد", "lat": 33.315, "lng": 44.366},
+            {"name": "Basra", "ar": "البصرة", "lat": 30.508, "lng": 47.783},
+            {"name": "Mosul", "ar": "الموصل", "lat": 36.340, "lng": 43.130},
+            {"name": "Erbil", "ar": "أربيل", "lat": 36.191, "lng": 44.009},
+            {"name": "Najaf", "ar": "النجف الأشرف", "lat": 32.000, "lng": 44.333},
+            {"name": "Karbala", "ar": "كربلاء", "lat": 32.616, "lng": 44.024},
+            {"name": "Kirkuk", "ar": "كركوك", "lat": 35.468, "lng": 44.392},
+            {"name": "Sulaymaniyah", "ar": "السليمانية", "lat": 35.566, "lng": 45.416},
+            {"name": "Nasiriyah", "ar": "الناصرية", "lat": 31.057, "lng": 46.257},
+            {"name": "Amarah", "ar": "العمارة", "lat": 31.844, "lng": 47.144},
+            {"name": "Hillah", "ar": "الحلة", "lat": 32.483, "lng": 44.433},
+            {"name": "Ramadi", "ar": "الرمادي", "lat": 33.433, "lng": 43.300},
+            {"name": "Fallujah", "ar": "الفلوجة", "lat": 33.350, "lng": 43.783},
+            {"name": "Samarra", "ar": "سامراء", "lat": 34.198, "lng": 43.874}
+        ]
+    },
+
+    # ── 14. اليمن (Yemen) ────────────────────────────────────────────────────
+    {
+        "code": "YE",
+        "name": "Yemen",
+        "ar": "اليمن",
+        "defaultMethod": 4,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Sana'a", "ar": "صنعاء", "lat": 15.369, "lng": 44.191},
+            {"name": "Aden", "ar": "عدن", "lat": 12.785, "lng": 45.018},
+            {"name": "Taiz", "ar": "تعز", "lat": 13.579, "lng": 44.020},
+            {"name": "Al Hudaydah", "ar": "الحديدة", "lat": 14.797, "lng": 42.954},
+            {"name": "Mukalla", "ar": "المكلا", "lat": 14.542, "lng": 49.124},
+            {"name": "Ibb", "ar": "إب", "lat": 13.966, "lng": 44.183},
+            {"name": "Dhamar", "ar": "ذمار", "lat": 14.542, "lng": 44.405},
+            {"name": "Sayyan", "ar": "سيئون", "lat": 15.938, "lng": 48.790},
+            {"name": "Marib", "ar": "مأرب", "lat": 15.462, "lng": 45.325},
+            {"name": "Zinjibar", "ar": "زنجبار", "lat": 13.128, "lng": 45.380}
+        ]
+    },
+
+    # ── 15. سوريا (Syria) ────────────────────────────────────────────────────
+    {
+        "code": "SY",
+        "name": "Syria",
+        "ar": "سوريا",
+        "defaultMethod": 3,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Damascus", "ar": "دمشق", "lat": 33.513, "lng": 36.276},
+            {"name": "Aleppo", "ar": "حلب", "lat": 36.202, "lng": 37.134},
+            {"name": "Homs", "ar": "حمص", "lat": 34.732, "lng": 36.713},
+            {"name": "Latakia", "ar": "اللاذقية", "lat": 35.531, "lng": 35.790},
+            {"name": "Hama", "ar": "حماة", "lat": 35.131, "lng": 36.757},
+            {"name": "Deir ez-Zor", "ar": "دير الزور", "lat": 35.335, "lng": 40.140},
+            {"name": "Tartus", "ar": "طرطوس", "lat": 34.889, "lng": 35.886},
+            {"name": "Raqqa", "ar": "الرقة", "lat": 35.950, "lng": 39.010},
+            {"name": "Idlib", "ar": "إدلب", "lat": 35.930, "lng": 36.633},
+            {"name": "Daraa", "ar": "درعا", "lat": 32.625, "lng": 36.103},
+            {"name": "As-Suwayda", "ar": "السويداء", "lat": 32.708, "lng": 36.569},
+            {"name": "Qamishli", "ar": "القامشلي", "lat": 37.050, "lng": 41.233}
+        ]
+    },
+
+    # ── 16. لبنان (Lebanon) ──────────────────────────────────────────────────
+    {
+        "code": "LB",
+        "name": "Lebanon",
+        "ar": "لبنان",
+        "defaultMethod": 3,
+        "timezone": 2.0,
+        "cities": [
+            {"name": "Beirut", "ar": "بيروت", "lat": 33.893, "lng": 35.501},
+            {"name": "Tripoli", "ar": "طرابلس", "lat": 34.436, "lng": 35.849},
+            {"name": "Sidon", "ar": "صيدا", "lat": 33.563, "lng": 35.372},
+            {"name": "Tyre", "ar": "صور", "lat": 33.273, "lng": 35.193},
+            {"name": "Baalbek", "ar": "بعلبك", "lat": 34.005, "lng": 36.218},
+            {"name": "Zahle", "ar": "زحلة", "lat": 33.846, "lng": 35.901},
+            {"name": "Nabatieh", "ar": "النبطية", "lat": 33.378, "lng": 35.483},
+            {"name": "Jounieh", "ar": "جونيه", "lat": 33.981, "lng": 35.617},
+            {"name": "Byblos", "ar": "جبيل", "lat": 34.123, "lng": 35.651}
+        ]
+    },
+
+    # ── 17. السودان (Sudan) ──────────────────────────────────────────────────
+    {
+        "code": "SD",
+        "name": "Sudan",
+        "ar": "السودان",
+        "defaultMethod": 5,
+        "timezone": 2.0,
+        "cities": [
+            {"name": "Khartoum", "ar": "الخرطوم", "lat": 15.500, "lng": 32.559},
+            {"name": "Omdurman", "ar": "أم درمان", "lat": 15.650, "lng": 32.483},
+            {"name": "Port Sudan", "ar": "بورتسودان", "lat": 19.617, "lng": 37.216},
+            {"name": "Kassala", "ar": "كسلا", "lat": 15.450, "lng": 36.400},
+            {"name": "El Obeid", "ar": "الأبيض", "lat": 13.184, "lng": 30.216},
+            {"name": "Nyala", "ar": "نيالا", "lat": 12.050, "lng": 24.883},
+            {"name": "Wad Madani", "ar": "ود مدني", "lat": 14.401, "lng": 33.519},
+            {"name": "Al Qadarif", "ar": "القضارف", "lat": 14.034, "lng": 35.383},
+            {"name": "Kosti", "ar": "كوستي", "lat": 13.162, "lng": 32.663},
+            {"name": "Atbara", "ar": "عطبرة", "lat": 17.702, "lng": 33.986},
+            {"name": "Al-Fashir", "ar": "الفاشر", "lat": 13.627, "lng": 25.349}
+        ]
+    },
+
+    # ── 18. ليبيا (Libya) ────────────────────────────────────────────────────
+    {
+        "code": "LY",
+        "name": "Libya",
+        "ar": "ليبيا",
+        "defaultMethod": 3,
+        "timezone": 2.0,
+        "cities": [
+            {"name": "Tripoli", "ar": "طرابلس", "lat": 32.887, "lng": 13.191},
+            {"name": "Benghazi", "ar": "بنغازي", "lat": 32.116, "lng": 20.066},
+            {"name": "Misrata", "ar": "مصراتة", "lat": 32.375, "lng": 15.092},
+            {"name": "Bayda", "ar": "البيضاء", "lat": 32.762, "lng": 21.755},
+            {"name": "Zawiya", "ar": "الزاوية", "lat": 32.752, "lng": 12.727},
+            {"name": "Tobruk", "ar": "طبرق", "lat": 32.083, "lng": 23.976},
+            {"name": "Sabha", "ar": "سبها", "lat": 27.037, "lng": 14.428},
+            {"name": "Sirte", "ar": "سرت", "lat": 31.208, "lng": 16.588},
+            {"name": "Derna", "ar": "درنة", "lat": 32.767, "lng": 22.636},
+            {"name": "Zliten", "ar": "زليتن", "lat": 32.467, "lng": 14.568},
+            {"name": "Gharyan", "ar": "غريان", "lat": 32.172, "lng": 13.020},
+            {"name": "Kufra", "ar": "الكفرة", "lat": 24.183, "lng": 23.316}
+        ]
+    },
+
+    # ── 19. موريتانيا (Mauritania) ───────────────────────────────────────────
+    {
+        "code": "MR",
+        "name": "Mauritania",
+        "ar": "موريتانيا",
+        "defaultMethod": 3,
+        "timezone": 0.0,
+        "cities": [
+            {"name": "Nouakchott", "ar": "نواكشوط", "lat": 18.073, "lng": -15.958},
+            {"name": "Nouadhibou", "ar": "نواذيبو", "lat": 20.931, "lng": -17.034},
+            {"name": "Kiffa", "ar": "كيفة", "lat": 16.616, "lng": -11.404},
+            {"name": "Rosso", "ar": "روصو", "lat": 16.513, "lng": -15.808},
+            {"name": "Kaedi", "ar": "كيهيدي", "lat": 16.150, "lng": -13.500},
+            {"name": "Atar", "ar": "أطار", "lat": 20.516, "lng": -13.050},
+            {"name": "Zouerate", "ar": "الزويرات", "lat": 22.718, "lng": -12.452},
+            {"name": "Nema", "ar": "النعمة", "lat": 16.616, "lng": -7.250}
+        ]
+    },
+
+    # ── 20. الصومال (Somalia) ────────────────────────────────────────────────
+    {
+        "code": "SO",
+        "name": "Somalia",
+        "ar": "الصومال",
+        "defaultMethod": 3,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Mogadishu", "ar": "مقديشو", "lat": 2.046, "lng": 45.318},
+            {"name": "Hargeisa", "ar": "هرجيسا", "lat": 9.560, "lng": 44.065},
+            {"name": "Bosaso", "ar": "بوساسو", "lat": 11.284, "lng": 49.182},
+            {"name": "Kismayo", "ar": "كيسمايو", "lat": -0.358, "lng": 42.545},
+            {"name": "Berbera", "ar": "بربرة", "lat": 10.439, "lng": 45.014},
+            {"name": "Baidoa", "ar": "بيدوا", "lat": 3.113, "lng": 43.649},
+            {"name": "Galkayo", "ar": "جالكعيو", "lat": 6.769, "lng": 47.430}
+        ]
+    },
+
+    # ── 21. جيبوتي (Djibouti) ────────────────────────────────────────────────
+    {
+        "code": "DJ",
+        "name": "Djibouti",
+        "ar": "جيبوتي",
+        "defaultMethod": 3,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Djibouti City", "ar": "مدينة جيبوتي", "lat": 11.572, "lng": 43.145},
+            {"name": "Ali Sabieh", "ar": "علي صبيح", "lat": 11.155, "lng": 42.712},
+            {"name": "Tadjoura", "ar": "تاجورة", "lat": 11.785, "lng": 42.884},
+            {"name": "Obock", "ar": "أوبوك", "lat": 11.962, "lng": 43.290},
+            {"name": "Dikhil", "ar": "دخيل", "lat": 11.111, "lng": 42.373}
+        ]
+    },
+
+    # ── 22. جزر القمر (Comoros) ──────────────────────────────────────────────
+    {
+        "code": "KM",
+        "name": "Comoros",
+        "ar": "جزر القمر",
+        "defaultMethod": 3,
+        "timezone": 3.0,
+        "cities": [
+            {"name": "Moroni", "ar": "موروني", "lat": -11.717, "lng": 43.255},
+            {"name": "Mutsamudu", "ar": "موتسامودو", "lat": -12.167, "lng": 44.400},
+            {"name": "Fomboni", "ar": "فومبوني", "lat": -12.283, "lng": 43.742},
+            {"name": "Domoni", "ar": "دوموني", "lat": -12.256, "lng": 44.531}
+        ]
+    },
+
+    # ── 23. تركيا (Turkey) ───────────────────────────────────────────────────
     {
         "code": "TR",
         "name": "Turkey",
@@ -173,9 +529,16 @@ let COUNTRIES = [
         "timezone": 3.0,
         "cities": [
             {"name": "Istanbul", "ar": "إسطنبول", "lat": 41.008, "lng": 28.978},
-            {"name": "Ankara", "ar": "أنقرة", "lat": 39.933, "lng": 32.859}
+            {"name": "Ankara", "ar": "أنقرة", "lat": 39.933, "lng": 32.859},
+            {"name": "Izmir", "ar": "إزمير", "lat": 38.423, "lng": 27.142},
+            {"name": "Bursa", "ar": "بورصة", "lat": 40.188, "lng": 29.061},
+            {"name": "Antalya", "ar": "أنطاليا", "lat": 36.896, "lng": 30.713},
+            {"name": "Gaziantep", "ar": "غازي عنتاب", "lat": 37.066, "lng": 37.383},
+            {"name": "Konya", "ar": "قونية", "lat": 37.874, "lng": 32.493}
         ]
     },
+
+    # ── 24. المملكة المتحدة (United Kingdom) ──────────────────────────────────
     {
         "code": "GB",
         "name": "United Kingdom",
@@ -183,9 +546,15 @@ let COUNTRIES = [
         "defaultMethod": 3,
         "timezone": 0.0,
         "cities": [
-            {"name": "London", "ar": "لندن", "lat": 51.507, "lng": -0.127}
+            {"name": "London", "ar": "لندن", "lat": 51.507, "lng": -0.127},
+            {"name": "Birmingham", "ar": "برمنغهام", "lat": 52.486, "lng": -1.890},
+            {"name": "Manchester", "ar": "مانشستر", "lat": 53.480, "lng": -2.242},
+            {"name": "Leeds", "ar": "ليدز", "lat": 53.800, "lng": -1.549},
+            {"name": "Glasgow", "ar": "غلاسكو", "lat": 55.864, "lng": -4.251}
         ]
     },
+
+    # ── 25. فرنسا (France) ───────────────────────────────────────────────────
     {
         "code": "FR",
         "name": "France",
@@ -193,7 +562,12 @@ let COUNTRIES = [
         "defaultMethod": 3,
         "timezone": 1.0,
         "cities": [
-            {"name": "Paris", "ar": "باريس", "lat": 48.856, "lng": 2.352}
+            {"name": "Paris", "ar": "باريس", "lat": 48.856, "lng": 2.352},
+            {"name": "Marseille", "ar": "مارسيليا", "lat": 43.296, "lng": 5.369},
+            {"name": "Lyon", "ar": "ليون", "lat": 45.764, "lng": 4.835},
+            {"name": "Toulouse", "ar": "تولوز", "lat": 43.604, "lng": 1.444},
+            {"name": "Nice", "ar": "نيس", "lat": 43.710, "lng": 7.262},
+            {"name": "Strasbourg", "ar": "ستراسبورغ", "lat": 48.573, "lng": 7.752}
         ]
     }
 ]
@@ -219,6 +593,18 @@ fn getCountryTimezone(countryCode)
         end
     end
     return 1.0
+end
+
+fn getCountryDefaultMethod(countryCode)
+    for c in COUNTRIES
+        if c["code"] == countryCode or c["name"] == countryCode
+            if c.has("defaultMethod")
+                return c["defaultMethod"]
+            end
+            return 19
+        end
+    end
+    return 19
 end
 
 fn getCountriesList()
