@@ -171,9 +171,9 @@
         <div id="tabPrayers" class="tab-content active">
             <!-- Location Selector Bar (Modern Pill Design) -->
             <div class="location-bar">
-                <div class="pill-selector-group">
+                <div class="pill-selector-group group-country">
                     <div class="selector-icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
                             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                         </svg>
                     </div>
@@ -181,29 +181,29 @@
                     <select id="countrySelect" class="pill-select"></select>
                 </div>
 
-                <div class="pill-selector-group">
+                <div class="pill-selector-group group-city">
                     <div class="selector-icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
                             <path d="M15 11V5l-3-3-3 3v2H3v14h18V11h-6zm-8 8H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5V9h2v2zm6 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V9h2v2zm0-4h-2V5h2v2zm6 12h-2v-2h2v2zm0-4h-2v-2h2v2z"/>
                         </svg>
                     </div>
-                    <span class="selector-label">المدينة / الولاية:</span>
+                    <span class="selector-label">المدينة:</span>
                     <select id="citySelect" class="pill-select"></select>
                 </div>
 
-                <div class="pill-selector-group city-search-group" title="بحث سريع في المدن والولايات">
+                <div class="pill-selector-group city-search-group" title="بحث سريع في المدن">
                     <div class="selector-icon">
-                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="11" cy="11" r="8"></circle>
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
                     </div>
-                    <input type="text" id="citySearchInput" class="pill-search-input" placeholder="🔍 بحث سريع في المدن..." autocomplete="off">
+                    <input type="text" id="citySearchInput" class="pill-search-input" placeholder="ابحث عن مدينة..." autocomplete="off">
                     <button id="btnClearCitySearch" class="clear-search-btn" title="مسح البحث" style="display: none;">&times;</button>
                 </div>
 
                 <button id="btnAutoLoc" class="pill-btn" title="تحديد موقعي التلقائي عبر الـ IP">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                     </svg>
                     <span>تحديد تلقائي</span>
