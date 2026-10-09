@@ -1,7 +1,7 @@
 <div align="center">
 
-# 🕌 مواقيت الصلاة — لغة جزائر
-### Djazair Prayer Times Desktop Application
+# 🕌 صلاتي (Salati) — لغة جزائر
+### Salati (Djazair Prayer Times) Desktop Application
 
 [![Language: Djazair](https://img.shields.io/badge/Language-Djazair-008037.svg?style=for-the-badge&logo=algeria)](https://github.com/djazair-language)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6.svg?style=for-the-badge&logo=windows)](https://microsoft.com)

@@ -25,11 +25,11 @@ import "bridge/ipc.dz" as ipc
 # Resolve dynamic application metadata
 let iconPath = platform.getAppIconPath()
 let appBaseName = platform.getAppBaseName()
-let displayAppName = "Djazair Prayer Times"
-if appBaseName != "prayer_times" and appBaseName != "djazair_prayer" and appBaseName != "main"
+let displayAppName = "صلاتي — Salati"
+if appBaseName != "prayer_times" and appBaseName != "djazair_prayer" and appBaseName != "main" and appBaseName != "salati"
     displayAppName = appBaseName
 end
-let winTitle = "مواقيت الصلاة — " + displayAppName
+let winTitle = displayAppName
 
 # Initialize native application window
 let app = webview.createWindow({

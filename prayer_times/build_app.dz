@@ -5,16 +5,23 @@
 # =============================================================================
 
 use dpack
+use file
 
 print("====================================================")
-print("  Bundling Djazair Prayer Times into Standalone EXE")
+print("  Bundling Salati (صلاتي) into Standalone EXE")
 print("====================================================")
 
-dpack.pack("main.dz", "prayer_times.exe", {
+dpack.pack("main.dz", "salati.exe", {
     "extensions": ["webview", "net", "http"],
     "console": False,
     "assets": True,
     "portable": True
 })
 
-print("\n[SUCCESS] Standalone Executable created: prayer_times.exe")
+# Maintain prayer_times.exe copy for backwards compatibility
+try
+    file.copy("salati.exe", "prayer_times.exe")
+catch err
+end
+
+print("\n[SUCCESS] Standalone Executable created: salati.exe & prayer_times.exe")

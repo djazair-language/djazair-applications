@@ -7,9 +7,9 @@
 use webview
 
 # Creates and configures the native system tray icon and menu
-fn createTray(app, iconPath, title = "مواقيت الصلاة — Djazair Prayer Times")
+fn createTray(app, iconPath, title = "صلاتي — Salati")
     let trayMenu = new webview.Menu()
-    trayMenu.addItem("فتح مواقيت الصلاة (Open)", fn()
+    trayMenu.addItem("فتح صلاتي (Open)", fn()
         app.window.show()
         app.window.restore()
         app.window.center()
@@ -38,7 +38,7 @@ fn performMinimizeToTray(app, tray)
     app.window.hide()
     try
         tray.showBalloon(
-            "مواقيت الصلاة — شريط المهام",
+            "صلاتي — شريط المهام",
             "يعمل التطبيق الآن في الخلفية لتنبيهك بالآذان والأذكار.\nانقر على الأيقونة بجانب الساعة لفتح البرنامج مجدداً.",
             4
         )

@@ -16,8 +16,8 @@
   "ramadanMode": false,
   "adhanEnabled": true,
   "tasbeehCount": 6,
-  "startupName": "Djazair Prayer Times",
-  "customExeName": "djazair_prayer.exe",
+  "startupName": "Salati",
+  "customExeName": "",
   "prayerVoices": {
     "Maghrib": "chime",
     "Dhuhr": "chime",
